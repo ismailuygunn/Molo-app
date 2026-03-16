@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readdir, rename, stat } from "fs/promises";
+import { readdir, stat, cp, rm } from "fs/promises";
 import { join, resolve } from "path";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +55,9 @@ export async function POST() {
         continue;
       } catch { /* target doesn't exist, good */ }
       
-      await rename(oldPath, newPath);
+      // Cross-device safe: copy then delete (EXDEV fix for Docker mounts)
+      await cp(oldPath, newPath, { recursive: true });
+      await rm(oldPath, { recursive: true, force: true });
       results.push({ old: entry, new: newName, status: "renamed" });
     }
     return NextResponse.json({ results });
