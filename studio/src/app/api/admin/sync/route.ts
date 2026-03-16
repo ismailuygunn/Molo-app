@@ -19,7 +19,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "project param required" }, { status: 400 });
     }
 
-    // Security: only allow safe project IDs
     if (!/^[a-z0-9_\-]+$/i.test(projectId)) {
       return NextResponse.json({ error: "invalid project id" }, { status: 400 });
     }
@@ -32,33 +31,23 @@ export async function POST(req: NextRequest) {
     const tarPath = join("/tmp", `${projectId}.tar.gz`);
     await writeFile(tarPath, Buffer.from(body));
 
-    // Extract into project dir
-    execSync(`tar xzf "${tarPath}" -C "${projectDir}" --strip-components=1`, {
-      timeout: 60000,
-    });
-
-    // Clean up
+    // Extract — strip-components=0 because tar was created with -C dir .
+    execSync(`tar xzf "${tarPath}" -C "${projectDir}"`, { timeout: 120000 });
     execSync(`rm -f "${tarPath}"`);
 
-    // Count files
     let fileCount = 0;
     try {
       const count = execSync(`find "${projectDir}" -type f | wc -l`).toString().trim();
       fileCount = parseInt(count) || 0;
     } catch { /* ignore */ }
 
-    return NextResponse.json({
-      status: "ok",
-      project: projectId,
-      files: fileCount,
-    });
+    return NextResponse.json({ status: "ok", project: projectId, files: fileCount });
   } catch (error) {
     console.error("Sync error:", error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
 
-/** GET: list current projects on volume */
 export async function GET() {
   try {
     const entries = await readdir(PROJECTS_DIR);
