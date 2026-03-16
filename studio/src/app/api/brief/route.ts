@@ -17,7 +17,9 @@ export async function POST(req: NextRequest) {
     const today = new Date().toISOString().split("T")[0];
     const slug = konu
       .toLowerCase()
-      .replace(/[^a-z0-9äöüşçğı]+/g, "-")
+      .replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u")
+      .replace(/ş/g, "s").replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i")
+      .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")
       .slice(0, 40);
     const projectId = `${today}_${slug}`;
