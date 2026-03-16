@@ -210,6 +210,15 @@ COMPACT_LOCK = """Character identity locked to source image. Same face, eyes, mo
 
 COMPACT_MOTION = """Movement: minimal, controlled, precise. Small upper-body motion only. Tiny head nods allowed. Front-facing, direct eye contact. No big turns, no bouncing, no elastic/rubbery motion, no wobble. Face stable throughout, no warping, no expression spikes. Lip sync: speech-driven only, moderate openings, no glow, no jitter. Gestures: very small and elegant only."""
 
+# ─── Ekran (Yatay 16:9) Premium Prompt Blokları ───
+COMPACT_LOCK_EKRAN = """Animate the referenced MOLO mascot in a premium horizontal commercial scene. Keep the character fully locked to the reference: same face, same eyes, same mouth design, same body proportions, same blue-white colors, same materials, same silhouette, and the exact same hologram unit on top of the head. Do not redesign or alter MOLO in any way."""
+
+COMPACT_MOTION_EKRAN = """Motion rules: very small, precise, premium movement. Slightly robotic timing. No elastic body motion, no cartoon wobble, no exaggerated rocking, no big gestures, no panic flailing, no drifting, no unstable physics.
+Face rules: no face morphing, no cheek distortion, no eye warping, no sudden expression spikes, no random facial glow, no lighting flicker on mouth or eyes.
+Mouth rules: if silent keep mouth naturally closed and stable. If speech added mouth moves only with dialogue. No mouth glow, no oversized openings, no distorted jaw, no weird inner-mouth artifacts.
+Camera: horizontal composition, balanced premium framing, elegant negative space, no dramatic camera motion, no shaky movement, no chaotic zoom.
+Lighting: soft premium studio lighting, warm off-white luxury tone, subtle sculptural shadows, polished material definition, no harsh contrast, no cheap plastic shine."""
+
 # ─── FFmpeg Kalite Filtreleri ───
 QUALITY_FILTERS = {
     "unsharp": "3:3:0.5",        # keskinlik

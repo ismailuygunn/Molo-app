@@ -103,6 +103,30 @@ CRITICAL RULES:
 - {format_line}
 - Camera: Eye-level or slight low angle, medium shot, Molo centered
 - Time of day: Golden hour / pleasant lighting""",
+
+    "ekran_studio": """You are given a reference image of a 3D robotic mascot character named "Molo".
+
+Use the referenced MOLO mascot exactly as the permanently locked character identity. Preserve the exact same face design, exact same eye shape, exact same eyelid structure, exact same mouth design, exact same body proportions, exact same blue-and-white color palette, exact same material finish, exact same silhouette, and especially the exact same hologram unit on top of the head. Do not redesign MOLO, do not reinterpret MOLO, do not cartoonize MOLO, do not make MOLO more childish, do not simplify the design, and do not alter the hologram in any way.
+
+Create a premium horizontal campaign still with a highly refined art direction, designed to look like a luxury brand commercial frame rather than a generic AI image. The final result should feel visually iconic, polished, tasteful, and emotionally clever. The image must communicate premium design, subtle humor, futuristic hospitality, and strong character consistency.
+
+The setting must be extremely minimal and elevated. Use a clean warm off-white, broken white, soft ivory, or muted creamy neutral studio backdrop with a luxurious editorial feeling. The background should not look like a plain cheap white background. It must feel expensive, intentional, airy, and softly architectural, like a high-end commercial set built for a premium campaign shoot. No visible clinic objects, no walls with texture, no random decor, no clutter, no props beyond what is strictly necessary. The emptiness itself should feel sophisticated and designed.
+
+{scene_context}
+
+The humor must be subtle and intelligent. This should not feel like a joke image. It should feel like a premium campaign still with a quiet wink in it. Sophisticated, not silly. Brand-driven, not meme-like.
+
+Above MOLO's head, the hologram unit must remain exactly identical to the reference design in every way: same structure, same silhouette, same geometry, same placement, same scale, same design language.
+
+The composition must be highly intentional and beautifully balanced. Do not let MOLO fill the frame. Do not crop too close. Use elegant negative space. Let the image breathe. MOLO should occupy a carefully controlled portion of the frame so the final image feels expensive, calm, and editorial.
+
+Lighting must be soft, premium, and art-directed. Think luxury campaign photography. Use delicate warm highlights, refined shadow gradients, beautiful material separation, and clean sculptural light shaping on MOLO. The materials should look polished, premium, and believable — never cheap, never overly glossy, never toy-like.
+
+Emphasize: strong art direction, premium negative space, quiet humor, visual restraint, consistency of the character, consistency of the hologram, elegant product-photography-level polish, stylish minimalism, expensive campaign feeling.
+
+- Format: Horizontal 16:9 composition (1920x1080)
+
+Avoid: changing MOLO's face, changing MOLO's hologram, changing MOLO's proportions, exaggerated expression, sloppy pose, childish comedy, cartoon effects, oversized hologram graphics, busy background, visible clinic clutter, random props, toy-like plastic rendering, distorted anatomy, weird hands, over-bright glow, low-detail materials, generic AI image styling, or anything that reduces elegance, consistency, and luxury-brand credibility.""",
 }
 
 
@@ -208,10 +232,17 @@ def generate_scene_image(environment, reference_image, output_path,
         print(f"   🤖 Molo: {ref_path.name}")
         
         molo_img = load_image_for_gemini(ref_path)
-        prompt = SCENE_PROMPTS["studio"].format(format_line=_format_line(content_type))
-        
-        if environment_detail:
-            prompt += f"\n\nAdditional scene context: {environment_detail}"
+
+        # Ekran (yatay) için premium kampanya promptu kullan
+        ct_name = content_type or DEFAULT_CONTENT_TYPE
+        if ct_name == "ekran" and "ekran_studio" in SCENE_PROMPTS:
+            scene_ctx = environment_detail or "MOLO in an elegant minimal studio setting with premium art direction."
+            prompt = SCENE_PROMPTS["ekran_studio"].format(scene_context=scene_ctx)
+            print(f"   🎬 Premium ekran kampanya promptu kullanılıyor")
+        else:
+            prompt = SCENE_PROMPTS["studio"].format(format_line=_format_line(content_type))
+            if environment_detail:
+                prompt += f"\n\nAdditional scene context: {environment_detail}"
         
         contents = [prompt, molo_img]
         

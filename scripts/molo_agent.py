@@ -45,6 +45,7 @@ from config import (
     CHARACTER_PERSONALITY, CHARACTER_IDENTITY_LOCK,
     HOLOGRAM_LOCK, LIPSYNC_READINESS, LIGHTING_RULES, AVOID_LIST,
     COMPACT_LOCK, COMPACT_MOTION,
+    COMPACT_LOCK_EKRAN, COMPACT_MOTION_EKRAN,
     QUALITY_FILTERS, AUDIO_SLOWDOWN, CROSSFADE_DURATION,
     TRANSITION_TYPES, DEFAULT_TRANSITION,
     BGM_VOLUME_DB, BGM_FADE_IN, BGM_FADE_OUT, BGM_DIR,
@@ -469,13 +470,28 @@ Important composition rules:
 # ═══════════════════════════════════════
 
 def build_video_prompt(scene):
-    """Sahne için <2500 char kompakt video prompt'u oluşturur."""
+    """Sahne için <2500 char kompakt video prompt'u oluşturur. İçerik türüne duyarlı."""
     shot = scene.get("shot_type", "medium")
     emotion = scene.get("emotion_note", "warm, premium, welcoming")
     voice_dir = scene.get("voice_direction", "warm")
+    is_ekran = _ct.get("orientation") == "horizontal"
 
-    # Sahne-özel performance bloğu
-    scene_block = f"""Premium front-facing {shot} {voice_dir} performance. MOLO centered, symmetrical, directly facing camera.
+    if is_ekran:
+        # Premium yatay ekran formatı
+        lock = COMPACT_LOCK_EKRAN
+        motion = COMPACT_MOTION_EKRAN
+        scene_block = f"""Scene: Premium horizontal {shot} commercial scene. {_ct['scene_direction']}
+
+Performance mood: {emotion}. Voice direction: {voice_dir}.
+MOLO clearly visible with elegant negative space. The setting must feel clean, expensive, calm, and editorial, like a luxury brand commercial.
+Overall tone: quiet visual humor, luxury editorial commercial, premium mascot, subtle futuristic wit, controlled robotic elegance.
+
+Avoid: changing MOLO's face/hologram/proportions, sloppy pose, childish comedy, cartoon effects, busy background, visible clinic clutter, random props, toy-like rendering, generic AI styling, or anything that reduces elegance and luxury-brand credibility."""
+    else:
+        # Dikey format (sosyal/robot)
+        lock = COMPACT_LOCK
+        motion = COMPACT_MOTION
+        scene_block = f"""Premium front-facing {shot} {voice_dir} performance. MOLO centered, symmetrical, directly facing camera.
 
 {_ct['scene_direction']}
 
@@ -485,13 +501,12 @@ Acting: warm, precise, premium, slightly robotic, controlled, direct. Not childi
 
 Avoid: side angle, 3/4 view, oversized mascot, cartoon wobble, arm flailing, face morphing, exaggerated smile, toy rendering, asymmetric framing, bouncing, elastic motion."""
 
-    full = f"{COMPACT_LOCK}\n\n{COMPACT_MOTION}\n\n{scene_block}"
+    full = f"{lock}\n\n{motion}\n\n{scene_block}"
 
     if len(full) > KLING_MAX_PROMPT_CHARS:
-        # Truncate scene block if needed
         excess = len(full) - KLING_MAX_PROMPT_CHARS + 50
         scene_block = scene_block[:-excess]
-        full = f"{COMPACT_LOCK}\n\n{COMPACT_MOTION}\n\n{scene_block}"
+        full = f"{lock}\n\n{motion}\n\n{scene_block}"
 
     return full
 
