@@ -1,10 +1,6 @@
-# Media files (root dir junk)
-*.mp4
-*.mp3
-*.png
-*.jpg
-*.jpeg
-*.JPG
+# ═══════════════════════════════════════
+# Molo Studio — Docker Ignore
+# ═══════════════════════════════════════
 
 # Node
 node_modules/
@@ -16,14 +12,20 @@ studio/.next/
 __pycache__/
 *.pyc
 
-# IDE
+# IDE & tools
 .DS_Store
 .agents/
 .gemini/
 .git/
 
-# Generated data (deploy empty)
-_voices/
-_images-generated/
-_videos-raw/
-klinik_/
+# Root-level media junk (NOT project media)
+# NOTE: We do NOT ignore *.mp4, *.png etc globally
+# because projects/ contains valid media files
+/klinik_/
+/_voices/
+/_images-generated/
+/_videos-raw/
+
+# Temp files
+*.log
+*.tmp

@@ -23,7 +23,7 @@ Thumbs.db
 .gemini/
 .vscode/
 
-# ── Root dir media ──
+# ── Root dir media junk ──
 /0314.mp4
 /molo_*.mp4
 /kling_*.mp4
@@ -37,21 +37,17 @@ Thumbs.db
 /R5_*.JPG
 /klinik_/
 
-# ── Asset Directories (large binaries) ──
+# ── Asset Directories (generated, can be rebuilt) ──
 _images-generated/
 _videos-raw/
 _voices/
-_reference/
 
-# ── Project generated content ──
-projects/**/*.png
-projects/**/*.jpg
-projects/**/*.jpeg
+# ── Project generated content (large media) ──
+# Keep: scenes.json, brief.md, scene_*_ref.png (input images)
+# Ignore: videos, audio, drafts, finals (generated, can be rebuilt)
 projects/**/*.mp4
 projects/**/*.mp3
 projects/**/*.wav
-projects/**/*.srt
-projects/**/*.ass
 projects/*/audio/
 projects/*/draft/
 projects/*/final/
