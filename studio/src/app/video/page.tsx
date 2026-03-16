@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, RefreshCw, Check, Film, Loader2, Clock, Zap } from "lucide-react";
+import { ArrowLeft, RefreshCw, Check, Film, Loader2, Clock, Zap, ImageIcon, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import type { Project } from "@/store/studio";
 
 function VideoContent() {
@@ -14,6 +14,7 @@ function VideoContent() {
   const [videoFiles, setVideoFiles] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<string[]>([]);
   const [selected, setSelected] = useState(0);
+  const [showComparison, setShowComparison] = useState(false);
 
   useEffect(() => {
     if (!projectId) return;
@@ -24,7 +25,6 @@ function VideoContent() {
         if (p) setProject(p);
         setLoading(false);
       });
-    // Fetch real files
     fetch(`/api/projects/${encodeURIComponent(projectId)}/files`)
       .then((r) => r.json())
       .then((data) => {
@@ -32,6 +32,17 @@ function VideoContent() {
         setImageFiles(data.scenes_images || []);
       });
   }, [projectId]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (!project) return;
+      if (e.key === "ArrowLeft") { e.preventDefault(); setSelected(p => Math.max(0, p - 1)); }
+      if (e.key === "ArrowRight") { e.preventDefault(); setSelected(p => Math.min(project.scenes.length - 1, p + 1)); }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [project]);
 
   if (!projectId) {
     return (
@@ -49,6 +60,7 @@ function VideoContent() {
 
   const scene = project.scenes[selected];
   const hasVideos = videoFiles.length > 0;
+  const isHorizontal = project.contentType === "ekran";
 
   return (
     <>
@@ -60,11 +72,22 @@ function VideoContent() {
             <p className="page-subtitle">Kling v3 • {videoFiles.length}/{project.scenes.length} video hazır</p>
           </div>
         </div>
-        {hasVideos && (
-          <button className="btn btn-primary">
-            <Check size={16} /> Tüm Videoları Onayla
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          {hasVideos && (
+            <button
+              className="btn btn-ghost"
+              onClick={() => setShowComparison(!showComparison)}
+              style={{ fontSize: 12 }}
+            >
+              <ImageIcon size={14} /> {showComparison ? "Video" : "Karşılaştır"}
+            </button>
+          )}
+          {hasVideos && (
+            <button className="btn btn-primary">
+              <Check size={16} /> Tüm Videoları Onayla
+            </button>
+          )}
+        </div>
       </div>
 
       {!hasVideos ? (
@@ -73,27 +96,76 @@ function VideoContent() {
           <p style={{ marginTop: 12, color: "var(--text-muted)" }}>
             Videolar henüz üretilmedi. Pipeline&apos;ı çalıştırın.
           </p>
+          <Link href={`/scenes?project=${projectId}`} className="btn btn-secondary" style={{ marginTop: 12 }}>
+            Sahneler&apos;e Dön
+          </Link>
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 24 }}>
-          {/* Video Player */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 24 }}>
+          {/* Video/Comparison Player */}
           <div>
             {scene && (
               <div className="glass-card" style={{ padding: 16 }}>
-                <div className="video-container" style={{ marginBottom: 16, aspectRatio: project.contentType === "ekran" ? "16/9" : "9/16", maxHeight: 450 }}>
-                  <video
-                    key={selected}
-                    controls
-                    autoPlay
-                    style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000" }}
-                    poster={imageFiles[selected]}
-                  >
-                    {videoFiles[selected] && <source src={videoFiles[selected]} type="video/mp4" />}
-                  </video>
-                </div>
+                {showComparison ? (
+                  /* Side-by-side: Image vs Video */
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, color: "var(--text-muted)" }}>📸 Referans Görsel</div>
+                      <div style={{ aspectRatio: isHorizontal ? "16/9" : "9/16", maxHeight: 400, background: "#000", borderRadius: 8, overflow: "hidden" }}>
+                        {imageFiles[selected] ? (
+                          <img src={imageFiles[selected]} alt="Referans" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                        ) : (
+                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: 12 }}>
+                            Görsel yok
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, color: "var(--text-muted)" }}>🎬 Video</div>
+                      <div style={{ aspectRatio: isHorizontal ? "16/9" : "9/16", maxHeight: 400, background: "#000", borderRadius: 8, overflow: "hidden" }}>
+                        <video key={selected} controls autoPlay style={{ width: "100%", height: "100%", objectFit: "contain" }}>
+                          {videoFiles[selected] && <source src={videoFiles[selected]} type="video/mp4" />}
+                        </video>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Normal video player */
+                  <div style={{ marginBottom: 16, position: "relative" }}>
+                    <div style={{ aspectRatio: isHorizontal ? "16/9" : "9/16", maxHeight: 500, background: "#000", borderRadius: 8, overflow: "hidden" }}>
+                      <video
+                        key={selected}
+                        controls
+                        autoPlay
+                        style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                        poster={imageFiles[selected]}
+                      >
+                        {videoFiles[selected] && <source src={videoFiles[selected]} type="video/mp4" />}
+                      </video>
+                    </div>
+                    {/* Nav arrows */}
+                    {selected > 0 && (
+                      <button onClick={() => setSelected(selected - 1)} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                        <ChevronLeft size={18} style={{ color: "#fff" }} />
+                      </button>
+                    )}
+                    {selected < videoFiles.length - 1 && (
+                      <button onClick={() => setSelected(selected + 1)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                        <ChevronRight size={18} style={{ color: "#fff" }} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontWeight: 600 }}>Sahne {selected + 1}</span>
+                  <span style={{ fontWeight: 600 }}>Sahne {selected + 1} / {project.scenes.length}</span>
                   <div style={{ display: "flex", gap: 8 }}>
+                    {videoFiles[selected] && (
+                      <a href={videoFiles[selected]} download className="btn btn-ghost" style={{ fontSize: 12, padding: "6px 10px" }}>
+                        <Download size={13} /> İndir
+                      </a>
+                    )}
                     <button className="btn btn-secondary" style={{ fontSize: 12 }}>
                       <RefreshCw size={14} /> Yeniden Üret
                     </button>
@@ -108,32 +180,40 @@ function VideoContent() {
 
           {/* Sahne Listesi */}
           <div>
-            <div className="section-title" style={{ marginBottom: 12 }}>
+            <div className="section-title" style={{ marginBottom: 8 }}>
               <Zap size={16} /> İlerleme
             </div>
             <div className="progress-bar" style={{ marginBottom: 16 }}>
               <div className="progress-fill" style={{ width: `${Math.round((videoFiles.length / Math.max(project.scenes.length, 1)) * 100)}%` }} />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+              {videoFiles.length} / {project.scenes.length} video tamamlandı
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {project.scenes.map((s, i) => {
                 const hasVideo = i < videoFiles.length;
+                const isActive = i === selected;
                 return (
                   <div
                     key={s.scene}
-                    className={`timeline-item ${i === selected ? "active" : ""}`}
+                    className={`timeline-item ${isActive ? "active" : ""}`}
                     onClick={() => setSelected(i)}
-                    style={{ opacity: hasVideo ? 1 : 0.5 }}
+                    style={{ opacity: hasVideo ? 1 : 0.5, padding: "8px 12px" }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontSize: 13, fontWeight: 600 }}>S{s.scene}</span>
-                        {hasVideo && <Check size={14} style={{ color: "var(--accent-green)" }} />}
+                        {hasVideo && <Check size={12} style={{ color: "var(--accent-green)" }} />}
+                        {!hasVideo && <span style={{ fontSize: 9, color: "var(--accent-amber)" }}>⏳</span>}
                       </div>
                       {project.durations[i] !== undefined && project.durations[i] > 0 && (
                         <span style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 3 }}>
                           <Clock size={10} /> {project.durations[i].toFixed(1)}s
                         </span>
                       )}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {(s.text_de || (s as unknown as Record<string, string>).text || "").slice(0, 40)}...
                     </div>
                   </div>
                 );

@@ -16,6 +16,12 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  Volume2,
+  FileVideo,
+  FolderOpen,
+  Pause,
+  ZoomIn,
+  Download,
 } from "lucide-react";
 import type { Project, Scene } from "@/store/studio";
 import { useToast } from "@/components/toast";
@@ -48,16 +54,49 @@ interface PipelineStatus {
   isDone: boolean;
 }
 
+interface ProjectFiles {
+  scenes_images: string[];
+  scenes_videos: string[];
+  audio: string[];
+  draft: string[];
+  final: string[];
+  subtitles: string[];
+}
+
+// Media status indicator for each scene
+function MediaIndicator({ has, icon: Icon, label }: { has: boolean; icon: typeof Film; label: string }) {
+  return (
+    <span
+      title={label}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 3,
+        fontSize: 10, padding: "2px 6px", borderRadius: 8,
+        background: has ? "rgba(16,185,129,0.1)" : "rgba(100,116,139,0.08)",
+        color: has ? "var(--accent-green)" : "var(--text-muted)",
+        fontWeight: has ? 600 : 400,
+      }}
+    >
+      <Icon size={10} /> {label}
+    </span>
+  );
+}
+
 function SceneCard({
   scene,
   duration,
   isActive,
   onClick,
+  hasImage,
+  hasAudio,
+  hasVideo,
 }: {
   scene: Scene;
   duration?: number;
   isActive: boolean;
   onClick: () => void;
+  hasImage: boolean;
+  hasAudio: boolean;
+  hasVideo: boolean;
 }) {
   return (
     <div
@@ -81,9 +120,12 @@ function SceneCard({
           🇹🇷 {scene.text_tr}
         </div>
       )}
-      <div style={{ marginTop: 8, display: "flex", gap: 4 }}>
+      {/* Media indicators */}
+      <div style={{ marginTop: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
+        <MediaIndicator has={hasImage} icon={ImageIcon} label="Görsel" />
+        <MediaIndicator has={hasAudio} icon={Volume2} label="Ses" />
+        <MediaIndicator has={hasVideo} icon={FileVideo} label="Video" />
         <span className="badge draft" style={{ fontSize: 9 }}>{scene.voice_direction}</span>
-        <span className="badge review" style={{ fontSize: 9 }}>{scene.shot_type}</span>
       </div>
     </div>
   );
@@ -179,6 +221,10 @@ function ScenesContent() {
   const [activeScene, setActiveScene] = useState(0);
   const [loading, setLoading] = useState(true);
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus | null>(null);
+  const [files, setFiles] = useState<ProjectFiles>({ scenes_images: [], scenes_videos: [], audio: [], draft: [], final: [], subtitles: [] });
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [playingAudio, setPlayingAudio] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const toast = useToast();
   const notifiedRef = useRef(false);
@@ -195,6 +241,15 @@ function ScenesContent() {
       });
   }, [projectId]);
 
+  // Fetch project files
+  const fetchFiles = useCallback(() => {
+    if (!projectId) return;
+    fetch(`/api/projects/${encodeURIComponent(projectId)}/files`)
+      .then((r) => r.json())
+      .then((data: ProjectFiles) => setFiles(data))
+      .catch(() => {});
+  }, [projectId]);
+
   // Fetch pipeline status
   const fetchStatus = useCallback(() => {
     if (!projectId) return;
@@ -202,9 +257,9 @@ function ScenesContent() {
       .then((r) => r.json())
       .then((data: PipelineStatus) => {
         setPipelineStatus(data);
-        // Auto-refresh project data when done
         if (data.isDone || data.isError) {
           fetchProject();
+          fetchFiles();
           if (!notifiedRef.current) {
             notifiedRef.current = true;
             if (data.isDone) toast.success("Pipeline tamamlandı! 🎉");
@@ -217,28 +272,32 @@ function ScenesContent() {
         }
       })
       .catch(console.error);
-  }, [projectId, fetchProject, toast]);
+  }, [projectId, fetchProject, fetchFiles, toast]);
 
   useEffect(() => {
     fetchProject();
-    // Check initial status
+    fetchFiles();
     fetchStatus();
-  }, [fetchProject, fetchStatus]);
+  }, [fetchProject, fetchFiles, fetchStatus]);
 
   // Start polling
   const startPolling = useCallback(() => {
     if (pollingRef.current) return;
-    pollingRef.current = setInterval(fetchStatus, 3000);
-  }, [fetchStatus]);
+    pollingRef.current = setInterval(() => {
+      fetchStatus();
+      fetchFiles();
+    }, 3000);
+  }, [fetchStatus, fetchFiles]);
 
   // Cleanup
   useEffect(() => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
+      if (audioRef.current) audioRef.current.pause();
     };
   }, []);
 
-  // C2: Keyboard navigation — sol/sağ ok sahne geçişi
+  // Keyboard navigation
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (!project) return;
@@ -256,7 +315,6 @@ function ScenesContent() {
 
   const handlePipeline = async () => {
     if (!projectId) return;
-
     try {
       const res = await fetch("/api/pipeline", {
         method: "POST",
@@ -264,20 +322,13 @@ function ScenesContent() {
         body: JSON.stringify({ projectId }),
       });
       const data = await res.json();
-      console.log("Pipeline started:", data);
-
       if (data.pid) {
         notifiedRef.current = false;
         toast.info("Pipeline başlatıldı — ilerleme takip ediliyor...");
         setPipelineStatus({
-          status: "running",
-          step: "starting",
-          progress: 5,
-          log: "",
-          lastLine: "Pipeline başlatıldı...",
-          isRunning: true,
-          isError: false,
-          isDone: false,
+          status: "running", step: "starting", progress: 5,
+          log: "", lastLine: "Pipeline başlatıldı...",
+          isRunning: true, isError: false, isDone: false,
         });
         startPolling();
       }
@@ -286,6 +337,28 @@ function ScenesContent() {
       toast.error("Pipeline başlatılamadı");
     }
   };
+
+  // Audio playback
+  const toggleAudio = (audioPath: string) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    if (playingAudio) {
+      setPlayingAudio(false);
+      return;
+    }
+    const audio = new Audio(audioPath);
+    audio.onended = () => setPlayingAudio(false);
+    audio.play();
+    audioRef.current = audio;
+    setPlayingAudio(true);
+  };
+
+  // Get scene-specific files
+  const getSceneImage = (sceneNum: number) => files.scenes_images.find(f => f.includes(`scene_${sceneNum}_`)) || files.scenes_images[sceneNum - 1];
+  const getSceneVideo = (sceneNum: number) => files.scenes_videos.find(f => f.includes(`scene_${sceneNum}`)) || files.scenes_videos[sceneNum - 1];
+  const getSceneAudio = (sceneNum: number) => files.audio.find(f => f.includes(`scene_${sceneNum}`)) || files.audio[sceneNum - 1];
 
   if (!projectId) {
     return (
@@ -319,6 +392,9 @@ function ScenesContent() {
 
   const scene = project.scenes[activeScene];
   const isRunning = pipelineStatus?.isRunning || false;
+  const sceneImage = scene ? getSceneImage(scene.scene) : undefined;
+  const sceneVideo = scene ? getSceneVideo(scene.scene) : undefined;
+  const sceneAudio = scene ? getSceneAudio(scene.scene) : undefined;
 
   return (
     <>
@@ -386,12 +462,28 @@ function ScenesContent() {
                   duration={project.durations[i]}
                   isActive={i === activeScene}
                   onClick={() => setActiveScene(i)}
+                  hasImage={!!getSceneImage(s.scene)}
+                  hasAudio={!!getSceneAudio(s.scene)}
+                  hasVideo={!!getSceneVideo(s.scene)}
                 />
               ))}
             </div>
             <div className="divider" />
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              Toplam: {project.durations.reduce((a, b) => a + b, 0).toFixed(1)}s
+
+            {/* Proje Dosyaları Özeti */}
+            <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ fontWeight: 600, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                <FolderOpen size={13} /> Proje Dosyaları
+              </div>
+              <div>🖼️ {files.scenes_images.length} görsel</div>
+              <div>🔊 {files.audio.length} ses</div>
+              <div>🎬 {files.scenes_videos.length} video</div>
+              <div>📋 {files.draft.length} draft</div>
+              <div>🎯 {files.final.length} final</div>
+              <div>💬 {files.subtitles.length} altyazı</div>
+              <div style={{ marginTop: 4, fontWeight: 600 }}>
+                Toplam: {project.durations.reduce((a, b) => a + b, 0).toFixed(1)}s
+              </div>
             </div>
           </div>
 
@@ -399,12 +491,61 @@ function ScenesContent() {
           <div className="split-right">
             {scene && (
               <div className="glass-card" style={{ padding: 24 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
                   <h2 style={{ fontSize: 20, fontWeight: 600 }}>
                     Sahne {scene.scene} / {project.scenes.length}
                   </h2>
                   <span className="badge draft">{scene.voice_direction}</span>
                 </div>
+
+                {/* Görsel Önizleme */}
+                {sceneImage && (
+                  <div style={{ marginBottom: 20, borderRadius: 8, overflow: "hidden", position: "relative" }}>
+                    <img
+                      src={sceneImage}
+                      alt={`Sahne ${scene.scene}`}
+                      style={{
+                        width: "100%", maxHeight: 300, objectFit: "contain",
+                        background: "#000", display: "block", cursor: "zoom-in",
+                      }}
+                      onClick={() => setLightbox(sceneImage)}
+                    />
+                    <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
+                      <button className="btn btn-ghost btn-icon" onClick={() => setLightbox(sceneImage)} style={{ background: "rgba(0,0,0,0.5)", borderRadius: "50%", width: 28, height: 28, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <ZoomIn size={14} style={{ color: "#fff" }} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Video Önizleme */}
+                {sceneVideo && (
+                  <div style={{ marginBottom: 20 }}>
+                    <label className="label"><FileVideo size={12} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} /> Video</label>
+                    <video
+                      controls
+                      style={{ width: "100%", maxHeight: 250, borderRadius: 8, background: "#000" }}
+                      poster={sceneImage}
+                    >
+                      <source src={sceneVideo} type="video/mp4" />
+                    </video>
+                  </div>
+                )}
+
+                {/* Ses Oynatma */}
+                {sceneAudio && (
+                  <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 10 }}>
+                    <button className="btn btn-secondary btn-icon" onClick={() => toggleAudio(sceneAudio)} style={{ width: 36, height: 36, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {playingAudio ? <Pause size={16} /> : <Play size={16} />}
+                    </button>
+                    <div style={{ flex: 1 }}>
+                      <label className="label" style={{ marginBottom: 0 }}>🔊 Ses Dosyası</label>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                        {project.durations[activeScene] ? `${project.durations[activeScene].toFixed(1)}s` : ""}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Metin */}
                 <div style={{ marginBottom: 20 }}>
@@ -412,7 +553,7 @@ function ScenesContent() {
                     <Mic2 size={12} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} />
                     Metin (DE)
                   </label>
-                  <div className="input textarea" style={{ whiteSpace: "pre-wrap", minHeight: 80, lineHeight: 1.6 }}>
+                  <div className="input textarea" style={{ whiteSpace: "pre-wrap", minHeight: 72, lineHeight: 1.6 }}>
                     {scene.text_de || (scene as unknown as Record<string, string>).text || "Metin bulunamadı"}
                   </div>
                 </div>
@@ -420,7 +561,7 @@ function ScenesContent() {
                 {/* Türkçe Çeviri */}
                 <div style={{ marginBottom: 20 }}>
                   <label className="label">🇹🇷 Metin (TR)</label>
-                  <div className="input textarea" style={{ whiteSpace: "pre-wrap", minHeight: 60, lineHeight: 1.6, color: scene.text_tr ? "var(--text-secondary)" : "var(--text-muted)", fontStyle: scene.text_tr ? "normal" : "italic" }}>
+                  <div className="input textarea" style={{ whiteSpace: "pre-wrap", minHeight: 56, lineHeight: 1.6, color: scene.text_tr ? "var(--text-secondary)" : "var(--text-muted)", fontStyle: scene.text_tr ? "normal" : "italic" }}>
                     {scene.text_tr || "Çeviri bekleniyor..."}
                   </div>
                 </div>
@@ -452,7 +593,7 @@ function ScenesContent() {
                 </div>
 
                 {/* Navigation */}
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <Link href={`/images?project=${projectId}`} className="btn btn-secondary" style={{ fontSize: 13 }}>
                     <ImageIcon size={14} /> Görseller
                     <ChevronRight size={14} />
@@ -465,10 +606,31 @@ function ScenesContent() {
                     <Film size={14} /> Videolar
                     <ChevronRight size={14} />
                   </Link>
+                  <Link href={`/edit?project=${projectId}`} className="btn btn-secondary" style={{ fontSize: 13 }}>
+                    <Download size={14} /> Kurgu
+                    <ChevronRight size={14} />
+                  </Link>
                 </div>
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000,
+            display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out",
+          }}
+        >
+          <img
+            src={lightbox}
+            alt="Büyütülmüş görsel"
+            style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain", borderRadius: 8 }}
+          />
         </div>
       )}
     </>

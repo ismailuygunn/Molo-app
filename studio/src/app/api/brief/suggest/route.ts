@@ -22,7 +22,11 @@ export async function POST(req: NextRequest) {
 
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "GOOGLE_API_KEY tanımlı değil" }, { status: 500 });
+      return NextResponse.json({
+        configured: false,
+        suggestions: [],
+        message: "GOOGLE_API_KEY henüz yapılandırılmamış. Ayarlar sayfasından kontrol edin.",
+      });
     }
 
     const platform = PLATFORM_CONTEXT[contentType] || PLATFORM_CONTEXT.sosyal;

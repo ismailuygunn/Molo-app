@@ -6,12 +6,20 @@ import {
   Plus,
   Film,
   Clock,
-  Zap,
   TrendingUp,
   Monitor,
   Smartphone,
   Bot,
   Trash2,
+  Mic2,
+  ImageIcon,
+  Scissors,
+  Play,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Eye,
+  FolderOpen,
 } from "lucide-react";
 import type { Project, ContentType } from "@/store/studio";
 import { useToast } from "@/components/toast";
@@ -26,6 +34,13 @@ const CONTENT_LABELS: Record<ContentType, string> = {
   sosyal: "Sosyal Medya",
   ekran: "Klinik Ekranı",
   robot: "Robot",
+};
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Film }> = {
+  draft: { label: "Taslak", color: "var(--accent-amber)", icon: Film },
+  review: { label: "İnceleme", color: "var(--accent-blue)", icon: Eye },
+  final: { label: "Tamamlandı", color: "var(--accent-green)", icon: CheckCircle2 },
+  error: { label: "Hata", color: "var(--accent-red)", icon: XCircle },
 };
 
 function StatCard({
@@ -50,10 +65,15 @@ function StatCard({
 
 function ProjectCard({ project, onDelete }: { project: Project; onDelete: (id: string) => void }) {
   const ContentIcon = CONTENT_ICONS[project.contentType] || Film;
+  const statusCfg = STATUS_CONFIG[project.status] || STATUS_CONFIG.draft;
+  const StatusIcon = statusCfg.icon;
+  const projectUrl = `/scenes?project=${project.id}`;
+  const totalDuration = project.durations.reduce((a, b) => a + b, 0);
 
   return (
-    <div className="glass-card project-card" style={{ position: "relative" }}>
-      <Link href={`/scenes?project=${project.id}`} style={{ textDecoration: "none" }}>
+    <div className="glass-card project-card" style={{ position: "relative", overflow: "hidden" }}>
+      {/* Thumbnail */}
+      <Link href={projectUrl} style={{ textDecoration: "none" }}>
         {project.thumbnailPath ? (
           <img
             src={project.thumbnailPath}
@@ -67,45 +87,81 @@ function ProjectCard({ project, onDelete }: { project: Project; onDelete: (id: s
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              background: "linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))",
             }}
           >
-            <Film size={40} style={{ opacity: 0.2 }} />
+            <Film size={36} style={{ opacity: 0.15 }} />
           </div>
         )}
-        <div className="project-info">
-          <div className="project-name">{project.title || project.name}</div>
-          <div className="project-meta">
-            <span className={`badge ${project.status}`}>{project.status}</span>
-            <ContentIcon size={14} />
-            <span>{CONTENT_LABELS[project.contentType]}</span>
-            <span>•</span>
-            <span>{project.date}</span>
-          </div>
-          {project.scenes.length > 0 && (
-            <div className="project-meta" style={{ marginTop: 6 }}>
-              <Film size={12} />
-              <span>{project.scenes.length} sahne</span>
-              {project.durations.length > 0 && (
-                <>
-                  <Clock size={12} />
-                  <span>
-                    {project.durations.reduce((a, b) => a + b, 0).toFixed(1)}s
-                  </span>
-                </>
-              )}
-            </div>
-          )}
-        </div>
       </Link>
+
+      {/* Info */}
+      <div className="project-info" style={{ padding: "12px 14px" }}>
+        <Link href={projectUrl} style={{ textDecoration: "none" }}>
+          <div className="project-name" style={{ marginBottom: 6 }}>{project.title || project.name}</div>
+        </Link>
+
+        {/* Status + Content Type Row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            fontSize: 11, padding: "2px 8px", borderRadius: 10,
+            background: `color-mix(in srgb, ${statusCfg.color} 12%, transparent)`,
+            color: statusCfg.color, fontWeight: 600,
+          }}>
+            <StatusIcon size={11} />
+            {statusCfg.label}
+          </span>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 3 }}>
+            <ContentIcon size={12} /> {CONTENT_LABELS[project.contentType]}
+          </span>
+        </div>
+
+        {/* Stats Row */}
+        <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)" }}>
+          {project.scenes.length > 0 && (
+            <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              <Film size={11} /> {project.scenes.length} sahne
+            </span>
+          )}
+          {totalDuration > 0 && (
+            <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              <Clock size={11} /> {totalDuration.toFixed(1)}s
+            </span>
+          )}
+          <span>{project.date}</span>
+        </div>
+
+        {/* Quick Actions */}
+        <div style={{ display: "flex", gap: 4, marginTop: 10, flexWrap: "wrap" }}>
+          <Link href={`/scenes?project=${project.id}`} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 8px" }}>
+            <FolderOpen size={12} /> Sahneler
+          </Link>
+          <Link href={`/images?project=${project.id}`} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 8px" }}>
+            <ImageIcon size={12} /> Görseller
+          </Link>
+          <Link href={`/voice?project=${project.id}`} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 8px" }}>
+            <Mic2 size={12} /> Ses
+          </Link>
+          <Link href={`/video?project=${project.id}`} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 8px" }}>
+            <Play size={12} /> Video
+          </Link>
+          <Link href={`/edit?project=${project.id}`} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 8px" }}>
+            <Scissors size={12} /> Kurgu
+          </Link>
+        </div>
+      </div>
+
+      {/* Delete */}
       <button
         className="btn btn-icon btn-ghost"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(project.id); }}
-        style={{ position: "absolute", top: 8, right: 8, opacity: 0.4, transition: "opacity 0.2s" }}
+        style={{ position: "absolute", top: 8, right: 8, opacity: 0.3, transition: "opacity 0.2s", background: "rgba(0,0,0,0.3)", borderRadius: "50%", width: 28, height: 28, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
         onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.4")}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.3")}
         title="Projeyi sil"
       >
-        <Trash2 size={14} />
+        <Trash2 size={13} style={{ color: "#fff" }} />
       </button>
     </div>
   );
@@ -201,7 +257,8 @@ export default function DashboardPage() {
 
       {loading ? (
         <div className="empty-state">
-          <div className="pulse" style={{ fontSize: 14, color: "var(--text-muted)" }}>
+          <Loader2 size={32} className="pulse" />
+          <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 12 }}>
             Projeler yükleniyor...
           </div>
         </div>
@@ -212,7 +269,7 @@ export default function DashboardPage() {
             Henüz proje yok
           </h3>
           <p style={{ marginBottom: 20 }}>
-            İlk projenizi oluşturmak için "Yeni Proje" butonuna tıklayın
+            İlk projenizi oluşturmak için &quot;Yeni Proje&quot; butonuna tıklayın
           </p>
           <Link href="/brief" className="btn btn-primary">
             <Plus size={18} />

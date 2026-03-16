@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -20,14 +20,15 @@ import {
   Loader2,
   Wand2,
   ArrowRight,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/components/toast";
 
 const CONTENT_TYPES = [
-  { value: "sosyal", label: "Sosyal Medya", icon: Smartphone, desc: "1080×1920 dikey, enerjik" },
-  { value: "ekran", label: "Klinik Ekranı", icon: Monitor, desc: "1920×1080 yatay, sinematik" },
-  { value: "robot", label: "Robot Ekranı", icon: Bot, desc: "1080×1920 dikey, sıcak" },
+  { value: "sosyal", label: "Sosyal Medya", icon: Smartphone, desc: "1080×1920 dikey, enerjik", platform: "TikTok / Reels" },
+  { value: "ekran", label: "Klinik Ekranı", icon: Monitor, desc: "1920×1080 yatay, sinematik", platform: "Bekleme Ekranı" },
+  { value: "robot", label: "Robot Ekranı", icon: Bot, desc: "1080×1920 dikey, sıcak", platform: "Robot Ekranı" },
 ];
 
 const LANGUAGES = [
@@ -39,6 +40,12 @@ const TONES = [
   "Eğlenceli", "Bilgilendirici", "Sıcak", "Afacan",
   "Heyecanlı", "Sakin", "Premium",
 ];
+
+interface Suggestion {
+  title: string;
+  concept: string;
+  why: string;
+}
 
 interface ScenePreview {
   scene: number;
@@ -64,9 +71,22 @@ export default function BriefPage() {
   const [error, setError] = useState("");
 
   // AI Suggestion state
-  const [suggestions, setSuggestions] = useState<{title: string; concept: string; why: string}[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestError, setSuggestError] = useState("");
+  const [suggestConfigured, setSuggestConfigured] = useState<boolean | null>(null);
+  const [suggestMessage, setSuggestMessage] = useState("");
+
+  // Preview state
+  const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewScenes, setPreviewScenes] = useState<ScenePreview[]>([]);
+
+  // Clear suggestions when platform or tone changes
+  useEffect(() => {
+    setSuggestions([]);
+    setSuggestError("");
+  }, [contentType, tone]);
 
   const fetchSuggestions = async () => {
     setSuggestLoading(true);
@@ -83,6 +103,17 @@ export default function BriefPage() {
         }),
       });
       const data = await res.json();
+
+      // Handle not-configured state
+      if (data.configured === false) {
+        setSuggestConfigured(false);
+        setSuggestMessage(data.message || "API yapılandırılmamış");
+        setSuggestions([]);
+        return;
+      }
+
+      setSuggestConfigured(true);
+
       if (!res.ok) {
         setSuggestError(data.error || "Öneriler alınamadı");
         return;
@@ -95,17 +126,13 @@ export default function BriefPage() {
     }
   };
 
-  const applySuggestion = (s: {title: string; concept: string}) => {
-    setKonu(s.title.replace(/^[\p{Emoji}\s]+/u, "").trim());
+  const applySuggestion = (s: Suggestion) => {
+    // Strip leading emojis from title for the konu field
+    const cleanTitle = s.title.replace(/^[\p{Emoji}\p{Emoji_Presentation}\p{Emoji_Modifier_Base}\s]+/u, "").trim();
+    setKonu(cleanTitle || s.title);
     setConcept(s.concept);
-    toast.success("Öneri uygulandı!");
+    toast.success("Öneri uygulandı — konu ve konsept güncellendi!");
   };
-
-  // Preview state
-  const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewScenes, setPreviewScenes] = useState<ScenePreview[]>([]);
-  const [pipelineStarting, setPipelineStarting] = useState(false);
 
   const handleSave = async (startPipeline: boolean) => {
     if (!konu.trim()) return;
@@ -113,7 +140,6 @@ export default function BriefPage() {
     setError("");
 
     try {
-      // Create brief
       const res = await fetch("/api/brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -131,7 +157,6 @@ export default function BriefPage() {
         setSavedProjectId(data.projectId);
 
         if (startPipeline) {
-          // Start pipeline
           await fetch("/api/pipeline", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -159,7 +184,6 @@ export default function BriefPage() {
     setError("");
 
     try {
-      // Save brief first
       const res = await fetch("/api/brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -177,14 +201,12 @@ export default function BriefPage() {
         setSavedProjectId(data.projectId);
         toast.success("Brief kaydedildi — Senaryo üretiliyor...");
 
-        // Start pipeline (it will generate script first)
         await fetch("/api/pipeline", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ projectId: data.projectId }),
         });
 
-        // Poll for scenes.json to appear
         let attempts = 0;
         const pollInterval = setInterval(async () => {
           attempts++;
@@ -222,6 +244,8 @@ export default function BriefPage() {
     router.push(`/scenes?project=${savedProjectId}`);
   };
 
+  const currentPlatform = CONTENT_TYPES.find(ct => ct.value === contentType)?.platform || "TikTok / Reels";
+
   return (
     <>
       <div className="page-header">
@@ -246,94 +270,6 @@ export default function BriefPage() {
             value={konu}
             onChange={(e) => setKonu(e.target.value)}
           />
-        </div>
-
-        {/* AI Öneriler */}
-        <div className="glass-card" style={{ padding: 20, background: "rgba(139,92,246,0.04)", borderColor: "rgba(139,92,246,0.15)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Wand2 size={18} style={{ color: "var(--accent-purple, #a78bfa)" }} />
-              <span style={{ fontWeight: 700, fontSize: 15 }}>AI İçerik Önerileri</span>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", background: "rgba(139,92,246,0.1)", padding: "2px 8px", borderRadius: 12 }}>
-                {contentType === "sosyal" ? "TikTok / Reels" : contentType === "ekran" ? "Bekleme Ekranı" : "Robot Ekranı"}
-              </span>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {suggestions.length > 0 && (
-                <button
-                  className="btn btn-ghost"
-                  onClick={fetchSuggestions}
-                  disabled={suggestLoading}
-                  style={{ fontSize: 12, padding: "6px 12px" }}
-                >
-                  <RefreshCw size={13} className={suggestLoading ? "pulse" : ""} /> Yenile
-                </button>
-              )}
-              <button
-                className="btn btn-primary"
-                onClick={fetchSuggestions}
-                disabled={suggestLoading}
-                style={{ fontSize: 13, padding: "8px 16px", background: "rgba(139,92,246,0.8)" }}
-              >
-                {suggestLoading ? (
-                  <><Loader2 size={14} className="pulse" /> Düşünüyor...</>
-                ) : suggestions.length > 0 ? (
-                  <><Lightbulb size={14} /> Yeni Fikirler</>
-                ) : (
-                  <><Sparkles size={14} /> İçerik Önerisi Al</>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {suggestError && (
-            <div style={{ fontSize: 12, color: "var(--accent-red)", marginBottom: 12 }}>{suggestError}</div>
-          )}
-
-          {suggestions.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {suggestions.map((s, i) => (
-                <div
-                  key={i}
-                  onClick={() => applySuggestion(s)}
-                  className="glass-card"
-                  style={{
-                    padding: 14,
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                    borderColor: "transparent",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(139,92,246,0.4)";
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "transparent";
-                    e.currentTarget.style.transform = "translateY(0)";
-                  }}
-                >
-                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, lineHeight: 1.4 }}>
-                    {s.title}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 8 }}>
-                    {s.concept}
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: "italic" }}>
-                      💡 {s.why}
-                    </span>
-                    <ArrowRight size={12} style={{ color: "var(--accent-purple, #a78bfa)", opacity: 0.6 }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {suggestions.length === 0 && !suggestLoading && (
-            <div style={{ textAlign: "center", padding: "12px 0", color: "var(--text-muted)", fontSize: 13 }}>
-              İçerik türü seçin ve &quot;İçerik Önerisi Al&quot; butonuna tıklayın — AI size yaratıcı fikirler sunsun.
-            </div>
-          )}
         </div>
 
         {/* İçerik Türü */}
@@ -397,6 +333,117 @@ export default function BriefPage() {
               ))}
             </select>
           </div>
+        </div>
+
+        {/* AI İçerik Önerileri */}
+        <div className="glass-card" style={{ padding: 20, background: "rgba(139,92,246,0.04)", borderColor: "rgba(139,92,246,0.15)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Wand2 size={18} style={{ color: "var(--accent-purple, #a78bfa)" }} />
+              <span style={{ fontWeight: 700, fontSize: 15 }}>AI İçerik Önerileri</span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", background: "rgba(139,92,246,0.1)", padding: "2px 8px", borderRadius: 12 }}>
+                {currentPlatform}
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {suggestions.length > 0 && (
+                <button
+                  className="btn btn-ghost"
+                  onClick={fetchSuggestions}
+                  disabled={suggestLoading}
+                  style={{ fontSize: 12, padding: "6px 12px" }}
+                >
+                  <RefreshCw size={13} className={suggestLoading ? "pulse" : ""} /> Yenile
+                </button>
+              )}
+              {suggestConfigured !== false && (
+                <button
+                  className="btn btn-primary"
+                  onClick={fetchSuggestions}
+                  disabled={suggestLoading}
+                  style={{ fontSize: 13, padding: "8px 16px", background: "rgba(139,92,246,0.8)" }}
+                >
+                  {suggestLoading ? (
+                    <><Loader2 size={14} className="pulse" /> Düşünüyor...</>
+                  ) : suggestions.length > 0 ? (
+                    <><Lightbulb size={14} /> Yeni Fikirler</>
+                  ) : (
+                    <><Sparkles size={14} /> İçerik Önerisi Al</>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* API not configured info */}
+          {suggestConfigured === false && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10, padding: 12,
+              background: "rgba(245,158,11,0.06)", borderRadius: 8,
+              border: "1px solid rgba(245,158,11,0.12)",
+            }}>
+              <Info size={16} style={{ color: "var(--accent-amber)", flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                {suggestMessage || "AI önerileri kullanmak için GOOGLE_API_KEY yapılandırılmalı."}
+                {" "}
+                <Link href="/settings" style={{ color: "var(--accent-blue)", textDecoration: "underline" }}>Ayarlar →</Link>
+              </span>
+            </div>
+          )}
+
+          {/* Error */}
+          {suggestError && (
+            <div style={{ fontSize: 12, color: "var(--accent-red)", marginBottom: 12, padding: "8px 12px", background: "rgba(239,68,68,0.06)", borderRadius: 8 }}>
+              {suggestError}
+            </div>
+          )}
+
+          {/* Suggestion Cards */}
+          {suggestions.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {suggestions.map((s, i) => (
+                <div
+                  key={i}
+                  onClick={() => applySuggestion(s)}
+                  className="glass-card"
+                  style={{
+                    padding: 14,
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    borderColor: "transparent",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(139,92,246,0.4)";
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "transparent";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, lineHeight: 1.4 }}>
+                    {s.title}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 8 }}>
+                    {s.concept}
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: "italic" }}>
+                      💡 {s.why}
+                    </span>
+                    <ArrowRight size={12} style={{ color: "var(--accent-purple, #a78bfa)", opacity: 0.6 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {suggestions.length === 0 && !suggestLoading && suggestConfigured !== false && (
+            <div style={{ textAlign: "center", padding: "12px 0", color: "var(--text-muted)", fontSize: 13 }}>
+              İçerik türü ve ton seçin, ardından &quot;İçerik Önerisi Al&quot; butonuna tıklayın.
+            </div>
+          )}
         </div>
 
         {/* Konsept */}
