@@ -125,7 +125,7 @@ def concat_videos(video_files, output_path, transition="fade", transition_durati
         
         # Her videoyu normalize et (aynı boyut + fps)
         for i in range(n):
-            filter_parts.append(f"[{i}:v]scale=1080:1920,fps=30,format=yuv420p[v{i}];")
+            filter_parts.append(f"[{i}:v]scale={OUTPUT_WIDTH}:{OUTPUT_HEIGHT},fps=30,format=yuv420p[v{i}];")
         
         # Geçişler (xfade)
         if n == 2:

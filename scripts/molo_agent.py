@@ -1105,13 +1105,20 @@ def main():
             elif "language:" in line.lower():
                 lang = line.split(":", 1)[1].strip().lower()[:2]
 
-    # İçerik türü oku
+    # İçerik türü oku — Turkish İ/i handling
     global _ct, _content_type_key
     content_type = DEFAULT_CONTENT_TYPE
     for line in brief_text.split("\n"):
-        ll = line.lower().strip()
-        if "İçerik türü:" in ll or "içerik türü:" in ll or "content type:" in ll or "tür:" in ll:
-            val = line.split(":", 1)[1].strip().lower()
+        # Check original line (not lowercased) for Turkish-safe matching
+        stripped = line.strip()
+        # Match variations: "İçerik türü:", "içerik türü:", "Içerik türü:", "content type:", "tür:"
+        is_content_line = False
+        for marker in ["İçerik türü:", "içerik türü:", "Içerik türü:", "icerik turu:", "content type:", "tür:"]:
+            if marker.lower() in stripped.lower() or marker in stripped:
+                is_content_line = True
+                break
+        if is_content_line:
+            val = stripped.split(":", 1)[1].strip().lower()
             if val in CONTENT_TYPES:
                 content_type = val
     _content_type_key = content_type
