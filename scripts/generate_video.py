@@ -102,8 +102,8 @@ def create_image_to_video(reference_image, scene_prompt, duration="5",
     Returns:
         task_id (str) veya None
     """
-    # ── Tam prompt oluştur ──
-    full_prompt = f"{CHARACTER_RULES}\n\n{scene_prompt}\n\nFormat: Vertical {aspect_ratio}, cinematic lighting, dark blue atmospheric background."
+    orientation = "Horizontal" if aspect_ratio == "16:9" else "Vertical"
+    full_prompt = f"{CHARACTER_RULES}\n\n{scene_prompt}\n\nFormat: {orientation} {aspect_ratio}, cinematic lighting, dark blue atmospheric background."
     
     # ── Validasyon ──
     errors, warnings = validate_prompt(full_prompt, 1)

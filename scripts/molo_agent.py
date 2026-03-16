@@ -1150,12 +1150,27 @@ def main():
     # Dili brief'ten oku ya da varsayılan de
     brief_text = brief_path.read_text(encoding="utf-8")
     lang = "de"
+    # Dil lookup tablosu — emoji, tam ad, kısa kod destekli
+    _lang_map = {
+        "de": "de", "deutsch": "de", "almanca": "de", "german": "de", "🇩🇪": "de",
+        "tr": "tr", "türkçe": "tr", "turkish": "tr", "🇹🇷": "tr",
+        "en": "en", "english": "en", "ingilizce": "en", "🇬🇧": "en", "🇺🇸": "en",
+    }
     if "dil:" in brief_text.lower() or "language:" in brief_text.lower():
         for line in brief_text.split("\n"):
-            if "dil:" in line.lower():
-                lang = line.split(":", 1)[1].strip().lower()[:2]
-            elif "language:" in line.lower():
-                lang = line.split(":", 1)[1].strip().lower()[:2]
+            ll = line.lower().strip()
+            if "dil:" in ll or "language:" in ll:
+                raw = line.split(":", 1)[1].strip().lower()
+                # Emoji ve boşlukları temizle, lookup'tan bul
+                for key, code in _lang_map.items():
+                    if key in raw:
+                        lang = code
+                        break
+                else:
+                    # Fallback: ilk 2 ASCII karakter
+                    ascii_part = "".join(c for c in raw if c.isascii() and c.isalpha())[:2]
+                    if ascii_part:
+                        lang = ascii_part
 
     # İçerik türü oku — Turkish İ/i handling
     global _ct, _content_type_key

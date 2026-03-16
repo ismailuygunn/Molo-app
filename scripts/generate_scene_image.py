@@ -124,7 +124,7 @@ Lighting must be soft, premium, and art-directed. Think luxury campaign photogra
 
 Emphasize: strong art direction, premium negative space, quiet humor, visual restraint, consistency of the character, consistency of the hologram, elegant product-photography-level polish, stylish minimalism, expensive campaign feeling.
 
-- Format: Horizontal 16:9 composition (1920x1080)
+- {format_line}
 
 Avoid: changing MOLO's face, changing MOLO's hologram, changing MOLO's proportions, exaggerated expression, sloppy pose, childish comedy, cartoon effects, oversized hologram graphics, busy background, visible clinic clutter, random props, toy-like plastic rendering, distorted anatomy, weird hands, over-bright glow, low-detail materials, generic AI image styling, or anything that reduces elegance, consistency, and luxury-brand credibility.""",
 }
@@ -237,7 +237,7 @@ def generate_scene_image(environment, reference_image, output_path,
         ct_name = content_type or DEFAULT_CONTENT_TYPE
         if ct_name == "ekran" and "ekran_studio" in SCENE_PROMPTS:
             scene_ctx = environment_detail or "MOLO in an elegant minimal studio setting with premium art direction."
-            prompt = SCENE_PROMPTS["ekran_studio"].format(scene_context=scene_ctx)
+            prompt = SCENE_PROMPTS["ekran_studio"].format(scene_context=scene_ctx, format_line=_format_line(content_type))
             print(f"   🎬 Premium ekran kampanya promptu kullanılıyor")
         else:
             prompt = SCENE_PROMPTS["studio"].format(format_line=_format_line(content_type))

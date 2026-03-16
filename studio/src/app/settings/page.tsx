@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, Key, Bot, Film, Check, AlertTriangle, Loader2 } from "lucide-react";
+import { Settings, Key, Bot, Film, Check, AlertTriangle, Loader2, X, ExternalLink } from "lucide-react";
 
 interface ApiKey {
   id: string;
@@ -10,27 +10,46 @@ interface ApiKey {
   exists: boolean;
   last4: string;
   length: number;
+  source?: string;
 }
 
 export default function SettingsPage() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
-  const [testResults, setTestResults] = useState<Record<string, string>>({});
+  const [envSource, setEnvSource] = useState("");
+  const [testResults, setTestResults] = useState<Record<string, { status: string; message?: string }>>({});
 
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
       .then((data) => {
         setKeys(data.keys || []);
+        setEnvSource(data.envSource || "");
         setLoading(false);
       });
   }, []);
 
-  const testApi = async (key: string) => {
-    setTestResults((prev) => ({ ...prev, [key]: "testing" }));
-    setTimeout(() => {
-      setTestResults((prev) => ({ ...prev, [key]: "ok" }));
-    }, 1000);
+  const testApi = async (keyId: string) => {
+    setTestResults((prev) => ({ ...prev, [keyId]: { status: "testing" } }));
+    try {
+      const res = await fetch("/api/settings/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyId }),
+      });
+      const data = await res.json();
+      setTestResults((prev) => ({ ...prev, [keyId]: data }));
+    } catch {
+      setTestResults((prev) => ({ ...prev, [keyId]: { status: "error", message: "Bağlantı hatası" } }));
+    }
+  };
+
+  const getTestIcon = (keyId: string) => {
+    const r = testResults[keyId];
+    if (!r) return "Test";
+    if (r.status === "testing") return <Loader2 size={14} className="pulse" />;
+    if (r.status === "ok") return <Check size={14} style={{ color: "var(--accent-green)" }} />;
+    return <X size={14} style={{ color: "var(--accent-red)" }} />;
   };
 
   return (
@@ -38,7 +57,7 @@ export default function SettingsPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Ayarlar</h1>
-          <p className="page-subtitle">API anahtarları ve varsayılan üretim ayarları</p>
+          <p className="page-subtitle">API anahtarları ve üretim yapılandırması</p>
         </div>
       </div>
 
@@ -69,31 +88,44 @@ export default function SettingsPage() {
                       }}>
                         {api.exists ? `${"•".repeat(Math.min(api.length - 4, 20))}${api.last4}` : "❌ Bulunamadı"}
                       </span>
-                      <span style={{
-                        fontSize: 10,
-                        padding: "2px 6px",
-                        borderRadius: 8,
-                        background: api.exists ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)",
-                        color: api.exists ? "var(--accent-green)" : "var(--accent-red)",
-                      }}>
-                        {api.exists ? "✓ Set" : "✗ Missing"}
-                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        {api.source && (
+                          <span style={{
+                            fontSize: 9, padding: "1px 5px", borderRadius: 6,
+                            background: "rgba(139,92,246,0.1)", color: "var(--accent-purple)",
+                          }}>
+                            {api.source === "file" ? ".env" : api.source === "env" ? "ENV" : "—"}
+                          </span>
+                        )}
+                        <span style={{
+                          fontSize: 10, padding: "2px 6px", borderRadius: 8,
+                          background: api.exists ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)",
+                          color: api.exists ? "var(--accent-green)" : "var(--accent-red)",
+                        }}>
+                          {api.exists ? "✓ Set" : "✗ Missing"}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <button
-                    className="btn btn-secondary"
-                    style={{ fontSize: 12, marginTop: 20 }}
-                    onClick={() => testApi(api.id)}
-                    disabled={!api.exists}
-                  >
-                    {testResults[api.id] === "testing" ? (
-                      <Loader2 size={14} className="pulse" />
-                    ) : testResults[api.id] === "ok" ? (
-                      <Check size={14} style={{ color: "var(--accent-green)" }} />
-                    ) : (
-                      "Test"
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, marginTop: 20 }}>
+                    <button
+                      className="btn btn-secondary"
+                      style={{ fontSize: 12 }}
+                      onClick={() => testApi(api.id)}
+                      disabled={!api.exists}
+                    >
+                      {getTestIcon(api.id)}
+                    </button>
+                    {testResults[api.id]?.message && (
+                      <span style={{
+                        fontSize: 9,
+                        color: testResults[api.id].status === "ok" ? "var(--accent-green)" : "var(--accent-red)",
+                        maxWidth: 100, textAlign: "center",
+                      }}>
+                        {testResults[api.id].message!.slice(0, 30)}
+                      </span>
                     )}
-                  </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -101,7 +133,8 @@ export default function SettingsPage() {
           <div style={{ marginTop: 16, padding: 12, background: "rgba(245, 158, 11, 0.08)", borderRadius: "var(--radius-md)", border: "1px solid rgba(245, 158, 11, 0.15)", display: "flex", gap: 8, alignItems: "flex-start" }}>
             <AlertTriangle size={16} style={{ color: "var(--accent-amber)", flexShrink: 0, marginTop: 2 }} />
             <span style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-              API anahtarları <code style={{ color: "var(--accent-cyan)", background: "rgba(6,182,212,0.1)", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>.env</code> dosyasından veya sistem ortam değişkenlerinden (Railway) okunur. Bu sayfada düzenlenemez — güvenlik nedeniyle salt okunur.
+              API anahtarları <code style={{ color: "var(--accent-cyan)", background: "rgba(6,182,212,0.1)", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>.env</code> dosyasından veya sistem ortam değişkenlerinden (Railway) okunur.
+              {envSource === "file" ? " Kaynak: .env dosyası" : envSource === "process.env" ? " Kaynak: Sistem ortam değişkenleri" : ""}
             </span>
           </div>
         </div>
@@ -114,14 +147,16 @@ export default function SettingsPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div>
               <label className="label">Kişilik Profili</label>
-              <div className="input" style={{ fontSize: 13 }}>character.md</div>
+              <div className="input" style={{ fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>character.md</span>
+                <a href="/api/files/_config/character.md" target="_blank" style={{ color: "var(--accent-cyan)", display: "flex" }}>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
             </div>
             <div>
               <label className="label">Ses Profili (DE)</label>
-              <select className="input select" defaultValue="molo-de-v2" style={{ fontSize: 13 }}>
-                <option value="molo-de-v2">Molo DE v2</option>
-                <option value="molo-tr">Molo TR</option>
-              </select>
+              <div className="input" style={{ fontSize: 13 }}>Molo DE v2 (salt okunur)</div>
             </div>
             <div>
               <label className="label">Referans Görseller</label>
@@ -134,36 +169,28 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Üretim Ayarları */}
+        {/* Üretim Ayarları — Salt okunur bilgilendirme */}
         <div className="glass-card" style={{ padding: 24 }}>
           <div className="section-title">
-            <Film size={18} /> Varsayılan Üretim Ayarları
+            <Film size={18} /> Üretim Yapılandırması
+          </div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
+            Bu ayarlar <code style={{ color: "var(--accent-cyan)", background: "rgba(6,182,212,0.1)", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>scripts/config.py</code> dosyasından okunur.
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            <div>
-              <label className="label">FPS</label>
-              <input className="input" defaultValue="24" style={{ fontSize: 13 }} />
-            </div>
-            <div>
-              <label className="label">CRF</label>
-              <input className="input" defaultValue="16" style={{ fontSize: 13 }} />
-            </div>
-            <div>
-              <label className="label">Slowdown</label>
-              <input className="input" defaultValue="0.88" style={{ fontSize: 13 }} />
-            </div>
-            <div>
-              <label className="label">Crossfade</label>
-              <input className="input" defaultValue="0.7s" style={{ fontSize: 13 }} />
-            </div>
-            <div>
-              <label className="label">Scene Padding</label>
-              <input className="input" defaultValue="0.4s" style={{ fontSize: 13 }} />
-            </div>
-            <div>
-              <label className="label">BGM Volume</label>
-              <input className="input" defaultValue="-22dB" style={{ fontSize: 13 }} />
-            </div>
+            {[
+              { label: "FPS", value: "24" },
+              { label: "CRF", value: "16" },
+              { label: "Slowdown", value: "0.88x" },
+              { label: "Crossfade", value: "0.7s" },
+              { label: "Scene Padding", value: "0.4s" },
+              { label: "BGM Volume", value: "-22dB" },
+            ].map((item) => (
+              <div key={item.label}>
+                <label className="label">{item.label}</label>
+                <div className="input" style={{ fontSize: 13, color: "var(--text-secondary)", cursor: "default" }}>{item.value}</div>
+              </div>
+            ))}
           </div>
 
           <div className="divider" />
@@ -173,14 +200,14 @@ export default function SettingsPage() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
             {[
-              { label: "📱 Sosyal", res: "1080×1920", aspect: "9:16" },
-              { label: "📺 Ekran", res: "1920×1080", aspect: "16:9" },
-              { label: "🤖 Robot", res: "1080×1920", aspect: "9:16" },
+              { label: "📱 Sosyal", res: "1080×1920", aspect: "9:16", kling: "5s / 10s" },
+              { label: "📺 Ekran", res: "1920×1080", aspect: "16:9", kling: "5s / 10s" },
+              { label: "🤖 Robot", res: "1080×1920", aspect: "9:16", kling: "5s / 10s" },
             ].map((t) => (
               <div key={t.label} className="glass-card" style={{ padding: 12, textAlign: "center" }}>
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{t.label}</div>
                 <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{t.res}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{t.aspect}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{t.aspect} • Kling {t.kling}</div>
               </div>
             ))}
           </div>

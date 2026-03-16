@@ -44,7 +44,7 @@ def create_project(name):
 - **Proje:** {name}
 - **Tarih:** {date_prefix}
 - **Dil:** Almanca (DE) + İngilizce altyazı
-- **Format:** Dikey 9:16 (1080x1920)
+- **Format:** Studio'da seçilen içerik türüne göre (9:16 / 16:9)
 - **Süre hedefi:** ~15-30 saniye
 
 ## Senaryo

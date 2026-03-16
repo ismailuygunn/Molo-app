@@ -30,7 +30,8 @@ except ImportError:
 # ─── Merkezi config'den import ───
 from config import (
     BASE_DIR, FFMPEG, GEMINI_TEXT_MODEL,
-    OUTPUT_WIDTH, OUTPUT_HEIGHT
+    OUTPUT_WIDTH, OUTPUT_HEIGHT,
+    CONTENT_TYPES, DEFAULT_CONTENT_TYPE
 )
 
 
@@ -63,7 +64,7 @@ Text: {text}"""
         
         try:
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model=GEMINI_TEXT_MODEL,
                 contents=prompt
             )
             translated = response.text.strip()
@@ -115,25 +116,34 @@ def get_duration(filepath):
     return 5.0
 
 
-def burn_subtitles(video_path, srt_path, output_path):
+def burn_subtitles(video_path, srt_path, output_path, content_type=None):
     """
-    İngilizce altyazıyı videoya yak — 9:16 dikey videoya optimize.
+    İngilizce altyazıyı videoya yak — content type'a göre optimize.
     
     Stil:
     - Modern sans-serif font (Arial Bold)
     - Beyaz text, yarı-saydam siyah arka plan kutusu
     - Alt-orta pozisyon, videoyla orantılı boyut
-    - 9:16 dikey video (1080x1920) için optimize
+    - Content type'a göre MarginV ve FontSize ayarlanır
     """
     # SRT yolunu FFmpeg filtresine escape et
     srt_escaped = str(srt_path).replace(":", "\\:").replace("'", "\\'")
     
-    # 9:16 dikey video (1080x1920) için optimize
-    # ASS FontSize video çözünürlüğüne göre ölçeklenir
-    # FontSize=8 → 1920px yükseklikte kompakt, profesyonel boyut
+    # Content type'a göre boyut ve margin ayarla
+    ct = CONTENT_TYPES.get(content_type, CONTENT_TYPES[DEFAULT_CONTENT_TYPE])
+    # SRT force_style FontSize'ı video çözünürlüğüne göreli olarak ayarlar
+    # Dikey (1080x1920): FontSize=8, MarginV=300
+    # Yatay (1920x1080): FontSize=6, MarginV=60
+    if ct['orientation'] == 'horizontal':
+        font_size = 6
+        margin_v = 60
+    else:
+        font_size = 8
+        margin_v = 300
+    
     style = (
         "FontName=Arial,"
-        "FontSize=8,"
+        f"FontSize={font_size},"
         "Bold=1,"
         "PrimaryColour=&H00FFFFFF,"
         "OutlineColour=&H00000000,"
@@ -141,7 +151,7 @@ def burn_subtitles(video_path, srt_path, output_path):
         "BorderStyle=4,"
         "Outline=1,"
         "Shadow=0,"
-        "MarginV=300,"
+        f"MarginV={margin_v},"
         "MarginL=15,"
         "MarginR=15,"
         "Alignment=2"
@@ -211,15 +221,35 @@ def process_project(project_dir, source_lang="de"):
     else:
         en_texts = texts
     
-    # Timing hesapla — draft video'nun sahne sürelerine göre
-    audio_dir = BASE_DIR / "_voices" / source_lang
+    # Timing hesapla — proje ses dosyalarından veya scenes.json'dan
+    audio_dir = project / "audio"  # Pipeline formatı: projects/{id}/audio/scene_01.mp3
     project_name = project.name.split("_", 1)[1] if "_" in project.name else project.name
+    
+    # İçerik türünü brief.md'den oku
+    content_type = None
+    brief_path = project / "brief.md"
+    if brief_path.exists():
+        brief_text = brief_path.read_text(encoding="utf-8")
+        for line in brief_text.split("\n"):
+            stripped = line.strip()
+            for marker in ["İçerik türü:", "içerik türü:", "content type:", "tür:"]:
+                if marker.lower() in stripped.lower() or marker in stripped:
+                    val = stripped.split(":", 1)[1].strip().lower()
+                    if val in CONTENT_TYPES:
+                        content_type = val
+                    break
     
     timings = []
     current_time = 0.2  # İlk sahne için küçük gecikme
     
     for i, scene in enumerate(scenes, 1):
-        audio_file = audio_dir / f"Molo_{source_lang}_{project_name}_s{i:02d}.mp3"
+        # Önce proje audio dizininde ara (pipeline formatı)
+        audio_file = audio_dir / f"scene_{i:02d}.mp3"
+        if not audio_file.exists():
+            # Fallback: eski _voices format
+            legacy_dir = BASE_DIR / "_voices" / source_lang
+            audio_file = legacy_dir / f"Molo_{source_lang}_{project_name}_s{i:02d}.mp3"
+        
         if audio_file.exists():
             dur = get_duration(audio_file)
         else:
@@ -241,7 +271,7 @@ def process_project(project_dir, source_lang="de"):
     final_name = f"{project_name}_final.mp4"
     final_path = final_dir / final_name
     
-    return burn_subtitles(draft_video, srt_path, final_path)
+    return burn_subtitles(draft_video, srt_path, final_path, content_type=content_type)
 
 
 # ─── CLI ───
