@@ -40,14 +40,9 @@ COPY --from=builder /app/studio/public ./studio/public
 # Copy scripts & config
 COPY scripts/ ./scripts/
 COPY _config/ ./_config/
-COPY _reference/ ./_reference/
-COPY _bgm/ ./_bgm/
 
-# Create data directories
-RUN mkdir -p projects _voices _images-generated _videos-raw
-
-# Copy .env (will be overridden by Railway env vars)
-COPY .env ./.env
+# Create data directories (will be populated at runtime or via Volume)
+RUN mkdir -p projects _voices _images-generated _videos-raw _reference _bgm
 
 # Set env
 ENV NODE_ENV=production
