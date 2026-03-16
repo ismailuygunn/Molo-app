@@ -39,7 +39,7 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 from config import (
     BASE_DIR, PROJECTS_DIR, REFERENCE_DIR, VOICES_DIR,
     FFMPEG, OUTPUT_WIDTH, OUTPUT_HEIGHT, OUTPUT_FPS,
-    KLING_MODEL, KLING_API_BASE, KLING_DURATION, KLING_MAX_PROMPT_CHARS,
+    KLING_MODEL, KLING_API_BASE, KLING_DURATION, KLING_MAX_PROMPT_CHARS, KLING_CFG_SCALE,
     GEMINI_IMAGE_MODEL, GEMINI_TEXT_MODEL, ELEVENLABS_MODEL,
     VOICE_PRESETS, VOICE_DEFAULT, VOICE_PROFILES,
     CHARACTER_PERSONALITY, CHARACTER_IDENTITY_LOCK,
@@ -403,6 +403,7 @@ def generate_scene_images(scenes, project_dir):
 
         # Premium prompt oluştur
         orient_text = "horizontal wide" if _ct['orientation'] == 'horizontal' else "vertical"
+        image_rules = _ct.get('image_rules', '')
         prompt = f"""{CHARACTER_IDENTITY_LOCK}
 
 {env_block}
@@ -410,6 +411,8 @@ def generate_scene_images(scenes, project_dir):
 Create a {_ct['orientation']} {_ct['aspect']} premium digital-host frame for a clinic screen. MOLO must be directly facing the camera, making clear direct eye contact, positioned in the center of the frame, with a symmetrical, screen-friendly composition.
 
 {_ct['scene_direction']}
+
+{image_rules}
 
 The framing should be a {shot} shot. The posture must be upright, open, welcoming, and stable.
 
@@ -482,6 +485,8 @@ def build_video_prompt(scene):
         motion = COMPACT_MOTION_EKRAN
         scene_block = f"""Scene: Premium horizontal {shot} commercial scene. {_ct['scene_direction']}
 
+{_ct.get('video_prompt_boost', '')}
+
 Performance mood: {emotion}. Voice direction: {voice_dir}.
 MOLO clearly visible with elegant negative space. The setting must feel clean, expensive, calm, and editorial, like a luxury brand commercial.
 Overall tone: quiet visual humor, luxury editorial commercial, premium mascot, subtle futuristic wit, controlled robotic elegance.
@@ -494,6 +499,8 @@ Avoid: changing MOLO's face/hologram/proportions, sloppy pose, childish comedy, 
         scene_block = f"""Premium front-facing {shot} {voice_dir} performance. MOLO centered, symmetrical, directly facing camera.
 
 {_ct['scene_direction']}
+
+{_ct.get('video_prompt_boost', '')}
 
 Performance mood: {emotion}. The character should embody this emotion through subtle facial cues and minimal body language. No exaggeration.
 
@@ -526,6 +533,7 @@ def _submit_kling_task(scene, ref_path, scene_duration="5"):
     payload = {
         "model_name": KLING_MODEL, "image": img_b64,
         "prompt": prompt, "duration": scene_duration, "aspect_ratio": _ct['kling_aspect'],
+        "cfg_scale": KLING_CFG_SCALE,
     }
     resp = requests.post(f"{KLING_API_BASE}/v1/videos/image2video",
                          headers=headers, json=payload, timeout=60)
@@ -1097,8 +1105,10 @@ DO NOT make MOLO look childish, flat, or toy-like.
                 from PIL import Image
                 import io
                 img = Image.open(io.BytesIO(part.inline_data.data))
-                if img.size != (THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT):
-                    img = img.resize((THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT), Image.LANCZOS)
+                thumb_w = _ct.get('thumbnail_w', THUMBNAIL_WIDTH)
+                thumb_h = _ct.get('thumbnail_h', THUMBNAIL_HEIGHT)
+                if img.size != (thumb_w, thumb_h):
+                    img = img.resize((thumb_w, thumb_h), Image.LANCZOS)
                 img.save(thumb_path, "PNG")
                 print(f"   ✅ Thumbnail: {thumb_path} ({img.size[0]}x{img.size[1]})")
                 return thumb_path

@@ -37,14 +37,29 @@ CONTENT_TYPES = {
         "aspect": "9:16",
         "kling_aspect": "9:16",
         "orientation": "vertical",
-        "subtitle_margin_v": 550,     # alt kısımda
+        "subtitle_margin_v": 550,
         "subtitle_fontsize": 42,
         "scene_direction": (
             "Vertical 9:16 social media format. "
             "MOLO centered, front-facing, symmetrical composition. "
             "Energetic, scroll-stopping, dynamic."
         ),
+        "video_prompt_boost": (
+            "Create a premium scroll-stopping vertical video. "
+            "Dynamic energy, punchy visual rhythm. "
+            "The character must command attention within the first second. "
+            "Bold, vibrant, high-contrast lighting. "
+            "Every frame must feel like a social media hero shot."
+        ),
+        "image_rules": (
+            "Bold close framing. MOLO fills 60-70% of vertical frame. "
+            "Strong eye contact, expressive pose. "
+            "Background: dramatic dark studio with blue volumetric fog and rim lighting. "
+            "The image must feel like a premium TikTok/Reels thumbnail."
+        ),
         "thumbnail": True,
+        "thumbnail_w": 1080,
+        "thumbnail_h": 1920,
     },
     "ekran": {
         "label": "📺 Klinik Ekranı",
@@ -53,7 +68,7 @@ CONTENT_TYPES = {
         "aspect": "16:9",
         "kling_aspect": "16:9",
         "orientation": "horizontal",
-        "subtitle_margin_v": 80,      # alttan yukarıda
+        "subtitle_margin_v": 80,
         "subtitle_fontsize": 36,
         "scene_direction": (
             "Horizontal 16:9 wide clinic lobby screen format. "
@@ -63,7 +78,22 @@ CONTENT_TYPES = {
             "leaning on furniture, sitting on a dental chair, or waking up from a nap. "
             "Premium, warm, slightly humorous, like a living lobby host."
         ),
+        "video_prompt_boost": (
+            "Wide cinematic composition for a premium lobby display. "
+            "The character should feel naturally integrated into the clinic environment, not floating. "
+            "Elegant negative space, balanced framing, soft warm lighting. "
+            "The video must feel like a luxury brand commercial, calm and editorial. "
+            "Camera: stable, no shake, no dramatic zoom. Subtle ambient motion only."
+        ),
+        "image_rules": (
+            "Wide horizontal composition. MOLO occupies 40-50% of frame. "
+            "Significant negative space for cinematic feel. "
+            "Background: warm premium clinic interior or minimal studio. "
+            "The image must feel like a luxury campaign still."
+        ),
         "thumbnail": False,
+        "thumbnail_w": 1920,
+        "thumbnail_h": 1080,
     },
     "robot": {
         "label": "🤖 Robot Ekranı (Speedy Pixel)",
@@ -73,7 +103,7 @@ CONTENT_TYPES = {
         "kling_aspect": "9:16",
         "orientation": "vertical",
         "subtitle_margin_v": 500,
-        "subtitle_fontsize": 46,      # robottan okunsun diye biraz daha büyük
+        "subtitle_fontsize": 46,
         "scene_direction": (
             "Vertical 9:16 robot display format for Saha Robotics Speedy Pixel. "
             "MOLO centered, front-facing, direct eye contact. "
@@ -81,15 +111,30 @@ CONTENT_TYPES = {
             "Warm, welcoming, conversational — like greeting clinic visitors face-to-face. "
             "Close to medium-close framing preferred since robot screen is smaller."
         ),
+        "video_prompt_boost": (
+            "Close conversational framing optimized for small robot display screen. "
+            "Direct eye contact, warm personal presence, slightly robotic charm. "
+            "The character should feel like they are talking directly to the viewer. "
+            "Intimate, friendly, reliable. Like a gentle host greeting you at the door."
+        ),
+        "image_rules": (
+            "Close-up to medium-close framing. MOLO fills 70-80% of vertical frame. "
+            "Strong direct eye contact — must feel personal and intimate. "
+            "Background: soft, warm, slightly blurred clinic. "
+            "The image must feel welcoming and conversational."
+        ),
         "thumbnail": False,
+        "thumbnail_w": 1080,
+        "thumbnail_h": 1920,
     },
 }
 DEFAULT_CONTENT_TYPE = "sosyal"
 
 # ─── Model Kilitleri (⚠️ KESİN KURAL: DEĞİŞTİRİLMEZ) ───
-KLING_MODEL = "kling-v3"
+KLING_MODEL = "kling-v3"                     # ⚠️ En son model — asla düşürülmez
 KLING_API_BASE = "https://api.klingai.com"
 KLING_DURATION = "5"
+KLING_CFG_SCALE = 0.7                         # Prompt'a bağlılık (0-1, 0.5 default, 0.7 sıkı)
 KLING_MAX_PROMPT_CHARS = 2500  # ⚠️ API hard limit
 
 GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image-preview"  # Nano Banana 2
@@ -265,8 +310,9 @@ BGM_FADE_OUT = 2.0            # çıkış fade (saniye)
 BGM_DIR = BASE_DIR / "_bgm"   # müzik dosyaları dizini
 
 # ─── Otomatik Thumbnail (Gemini Nano Banana 2) ───
-THUMBNAIL_WIDTH = 1080
-THUMBNAIL_HEIGHT = 1920
+# Thumbnail boyutları content-type'dan alınır: _ct['thumbnail_w'], _ct['thumbnail_h']
+THUMBNAIL_WIDTH = 1080   # varsayılan (sosyal)
+THUMBNAIL_HEIGHT = 1920  # varsayılan (sosyal)
 
 # ─── Kling Retry ───
 KLING_MAX_PARALLEL = 3         # API paralel task limiti
