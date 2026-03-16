@@ -1054,10 +1054,11 @@ def generate_thumbnail(final_path, project_dir, project_name, title="", scenes=N
             mime_type="image/jpeg"
         ))
 
-    # Yaratıcı thumbnail prompt'u
+    # Yaratıcı thumbnail prompt'u — content type'a göre boyut
+    orient = "vertical 9:16" if _ct['orientation'] == 'vertical' else "horizontal 16:9"
     prompt = f"""{CHARACTER_IDENTITY_LOCK}
 
-Create a STUNNING, eye-catching vertical 9:16 social media thumbnail for a video titled "{title}".
+Create a STUNNING, eye-catching {orient} social media thumbnail for a video titled "{title}".
 
 This must feel like a PREMIUM social media cover — the kind that makes people stop scrolling.
 

@@ -30,17 +30,30 @@ export async function GET() {
       try {
         brief = await readFile(join(projectPath, "brief.md"), "utf-8");
         // Parse content type
+        // Parse content type — Turkish İ/i safe
+        const contentMarkers = ["içerik türü:", "İçerik türü:", "icerik turu:", "content type:", "tür:"];
+        const langMap: Record<string, string> = {
+          "de": "de", "deutsch": "de", "almanca": "de", "german": "de", "🇩🇪": "de",
+          "tr": "tr", "türkçe": "tr", "turkish": "tr", "🇹🇷": "tr",
+          "en": "en", "english": "en", "ingilizce": "en", "🇬🇧": "en", "🇺🇸": "en",
+        };
         for (const line of brief.split("\n")) {
-          const ll = line.toLowerCase().trim();
-          if (ll.includes("içerik türü:") || ll.includes("content type:") || ll.includes("tür:")) {
-            const val = line.split(":")[1]?.trim().toLowerCase();
-            if (["sosyal", "ekran", "robot"].includes(val || "")) contentType = val!;
+          const stripped = line.trim();
+          const ll = stripped.toLowerCase();
+          // Content type
+          if (contentMarkers.some(m => ll.includes(m.toLowerCase()) || stripped.includes(m))) {
+            const val = stripped.split(":").slice(1).join(":").trim().toLowerCase();
+            if (["sosyal", "ekran", "robot"].includes(val)) contentType = val;
           }
+          // Language — lookup map
           if (ll.includes("dil:") || ll.includes("language:")) {
-            lang = line.split(":")[1]?.trim().toLowerCase().slice(0, 2) || "de";
+            const raw = stripped.split(":").slice(1).join(":").trim().toLowerCase();
+            for (const [key, code] of Object.entries(langMap)) {
+              if (raw.includes(key)) { lang = code; break; }
+            }
           }
           if (ll.includes("konu:") || ll.includes("title:") || ll.includes("başlık:")) {
-            title = line.split(":")[1]?.trim() || name;
+            title = line.split(":").slice(1).join(":").trim() || name;
           }
           // Fallback: use first markdown # header as title
           if (title === name && line.trim().startsWith("#") && !line.trim().startsWith("##")) {
