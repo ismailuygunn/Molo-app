@@ -42,17 +42,17 @@ _images-generated/
 _videos-raw/
 _voices/
 
-# ── Project generated content (large media) ──
-# Keep: scenes.json, brief.md, scene_*_ref.png (input images)
-# Ignore: videos, audio, drafts, finals (generated, can be rebuilt)
-projects/**/*.mp4
-projects/**/*.mp3
-projects/**/*.wav
-projects/*/audio/
-projects/*/draft/
-projects/*/final/
-projects/*/subtitles/
-projects/*/scenes/video_tasks.json
+# ── Project generated content ──
+# TEMPORARILY INCLUDED for Railway volume seeding
+# Uncomment after first successful deploy with all media
+# projects/**/*.mp4
+# projects/**/*.mp3
+# projects/**/*.wav
+# projects/*/audio/
+# projects/*/draft/
+# projects/*/final/
+# projects/*/subtitles/
+# projects/*/scenes/video_tasks.json
 
 # Pipeline artifacts
 .pipeline.log

@@ -1,0 +1,16 @@
+[Script Info]
+Title: Molo Dis Bakimi
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 0
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,42,&H00FFFFFF,&H000000FF,&H00000000,&H96000000,-1,0,0,0,100,100,0,0,4,0,0,2,20,20,550,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.20,0:00:06.10,Default,,0,0,0,,Hello! It's me again, Molo! Today I have\Nthree golden tips for your teeth.\NAnd no, I don't mean real gold.
+Dialogue: 0,0:00:06.80,0:00:19.50,Default,,0,0,0,,So, first: Brush twice a day, that's a must!\NSecond: Visit your dentist at least once a year,\Npreferably us. And third: Less sugar!\NYeah, I know, that's the hard part.
+Dialogue: 0,0:00:20.00,0:00:24.80,Default,,0,0,0,,Remember: Your teeth are your best accessory.\NStop by, I'm waiting for you! Bye!

@@ -1,0 +1,16 @@
+1
+00:00:00,200 --> 00:00:04,799
+Hallo! Ich bin Molo, euer Zahnfreund bei Istadental.
+Schön, dass ihr da seid!
+
+2
+00:00:05,000 --> 00:00:10,769
+Willkommen in unserer Klinik.
+Hier sorgen wir für euer strahlendes Lächeln,
+ganz entspannt und schmerzfrei.
+
+3
+00:00:11,169 --> 00:00:13,739
+Wir freuen uns auf euch!
+Bis bald, euer Molo.
+
