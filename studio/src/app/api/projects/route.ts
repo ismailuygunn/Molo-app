@@ -17,6 +17,8 @@ export async function GET() {
         const projectPath = join(PROJECTS_DIR, entry);
         const s = await stat(projectPath);
         if (!s.isDirectory()) continue;
+        // Skip system and hidden dirs
+        if (entry === "lost+found" || entry.startsWith(".")) continue;
 
         const nameParts = entry.split("_");
         const date = nameParts[0] || entry;
