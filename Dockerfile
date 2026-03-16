@@ -37,9 +37,10 @@ COPY --from=builder /app/studio/node_modules ./studio/node_modules
 COPY --from=builder /app/studio/package.json ./studio/package.json
 COPY --from=builder /app/studio/public ./studio/public
 
-# Copy scripts & config
+# Copy scripts, config & project data
 COPY scripts/ ./scripts/
 COPY _config/ ./_config/
+COPY projects/ ./projects/
 
 # Create data directories (will be populated at runtime or via Volume)
 RUN mkdir -p projects _voices _images-generated _videos-raw _reference _bgm

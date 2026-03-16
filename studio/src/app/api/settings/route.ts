@@ -13,28 +13,25 @@ const KEYS = [
 
 export async function GET() {
   try {
-    // Read .env file
-    let envContent = "";
-    try {
-      envContent = await readFile(ENV_PATH, "utf-8");
-    } catch {
-      return NextResponse.json({ keys: KEYS.map((k) => ({ ...k, exists: false, last4: "" })) });
-    }
-
-    // Parse .env
+    // Parse .env file if it exists (local dev), otherwise rely on process.env (Railway)
     const envVars: Record<string, string> = {};
-    for (const line of envContent.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const eqIdx = trimmed.indexOf("=");
-      if (eqIdx === -1) continue;
-      const key = trimmed.slice(0, eqIdx).trim();
-      let val = trimmed.slice(eqIdx + 1).trim();
-      // Remove quotes
-      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-        val = val.slice(1, -1);
+    try {
+      const envContent = await readFile(ENV_PATH, "utf-8");
+      for (const line of envContent.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx === -1) continue;
+        const key = trimmed.slice(0, eqIdx).trim();
+        let val = trimmed.slice(eqIdx + 1).trim();
+        // Remove quotes
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        envVars[key] = val;
       }
-      envVars[key] = val;
+    } catch {
+      // .env file not found — normal on Railway where env vars are system-level
     }
 
     const keys = KEYS.map((k) => {
