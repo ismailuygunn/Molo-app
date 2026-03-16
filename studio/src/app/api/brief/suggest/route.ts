@@ -69,7 +69,7 @@ Yanıtını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 1.0,
-            maxOutputTokens: 2048,
+            maxOutputTokens: 4096,
           },
         }),
       }
@@ -82,16 +82,23 @@ Yanıtını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
     }
 
     const result = await response.json();
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    let text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-    // Parse JSON from response
+    // Strip markdown code fences (Gemini often wraps in ```json ... ```)
+    text = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+
+    // Parse JSON array from response
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      return NextResponse.json({ error: "AI yanıtı parse edilemedi", raw: text }, { status: 500 });
+      return NextResponse.json({ error: "AI yanıtı parse edilemedi", raw: text.slice(0, 200) }, { status: 500 });
     }
 
-    const suggestions = JSON.parse(jsonMatch[0]);
-    return NextResponse.json({ suggestions });
+    try {
+      const suggestions = JSON.parse(jsonMatch[0]);
+      return NextResponse.json({ suggestions });
+    } catch {
+      return NextResponse.json({ error: "JSON parse hatası", raw: text.slice(0, 200) }, { status: 500 });
+    }
   } catch (error) {
     console.error("Suggest error:", error);
     return NextResponse.json({ error: "Öneri üretilemedi" }, { status: 500 });
