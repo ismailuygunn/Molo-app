@@ -14,6 +14,7 @@ function ImagesContent() {
   const [imageFiles, setImageFiles] = useState<string[]>([]);
   const [selected, setSelected] = useState(0);
   const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({});
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   useEffect(() => {
     if (!projectId) return;
@@ -122,7 +123,7 @@ function ImagesContent() {
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
                 <h3 style={{ fontSize: 16, fontWeight: 600 }}>Sahne {selected + 1} Detay</h3>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button className="btn btn-secondary" style={{ fontSize: 12 }}>
+                  <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => imageFiles[selected] && setLightbox(imageFiles[selected])}>
                     <ZoomIn size={14} /> Büyüt
                   </button>
                   <button className="btn btn-secondary" style={{ fontSize: 12 }}>
@@ -157,6 +158,23 @@ function ImagesContent() {
             </div>
           )}
         </>
+      )}
+
+      {/* Lightbox Modal */}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1000,
+            display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out",
+          }}
+        >
+          <img
+            src={lightbox}
+            alt="Büyütülmüş görsel"
+            style={{ maxWidth: "90vw", maxHeight: "90vh", objectFit: "contain", borderRadius: 8 }}
+          />
+        </div>
       )}
     </>
   );

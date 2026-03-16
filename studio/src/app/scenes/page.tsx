@@ -238,6 +238,22 @@ function ScenesContent() {
     };
   }, []);
 
+  // C2: Keyboard navigation — sol/sağ ok sahne geçişi
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (!project) return;
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveScene((prev) => Math.max(0, prev - 1));
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveScene((prev) => Math.min(project.scenes.length - 1, prev + 1));
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [project]);
+
   const handlePipeline = async () => {
     if (!projectId) return;
 

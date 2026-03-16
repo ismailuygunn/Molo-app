@@ -38,6 +38,13 @@ export async function POST(req: NextRequest) {
     // Ensure project dir exists
     await mkdir(projectDir, { recursive: true });
 
+    // E4: Backup previous log
+    try {
+      await readFile(logPath, "utf-8");
+      const { rename } = await import("fs/promises");
+      await rename(logPath, logPath + ".bak");
+    } catch { /* no previous log */ }
+
     // Clear previous log
     await writeFile(logPath, `[${new Date().toISOString()}] Pipeline başlatılıyor...\n`, "utf-8");
 

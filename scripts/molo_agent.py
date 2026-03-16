@@ -522,13 +522,19 @@ def _submit_kling_task(scene, ref_path):
         return None, n
 
 
-def _wait_kling_task(tid, scene_num, out_path):
-    """Tek bir Kling task'ını bekler ve indirir."""
-    for attempt in range(40):
+def _wait_kling_task(tid, scene_num, out_path, max_attempts=40, poll_interval=10):
+    """Tek bir Kling task'ını bekler ve indirir. Timeout: max_attempts × poll_interval saniye."""
+    timeout_secs = max_attempts * poll_interval
+    for attempt in range(max_attempts):
         token = get_kling_token()
-        resp = requests.get(f"{KLING_API_BASE}/v1/videos/image2video/{tid}",
-                           headers={"Authorization": f"Bearer {token}"}, timeout=30)
-        rj = resp.json()
+        try:
+            resp = requests.get(f"{KLING_API_BASE}/v1/videos/image2video/{tid}",
+                               headers={"Authorization": f"Bearer {token}"}, timeout=30)
+            rj = resp.json()
+        except Exception as e:
+            print(f"   ⚠️ Sahne {scene_num}: API bağlantı hatası ({e}), tekrar deneniyor...")
+            time.sleep(poll_interval)
+            continue
         status = rj.get("data", {}).get("task_status", "?")
         if status == "succeed":
             videos = rj.get("data", {}).get("task_result", {}).get("videos", [])
@@ -539,11 +545,16 @@ def _wait_kling_task(tid, scene_num, out_path):
                 return True
             return False
         elif status == "failed":
+            msg = rj.get("data", {}).get("task_status_msg", "Bilinmeyen hata")
+            print(f"   ❌ Sahne {scene_num}: Kling failed — {msg}")
             return False
         else:
+            elapsed = attempt * poll_interval
             if attempt % 4 == 0:
-                print(f"   ⏳ Sahne {scene_num}: {status}... ({attempt*10}s)")
-            time.sleep(10)
+                remaining = timeout_secs - elapsed
+                print(f"   ⏳ Sahne {scene_num}: {status}... ({elapsed}s / max {timeout_secs}s, {remaining}s kaldı)")
+            time.sleep(poll_interval)
+    print(f"   ⏰ Sahne {scene_num}: TIMEOUT — {timeout_secs}s içinde tamamlanamadı")
     return False
 
 

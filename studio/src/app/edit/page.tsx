@@ -13,12 +13,23 @@ function EditContent() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<{ draft: string[]; final: string[] }>({ draft: [], final: [] });
-  const [crossfade, setCrossfade] = useState(0.7);
-  const [slowdown, setSlowdown] = useState(88);
-  const [crf, setCrf] = useState(16);
-  const [transition, setTransition] = useState("fade");
   const [rendering, setRendering] = useState(false);
   const toast = useToast();
+
+  // C4: localStorage persistence for render params
+  const storageKey = `molo_edit_${projectId}`;
+  const saved = typeof window !== "undefined" ? JSON.parse(localStorage.getItem(storageKey) || "{}") : {};
+  const [crossfade, setCrossfade] = useState(saved.crossfade ?? 0.7);
+  const [slowdown, setSlowdown] = useState(saved.slowdown ?? 88);
+  const [crf, setCrf] = useState(saved.crf ?? 16);
+  const [transition, setTransition] = useState(saved.transition ?? "fade");
+
+  // Save to localStorage on change
+  useEffect(() => {
+    if (projectId) {
+      localStorage.setItem(storageKey, JSON.stringify({ crossfade, slowdown, crf, transition }));
+    }
+  }, [crossfade, slowdown, crf, transition, projectId, storageKey]);
 
   useEffect(() => {
     if (!projectId) return;
