@@ -42,10 +42,6 @@ COPY scripts/ ./scripts/
 COPY _config/ ./_config/
 COPY projects/ ./projects/
 COPY _reference/ ./_reference/
-COPY _bgm/ ./_bgm/
-
-# Copy .env if exists (Railway overrides with env vars)
-COPY .env* ./
 
 # Create data directories (will be populated at runtime)
 RUN mkdir -p projects _voices _images-generated _videos-raw _reference _bgm
