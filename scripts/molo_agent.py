@@ -511,8 +511,9 @@ Avoid: side angle, 3/4 view, oversized mascot, cartoon wobble, arm flailing, fac
     return full
 
 
-def _submit_kling_task(scene, ref_path):
-    """Tek bir Kling task'ı submit eder. (task_id, scene_num) döndürür."""
+def _submit_kling_task(scene, ref_path, scene_duration="5"):
+    """Tek bir Kling task'ı submit eder. (task_id, scene_num) döndürür.
+    scene_duration: '5' veya '10' — ses süresine göre akıllı seçim."""
     n = scene["scene"]
     prompt = build_video_prompt(scene)
     if len(prompt) > KLING_MAX_PROMPT_CHARS:
@@ -524,7 +525,7 @@ def _submit_kling_task(scene, ref_path):
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
     payload = {
         "model_name": KLING_MODEL, "image": img_b64,
-        "prompt": prompt, "duration": KLING_DURATION, "aspect_ratio": _ct['kling_aspect'],
+        "prompt": prompt, "duration": scene_duration, "aspect_ratio": _ct['kling_aspect'],
     }
     resp = requests.post(f"{KLING_API_BASE}/v1/videos/image2video",
                          headers=headers, json=payload, timeout=60)
@@ -573,11 +574,34 @@ def _wait_kling_task(tid, scene_num, out_path, max_attempts=40, poll_interval=10
     return False
 
 
-def generate_videos(scenes, image_files, project_dir):
-    """Her sahne için Kling v3 video üretir. Kuyruk + retry mekanizmalı."""
+def _choose_kling_duration(audio_duration):
+    """Ses süresine göre Kling video süresi seç.
+    - Ses ≤ 5s → 5s Kling (tam karşılama)
+    - Ses > 5s → 10s Kling (loop minimizasyonu)
+    """
+    if audio_duration <= 5.5:
+        return "5"
+    return "10"
+
+
+def generate_videos(scenes, image_files, project_dir, durations=None):
+    """Her sahne için Kling v3 video üretir. Akıllı süre seçimi + Kuyruk + Retry.
+    durations: ses süreleri listesi (varsa per-scene Kling duration seçimi yapılır)."""
     print("\n" + "=" * 60)
-    print(f"🎬 ADIM 5: Video Üretimi ({KLING_MODEL}) — Kuyruk + Retry")
+    print(f"🎬 ADIM 5: Video Üretimi ({KLING_MODEL}) — Akıllı Süre + Kuyruk + Retry")
     print("=" * 60)
+
+    # Per-scene Kling duration seçimi
+    scene_durations = {}
+    for i, s in enumerate(scenes):
+        n = s["scene"]
+        if durations and i < len(durations) and durations[i] > 0:
+            sd = _choose_kling_duration(durations[i])
+            scene_durations[n] = sd
+            print(f"   Sahne {n}: ses={durations[i]:.1f}s → Kling {sd}s")
+        else:
+            scene_durations[n] = KLING_DURATION
+            print(f"   Sahne {n}: varsayılan → Kling {KLING_DURATION}s")
 
     # Tüm sahneleri kuyruğa al
     queue = list(range(len(scenes)))  # index listesi
@@ -602,11 +626,12 @@ def generate_videos(scenes, image_files, project_dir):
                 s = scenes[idx]
                 n = s["scene"]
                 ref = image_files[idx]
-                tid, sn = _submit_kling_task(s, ref)
+                sd = scene_durations.get(n, KLING_DURATION)
+                tid, sn = _submit_kling_task(s, ref, scene_duration=sd)
                 if tid:
                     out = project_dir / "scenes" / f"scene_{n:02d}.mp4"
                     active.append((tid, n, str(out), idx))
-                    print(f"   Sahne {n}: {len(build_video_prompt(s))} char → Task={tid}")
+                    print(f"   Sahne {n}: {len(build_video_prompt(s))} char | {sd}s → Task={tid}")
                 else:
                     print(f"   Sahne {n}: ❌ submit başarısız")
                     failed_this_round.append(idx)
@@ -619,7 +644,8 @@ def generate_videos(scenes, image_files, project_dir):
                     ok = _wait_kling_task(tid, sn, out)
                     if ok:
                         size = os.path.getsize(out) / (1024*1024)
-                        print(f"   ✅ Sahne {sn}: {size:.1f} MB")
+                        kling_dur = scene_durations.get(sn, "5")
+                        print(f"   ✅ Sahne {sn}: {size:.1f} MB | Kling {kling_dur}s")
                         results[sn] = out
                     else:
                         print(f"   ❌ Sahne {sn}: başarısız")
@@ -647,14 +673,15 @@ def generate_videos(scenes, image_files, project_dir):
 # ═══════════════════════════════════════
 
 def compose_edit(video_files, voice_files, durations, project_dir, project_name):
-    """Ses-video eşleştir, kalite filtrele, crossfade, final yap."""
+    """Ses-video eşleştir, kalite filtrele, crossfade, final yap.
+    Akıllı süre yönetimi: video > ses → trim, video < ses → tek reverse + loop (max 2x)."""
     print("\n" + "=" * 60)
-    print("🎬 ADIM 6: Kurgu & Efekt")
+    print("🎬 ADIM 6: Kurgu & Efekt (Akıllı Süre)")
     print("=" * 60)
 
     num = min(len(video_files), len(voice_files))
 
-    # 6a: Her sahne: ping-pong reverse loop + kalite filtre + ses birleştir
+    # 6a: Her sahne: akıllı uzatma + kalite filtre + ses birleştir
     merged = []
     for i in range(num):
         n = i + 1
@@ -662,34 +689,19 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name)
         dur = durations[i]
         vf = get_normalize_filter(with_quality=True, content_type=_content_type_key)
 
-        # Ping-pong: video ters-düz loop ile daha doğal animasyon
-        # [0:v]split → normal + tersine → concat → loop
-        pingpong_vf = f"[0:v]split[fwd][rev];[rev]reverse[r];[fwd][r]concat=n=2:v=1:a=0,loop=-1:size=9999,{vf}[v]"
+        # Video süresini ölç
+        video_dur = get_audio_duration(video_files[i])
+        pad_dur = dur + SCENE_PADDING
 
-        # Sahne padding: ses bittikten sonra son kareyi SCENE_PADDING kadar dondur
-        # -shortest yerine ses + padding kadar keş
-        pad_dur = durations[i] + SCENE_PADDING
+        print(f"   Sahne {n}: video={video_dur:.1f}s, ses={dur:.1f}s, hedef={pad_dur:.1f}s")
 
-        cmd = [
-            FFMPEG, "-y",
-            "-i", video_files[i],
-            "-i", voice_files[i],
-            "-filter_complex", pingpong_vf,
-            "-map", "[v]", "-map", "1:a",
-            "-c:v", "libx264", "-preset", "medium",
-            "-crf", str(QUALITY_FILTERS["crf"]),
-            "-c:a", "aac", "-b:a", "192k", "-r", str(OUTPUT_FPS),
-            "-t", str(pad_dur),
-            "-shortest", out
-        ]
+        success = False
 
-        # Fallback: ping-pong başarısız olursa stream_loop kullan
-        r_pp = subprocess.run(cmd, capture_output=True, text=True)
-        if r_pp.returncode != 0:
-            # Fallback to stream_loop
+        if video_dur >= pad_dur:
+            # Video yeterince uzun → sadece trim + kalite filtre
             cmd = [
                 FFMPEG, "-y",
-                "-stream_loop", "-1", "-i", video_files[i],
+                "-i", video_files[i],
                 "-i", voice_files[i],
                 "-filter_complex", f"[0:v]{vf}[v]",
                 "-map", "[v]", "-map", "1:a",
@@ -702,14 +714,54 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name)
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode == 0:
                 actual_dur = get_audio_duration(out)
-                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (stream_loop fallback)")
+                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (video yeterliydi ✂️)")
+                merged.append(out)
+                success = True
+
+        if not success and video_dur * 2 >= pad_dur:
+            # Video'nun ters-düz versiyonu yeterli → tek reverse (doğal ping-pong)
+            pingpong_vf = f"[0:v]split[fwd][rev];[rev]reverse[r];[fwd][r]concat=n=2:v=1:a=0,{vf}[v]"
+            cmd = [
+                FFMPEG, "-y",
+                "-i", video_files[i],
+                "-i", voice_files[i],
+                "-filter_complex", pingpong_vf,
+                "-map", "[v]", "-map", "1:a",
+                "-c:v", "libx264", "-preset", "medium",
+                "-crf", str(QUALITY_FILTERS["crf"]),
+                "-c:a", "aac", "-b:a", "192k", "-r", str(OUTPUT_FPS),
+                "-t", str(pad_dur),
+                "-shortest", out
+            ]
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            if r.returncode == 0:
+                actual_dur = get_audio_duration(out)
+                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (tek reverse 🔄)")
+                merged.append(out)
+                success = True
+
+        if not success:
+            # Son çare: stream_loop ile max 2 tekrar
+            loop_count = min(2, max(1, int(pad_dur / max(video_dur, 1)) + 1))
+            cmd = [
+                FFMPEG, "-y",
+                "-stream_loop", str(loop_count - 1), "-i", video_files[i],
+                "-i", voice_files[i],
+                "-filter_complex", f"[0:v]{vf}[v]",
+                "-map", "[v]", "-map", "1:a",
+                "-c:v", "libx264", "-preset", "medium",
+                "-crf", str(QUALITY_FILTERS["crf"]),
+                "-c:a", "aac", "-b:a", "192k", "-r", str(OUTPUT_FPS),
+                "-t", str(pad_dur),
+                "-shortest", out
+            ]
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            if r.returncode == 0:
+                actual_dur = get_audio_duration(out)
+                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (stream_loop x{loop_count})")
                 merged.append(out)
             else:
                 print(f"   ❌ Sahne {n}: {r.stderr[-200:]}")
-        else:
-            actual_dur = get_audio_duration(out)
-            print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (ping-pong 🏓)")
-            merged.append(out)
 
     if len(merged) < 2:
         print("   ❌ Yetersiz sahne!")
@@ -1175,7 +1227,7 @@ def main():
 
         # ── ADIM 5: Videolar ──
         _write_progress("videos", 52, "Video üretimi başlıyor (Kling API)...")
-        video_files = generate_videos(scenes, image_files, project_dir)
+        video_files = generate_videos(scenes, image_files, project_dir, durations=durations)
         _write_progress("videos", 70, f"{len(video_files)}/{len(scenes)} video hazır")
 
         if len(video_files) < len(scenes):
