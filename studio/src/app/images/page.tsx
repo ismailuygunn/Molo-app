@@ -139,6 +139,21 @@ function ImagesContent() {
                 <div><span className="label">Shot</span><div className="input">{scene.shot_type}</div></div>
                 <div><span className="label">Duygu</span><div className="input">{scene.emotion_note}</div></div>
               </div>
+              {/* Metinler */}
+              <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div>
+                  <span className="label">🇩🇪 Metin (DE)</span>
+                  <div className="input" style={{ fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                    {scene.text_de || (scene as unknown as Record<string, string>).text || "—"}
+                  </div>
+                </div>
+                <div>
+                  <span className="label">🇹🇷 Metin (TR)</span>
+                  <div className="input" style={{ fontSize: 12, whiteSpace: "pre-wrap", lineHeight: 1.5, color: scene.text_tr ? "var(--text-secondary)" : "var(--text-muted)", fontStyle: scene.text_tr ? "normal" : "italic" }}>
+                    {scene.text_tr || "Çeviri bekleniyor..."}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </>

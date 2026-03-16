@@ -76,6 +76,11 @@ function SceneCard({
       <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>
         {scene.text_de || (scene as unknown as Record<string, string>).text || ""}
       </div>
+      {scene.text_tr && (
+        <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.3, marginTop: 4, fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical" as const }}>
+          🇹🇷 {scene.text_tr}
+        </div>
+      )}
       <div style={{ marginTop: 8, display: "flex", gap: 4 }}>
         <span className="badge draft" style={{ fontSize: 9 }}>{scene.voice_direction}</span>
         <span className="badge review" style={{ fontSize: 9 }}>{scene.shot_type}</span>
@@ -393,6 +398,14 @@ function ScenesContent() {
                   </label>
                   <div className="input textarea" style={{ whiteSpace: "pre-wrap", minHeight: 80, lineHeight: 1.6 }}>
                     {scene.text_de || (scene as unknown as Record<string, string>).text || "Metin bulunamadı"}
+                  </div>
+                </div>
+
+                {/* Türkçe Çeviri */}
+                <div style={{ marginBottom: 20 }}>
+                  <label className="label">🇹🇷 Metin (TR)</label>
+                  <div className="input textarea" style={{ whiteSpace: "pre-wrap", minHeight: 60, lineHeight: 1.6, color: scene.text_tr ? "var(--text-secondary)" : "var(--text-muted)", fontStyle: scene.text_tr ? "normal" : "italic" }}>
+                    {scene.text_tr || "Çeviri bekleniyor..."}
                   </div>
                 </div>
 

@@ -138,6 +138,11 @@ function VoiceContent() {
                   <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.4, marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     &quot;{(scene.text_de || (scene as unknown as Record<string, string>).text || "").slice(0, 80)}{(scene.text_de || "").length > 80 ? "..." : ""}&quot;
                   </div>
+                  {scene.text_tr && (
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontStyle: "italic" }}>
+                      🇹🇷 {scene.text_tr.slice(0, 60)}{scene.text_tr.length > 60 ? "..." : ""}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

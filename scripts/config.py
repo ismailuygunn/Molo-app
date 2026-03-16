@@ -6,6 +6,7 @@ Molo İçerik Pipeline — Merkezi Konfigürasyon
    Bu değerleri değiştirmeden önce tüm ekiple konuşun.
 """
 
+import shutil
 from pathlib import Path
 
 # ─── Dizinler ───
@@ -18,7 +19,7 @@ CONFIG_DIR = BASE_DIR / "_config"
 ERROR_LOG = CONFIG_DIR / "error-log.md"
 
 # ─── Araçlar ───
-FFMPEG = "/Users/socialmedia/.local/bin/ffmpeg"
+FFMPEG = shutil.which("ffmpeg") or "/usr/bin/ffmpeg"
 
 # ─── Video Çıktı Formatı (varsayılan — content type ile override edilir) ───
 OUTPUT_WIDTH = 1080
@@ -264,12 +265,18 @@ KLING_RETRY_WAIT = 30          # retry arası bekleme (saniye)
 KLING_MAX_RETRIES = 3          # max retry per scene
 
 # ─── FFmpeg Yardımcı Fonksiyonlar ───
-def get_normalize_filter(with_quality=False):
-    """1080x1920 normalize + opsiyonel kalite filtreleri."""
+def get_normalize_filter(with_quality=False, content_type=None):
+    """Normalize filter — content type'a göre doğru boyut kullanır."""
+    if content_type and content_type in CONTENT_TYPES:
+        ct = CONTENT_TYPES[content_type]
+        w, h = ct["width"], ct["height"]
+    else:
+        w, h = OUTPUT_WIDTH, OUTPUT_HEIGHT
+
     base = (
-        f"scale={OUTPUT_WIDTH}:{OUTPUT_HEIGHT}:"
+        f"scale={w}:{h}:"
         f"force_original_aspect_ratio=decrease,"
-        f"pad={OUTPUT_WIDTH}:{OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2:black,"
+        f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black,"
         f"setsar=1"
     )
     if with_quality:

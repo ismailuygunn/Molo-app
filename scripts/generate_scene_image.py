@@ -36,8 +36,18 @@ except ImportError:
 from config import (
     BASE_DIR, REFERENCE_DIR, FFMPEG,
     GEMINI_IMAGE_MODEL, OUTPUT_WIDTH, OUTPUT_HEIGHT,
-    ENVIRONMENT_IMAGES, MOLO_POSES, get_normalize_filter
+    ENVIRONMENT_IMAGES, MOLO_POSES, get_normalize_filter,
+    CONTENT_TYPES, DEFAULT_CONTENT_TYPE
 )
+
+
+def _format_line(content_type):
+    """Content type'a göre format satırı döndür."""
+    ct = CONTENT_TYPES.get(content_type, CONTENT_TYPES[DEFAULT_CONTENT_TYPE])
+    w, h = ct["width"], ct["height"]
+    aspect = ct["aspect"]
+    orient = "Horizontal" if ct["orientation"] == "horizontal" else "Vertical"
+    return f"Format: {orient} {aspect} composition ({w}x{h})"
 
 # ─── Gemini sahne üretim promptları ───
 SCENE_PROMPTS = {
@@ -57,7 +67,7 @@ CRITICAL RULES:
 - Molo should have a small, friendly wave pose
 - Style: Photorealistic composite, the 3D character placed naturally in the real clinic
 - Lighting on Molo should match the clinic's lighting direction
-- Format: Vertical 9:16 composition (1080x1920)
+- {format_line}
 - Camera: Eye-level, medium shot, Molo centered""",
 
     "studio": """You are given a reference image of a 3D robotic mascot character named "Molo".
@@ -75,7 +85,7 @@ CRITICAL RULES:
 - Dramatic rim lighting from behind creates blue edge highlights on Molo's body
 - A cool cyan glow emanates from the hologram cone, casting light upward
 - Style: 3D photorealistic render, Pixar-quality, cinematic
-- Format: Vertical 9:16 composition (1080x1920)
+- {format_line}
 - Camera: Eye-level, medium shot, Molo centered, shallow depth of field""",
 
     "outdoor": """You are given a reference image of a 3D robotic mascot character named "Molo".
@@ -90,7 +100,7 @@ CRITICAL RULES:
 - The outdoor environment should be recognizable as {location}
 - Molo should be proportionally sized relative to the surroundings
 - Style: Photorealistic composite, 3D character in real environment
-- Format: Vertical 9:16 composition (1080x1920)
+- {format_line}
 - Camera: Eye-level or slight low angle, medium shot, Molo centered
 - Time of day: Golden hour / pleasant lighting""",
 }
@@ -123,7 +133,8 @@ def load_image_for_gemini(image_path):
 
 
 def generate_scene_image(environment, reference_image, output_path,
-                         environment_detail=None, custom_prompt=None):
+                         environment_detail=None, custom_prompt=None,
+                         content_type=None):
     """
     Sahne ortamına göre başlangıç görseli oluştur.
     
@@ -133,6 +144,7 @@ def generate_scene_image(environment, reference_image, output_path,
         output_path: Üretilen görselin kaydedileceği yol
         environment_detail: Ek mekan detayı (ör: "istiklal caddesi")
         custom_prompt: Özel prompt (environment="custom" için)
+        content_type: "sosyal" | "ekran" | "robot" — boyut/oryantasyonu belirler
     
     Returns:
         str: Üretilen görsel dosya yolu veya None
@@ -184,7 +196,7 @@ def generate_scene_image(environment, reference_image, output_path,
         
         clinic_img = load_image_for_gemini(clinic_path)
         molo_img = load_image_for_gemini(ref_path)
-        prompt = SCENE_PROMPTS["clinic"]
+        prompt = SCENE_PROMPTS["clinic"].format(format_line=_format_line(content_type))
         
         if environment_detail:
             prompt += f"\n\nAdditional context: {environment_detail}"
@@ -196,7 +208,7 @@ def generate_scene_image(environment, reference_image, output_path,
         print(f"   🤖 Molo: {ref_path.name}")
         
         molo_img = load_image_for_gemini(ref_path)
-        prompt = SCENE_PROMPTS["studio"]
+        prompt = SCENE_PROMPTS["studio"].format(format_line=_format_line(content_type))
         
         if environment_detail:
             prompt += f"\n\nAdditional scene context: {environment_detail}"
@@ -210,7 +222,7 @@ def generate_scene_image(environment, reference_image, output_path,
         print(f"   🤖 Molo: {ref_path.name}")
         
         molo_img = load_image_for_gemini(ref_path)
-        prompt = SCENE_PROMPTS["outdoor"].format(location=location)
+        prompt = SCENE_PROMPTS["outdoor"].format(location=location, format_line=_format_line(content_type))
         
         contents = [prompt, molo_img]
     else:
@@ -240,16 +252,18 @@ def generate_scene_image(environment, reference_image, output_path,
                     with open(raw_path, "wb") as f:
                         f.write(img_data)
                     
-                    # 1080x1920 normalize (zorunlu)
+                    # Normalize to correct dimensions for content type
+                    ct = CONTENT_TYPES.get(content_type, CONTENT_TYPES[DEFAULT_CONTENT_TYPE])
+                    target_w, target_h = ct["width"], ct["height"]
                     norm_cmd = [
                         FFMPEG, "-y", "-i", raw_path,
-                        "-vf", get_normalize_filter(),
+                        "-vf", get_normalize_filter(content_type=content_type),
                         final_path
                     ]
                     r = subprocess.run(norm_cmd, capture_output=True, text=True)
                     if r.returncode == 0:
                         os.remove(raw_path)
-                        print(f"   ✅ Sahne görseli kaydedildi: {final_path} ({OUTPUT_WIDTH}x{OUTPUT_HEIGHT})")
+                        print(f"   ✅ Sahne görseli kaydedildi: {final_path} ({target_w}x{target_h})")
                     else:
                         # Resize başarısız → ham görseli kullan
                         shutil.move(raw_path, final_path)
@@ -289,7 +303,8 @@ if __name__ == "__main__":
         environment=args.environment,
         reference_image=args.reference,
         output_path=args.output,
-        environment_detail=args.detail
+        environment_detail=args.detail,
+        content_type=getattr(args, 'content_type', None)
     )
     
     if result:

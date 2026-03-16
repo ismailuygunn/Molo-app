@@ -101,7 +101,12 @@ export async function GET() {
         await stat(join(projectPath, "final", `${name}_thumbnail.png`));
         thumbnailPath = `/api/files/${entry}/final/${name}_thumbnail.png`;
       } catch {
-        // No thumbnail
+        try {
+          await stat(join(projectPath, "final", `${name}_thumb.png`));
+          thumbnailPath = `/api/files/${entry}/final/${name}_thumb.png`;
+        } catch {
+          // No thumbnail
+        }
       }
 
       projects.push({

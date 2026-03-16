@@ -101,7 +101,7 @@ export default function SettingsPage() {
           <div style={{ marginTop: 16, padding: 12, background: "rgba(245, 158, 11, 0.08)", borderRadius: "var(--radius-md)", border: "1px solid rgba(245, 158, 11, 0.15)", display: "flex", gap: 8, alignItems: "flex-start" }}>
             <AlertTriangle size={16} style={{ color: "var(--accent-amber)", flexShrink: 0, marginTop: 2 }} />
             <span style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-              API anahtarları <code style={{ color: "var(--accent-cyan)", background: "rgba(6,182,212,0.1)", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>.env</code> dosyasından okunur. Bu sayfada düzenlenemez — güvenlik nedeniyle salt okunur.
+              API anahtarları <code style={{ color: "var(--accent-cyan)", background: "rgba(6,182,212,0.1)", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>.env</code> dosyasından veya sistem ortam değişkenlerinden (Railway) okunur. Bu sayfada düzenlenemez — güvenlik nedeniyle salt okunur.
             </span>
           </div>
         </div>
