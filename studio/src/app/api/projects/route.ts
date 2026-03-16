@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { readdir, stat, readFile, rm } from "fs/promises";
 import { join, resolve } from "path";
 
+// Force runtime evaluation — project data is read from filesystem
+export const dynamic = "force-dynamic";
+
 const PROJECTS_DIR = resolve(process.cwd(), "..", "projects");
 
 export async function GET() {

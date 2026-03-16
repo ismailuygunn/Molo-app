@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import { resolve } from "path";
 
+// Force runtime evaluation — env vars are only available at runtime on Railway
+export const dynamic = "force-dynamic";
+
 const ENV_PATH = resolve(process.cwd(), "..", ".env");
 
 const KEYS = [
