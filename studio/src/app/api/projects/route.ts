@@ -105,9 +105,29 @@ export async function GET() {
           await stat(join(projectPath, "final", `${name}_thumb.png`));
           thumbnailPath = `/api/files/${entry}/final/${name}_thumb.png`;
         } catch {
-          // No thumbnail
+          // Fallback: first scene reference image
+          try {
+            const scenesDir = join(projectPath, "scenes");
+            const sFiles = await readdir(scenesDir);
+            const firstRef = sFiles
+              .filter((f) => f.endsWith("_ref.png") || f.endsWith("_ref.jpg"))
+              .sort()[0];
+            if (firstRef) {
+              thumbnailPath = `/api/files/${entry}/scenes/${firstRef}`;
+            }
+          } catch { /* no scenes dir */ }
         }
       }
+
+      // Read pipeline status from progress.json
+      let pipelineStep = status === "final" ? "done" : "idle";
+      let pipelineProgress = status === "final" ? 100 : 0;
+      try {
+        const progressRaw = await readFile(join(projectPath, "progress.json"), "utf-8");
+        const progressData = JSON.parse(progressRaw);
+        pipelineStep = progressData.step || pipelineStep;
+        pipelineProgress = progressData.progress ?? pipelineProgress;
+      } catch { /* no progress.json */ }
 
       projects.push({
         id: entry,
@@ -120,8 +140,8 @@ export async function GET() {
         title,
         scenes,
         durations,
-        pipelineStep: status === "final" ? "done" : "idle",
-        pipelineProgress: status === "final" ? 100 : 0,
+        pipelineStep,
+        pipelineProgress,
         thumbnailPath,
         finalPath,
         draftPath,

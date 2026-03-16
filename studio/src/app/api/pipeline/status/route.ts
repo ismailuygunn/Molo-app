@@ -1,79 +1,18 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { readFile, stat } from "fs/promises";
+import { readFile } from "fs/promises";
 import { join, resolve } from "path";
 
 const PROJECTS_DIR = resolve(process.cwd(), "..", "projects");
 
-// Parse pipeline step from log content
-function parsePipelineStep(log: string): {
+interface ProgressData {
   step: string;
   progress: number;
-  lastLine: string;
+  message: string;
   isRunning: boolean;
   isError: boolean;
   isDone: boolean;
-} {
-  const lines = log.split("\n").filter((l) => l.trim());
-  const lastLine = lines[lines.length - 1] || "";
-
-  // Check completion
-  const isDone = log.includes("TAMAMLANDI") || log.includes("exit code: 0");
-  const isError =
-    log.includes("exit code: 1") ||
-    log.includes("❌") ||
-    (log.includes("exit code:") && !log.includes("exit code: 0"));
-  const isRunning = !isDone && !isError && !log.includes("exit code:");
-
-  // Detect current step from log markers
-  let step = "starting";
-  let progress = 5;
-
-  if (log.includes("ADIM 1:") || log.includes("Senaryo Üretimi")) {
-    step = "script";
-    progress = 10;
-  }
-  if (log.includes("ADIM 2:") || log.includes("Ses Üretimi")) {
-    step = "voice";
-    progress = 25;
-  }
-  if (log.includes("İÇERİK ONAYI") || log.includes("Otomatik onay")) {
-    step = "approval";
-    progress = 30;
-  }
-  if (log.includes("ADIM 4:") || log.includes("Sahne Görselleri")) {
-    step = "images";
-    progress = 40;
-  }
-  if (log.includes("ADIM 5:") || log.includes("Video Üretimi")) {
-    step = "videos";
-    progress = 55;
-  }
-  if (log.includes("ADIM 6:") || log.includes("Kurgu")) {
-    step = "edit";
-    progress = 75;
-  }
-  if (log.includes("ADIM 7:") || log.includes("Altyazı")) {
-    step = "subtitles";
-    progress = 85;
-  }
-  if (log.includes("ADIM 8:") || log.includes("Final Slowdown")) {
-    step = "slowdown";
-    progress = 90;
-  }
-  if (log.includes("ADIM 9:") || log.includes("Thumbnail")) {
-    step = "thumbnail";
-    progress = 95;
-  }
-  if (isDone) {
-    step = "done";
-    progress = 100;
-  }
-  if (isError) {
-    step = "error";
-  }
-
-  return { step, progress, lastLine, isRunning, isError, isDone };
+  updatedAt: string;
 }
 
 export async function GET(req: NextRequest) {
@@ -83,51 +22,70 @@ export async function GET(req: NextRequest) {
   }
 
   const projectDir = join(PROJECTS_DIR, projectId);
+  const progressPath = join(projectDir, "progress.json");
   const logPath = join(projectDir, ".pipeline.log");
   const pidPath = join(projectDir, ".pipeline.pid");
 
+  // 1. Check if process is alive
+  let pid: number | null = null;
+  let processAlive = false;
   try {
-    // Read log
-    let log = "";
+    const pidStr = await readFile(pidPath, "utf-8");
+    pid = parseInt(pidStr.trim());
+    process.kill(pid, 0);
+    processAlive = true;
+  } catch {
+    processAlive = false;
+  }
+
+  // 2. Try reading structured progress.json (preferred)
+  try {
+    const raw = await readFile(progressPath, "utf-8");
+    const data: ProgressData = JSON.parse(raw);
+
+    // Trust progress.json but cross-check with process status
+    const isRunning = processAlive && data.isRunning;
+    const isDone = data.isDone;
+    const isError = data.isError || (!processAlive && !isDone && data.isRunning);
+
+    // Read last 1500 chars of log for display
+    let logTail = "";
     try {
-      log = await readFile(logPath, "utf-8");
-    } catch {
-      return NextResponse.json({
-        status: "idle",
-        step: "idle",
-        progress: 0,
-        log: "",
-        lastLine: "",
-        isRunning: false,
-        isError: false,
-        isDone: false,
-      });
-    }
+      const log = await readFile(logPath, "utf-8");
+      logTail = log.length > 1500 ? log.slice(-1500) : log;
+    } catch { /* no log yet */ }
 
-    // Check if process is still running
-    let pid: number | null = null;
-    let processAlive = false;
-    try {
-      const pidStr = await readFile(pidPath, "utf-8");
-      pid = parseInt(pidStr.trim());
-      process.kill(pid, 0); // Signal 0 = check if alive
-      processAlive = true;
-    } catch {
-      processAlive = false;
-    }
+    return NextResponse.json({
+      status: isDone ? "done" : isError ? "error" : isRunning ? "running" : "idle",
+      step: isError && !data.isError ? "error" : data.step,
+      progress: data.progress,
+      message: isError && !data.isError
+        ? "Pipeline beklenmedik şekilde sonlandı"
+        : data.message,
+      log: logTail,
+      lastLine: data.message,
+      isRunning,
+      isError,
+      isDone,
+      pid,
+      updatedAt: data.updatedAt,
+    });
+  } catch {
+    // No progress.json — fall back to log parsing
+  }
 
-    const parsed = parsePipelineStep(log);
-
-    // If log says done/error but process is still alive, trust the process
+  // 3. Fallback: parse log file (backward compat)
+  try {
+    const log = await readFile(logPath, "utf-8");
+    const parsed = parsePipelineLog(log);
     const isRunning = processAlive && !parsed.isDone && !parsed.isError;
-
-    // Return last 2000 chars of log to avoid huge payloads
-    const logTail = log.length > 2000 ? log.slice(-2000) : log;
+    const logTail = log.length > 1500 ? log.slice(-1500) : log;
 
     return NextResponse.json({
       status: parsed.isDone ? "done" : parsed.isError ? "error" : isRunning ? "running" : "idle",
       step: parsed.step,
       progress: parsed.progress,
+      message: parsed.lastLine,
       log: logTail,
       lastLine: parsed.lastLine,
       isRunning,
@@ -135,8 +93,46 @@ export async function GET(req: NextRequest) {
       isDone: parsed.isDone,
       pid,
     });
-  } catch (error) {
-    console.error("Pipeline status error:", error);
-    return NextResponse.json({ error: "Status okunamadı" }, { status: 500 });
+  } catch {
+    // No log either — idle
+    return NextResponse.json({
+      status: "idle",
+      step: "idle",
+      progress: 0,
+      message: "",
+      log: "",
+      lastLine: "",
+      isRunning: false,
+      isError: false,
+      isDone: false,
+    });
   }
+}
+
+// Backward-compatible log parser (fallback only)
+function parsePipelineLog(log: string) {
+  const lines = log.split("\n").filter((l) => l.trim());
+  const lastLine = lines[lines.length - 1] || "";
+  const isDone = log.includes("TAMAMLANDI") || log.includes("exit code: 0");
+  const isError =
+    log.includes("exit code: 1") ||
+    log.includes("❌") ||
+    (log.includes("exit code:") && !log.includes("exit code: 0"));
+
+  let step = "starting";
+  let progress = 5;
+
+  if (log.includes("ADIM 1:") || log.includes("Senaryo")) { step = "script"; progress = 10; }
+  if (log.includes("ADIM 2:") || log.includes("Ses Üretimi")) { step = "voice"; progress = 25; }
+  if (log.includes("Otomatik onay")) { step = "approval"; progress = 30; }
+  if (log.includes("ADIM 4:") || log.includes("Görselleri")) { step = "images"; progress = 40; }
+  if (log.includes("ADIM 5:") || log.includes("Video")) { step = "videos"; progress = 55; }
+  if (log.includes("ADIM 6:") || log.includes("Kurgu")) { step = "edit"; progress = 75; }
+  if (log.includes("ADIM 7:") || log.includes("Altyazı")) { step = "subtitles"; progress = 85; }
+  if (log.includes("ADIM 8:") || log.includes("Slowdown")) { step = "slowdown"; progress = 90; }
+  if (log.includes("ADIM 9:") || log.includes("Thumbnail")) { step = "thumbnail"; progress = 95; }
+  if (isDone) { step = "done"; progress = 100; }
+  if (isError) { step = "error"; }
+
+  return { step, progress, lastLine, isDone, isError };
 }

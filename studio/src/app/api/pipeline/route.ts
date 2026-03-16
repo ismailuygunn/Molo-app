@@ -95,3 +95,42 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// Pipeline durdurma
+export async function DELETE(req: NextRequest) {
+  try {
+    const { projectId } = await req.json();
+    if (!projectId) {
+      return NextResponse.json({ error: "projectId gerekli" }, { status: 400 });
+    }
+
+    const projectDir = join(PROJECTS_DIR, projectId);
+    const pidPath = join(projectDir, ".pipeline.pid");
+    const progressPath = join(projectDir, "progress.json");
+
+    let pid: number | null = null;
+    try {
+      const pidStr = await readFile(pidPath, "utf-8");
+      pid = parseInt(pidStr.trim());
+      process.kill(pid, "SIGTERM");
+
+      // Write cancelled status
+      await writeFile(progressPath, JSON.stringify({
+        step: "error",
+        progress: 0,
+        message: "Pipeline kullanıcı tarafından durduruldu",
+        isRunning: false,
+        isError: true,
+        isDone: false,
+        updatedAt: new Date().toISOString(),
+      }), "utf-8");
+
+      return NextResponse.json({ message: "Pipeline durduruldu", pid });
+    } catch {
+      return NextResponse.json({ message: "Pipeline zaten çalışmıyor" });
+    }
+  } catch (error) {
+    console.error("Pipeline stop error:", error);
+    return NextResponse.json({ error: "Pipeline durdurulamadı" }, { status: 500 });
+  }
+}

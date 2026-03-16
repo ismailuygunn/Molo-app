@@ -65,6 +65,34 @@ from google import genai
 from google.genai import types as gtypes
 
 # ═══════════════════════════════════════
+# İLERLEME TAKİBİ
+# ═══════════════════════════════════════
+
+_progress_path = None  # main() içinde set edilir
+
+def _write_progress(step: str, progress: int, message: str = "",
+                    is_error: bool = False, is_done: bool = False):
+    """Yapılandırılmış progress.json yaz — Studio UI tarafından okunur."""
+    if _progress_path is None:
+        return
+    import json, datetime
+    data = {
+        "step": step,
+        "progress": progress,
+        "message": message,
+        "isRunning": not is_done and not is_error,
+        "isError": is_error,
+        "isDone": is_done,
+        "updatedAt": datetime.datetime.now().isoformat(),
+    }
+    try:
+        with open(_progress_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+    except Exception:
+        pass  # Dosya yazılamazsa pipeline'ı durdurmayız
+
+
+# ═══════════════════════════════════════
 # YARDIMCI FONKSİYONLAR
 # ═══════════════════════════════════════
 
@@ -1063,6 +1091,10 @@ def main():
     _content_type_key = content_type
     _ct = CONTENT_TYPES[content_type].copy()
 
+    # Progress tracking başlat
+    global _progress_path
+    _progress_path = str(project_dir / "progress.json")
+
     print("╔══════════════════════════════════════╗")
     print("║  MOLO CONTENT AGENT                  ║")
     print("║  Otonom İçerik & Kurgu                ║")
@@ -1076,59 +1108,92 @@ def main():
     if dry_run:
         print(f"\n   🏃 DRY RUN — API çağrısı yapılmayacak")
 
-    # ── ADIM 1: Senaryo ──
-    script = generate_script(brief_path, lang)
-    scenes = script["scenes"]
+    _write_progress("starting", 5, "Pipeline başlatılıyor...")
 
-    if dry_run:
-        print("\n   🏃 DRY RUN tamamlandı. Senaryo üretildi, API çağrısı yok.")
-        return
+    try:
+        # ── ADIM 1: Senaryo ──
+        _write_progress("script", 10, "Senaryo üretiliyor...")
+        script = generate_script(brief_path, lang)
+        scenes = script["scenes"]
+        _write_progress("script", 15, f"{len(scenes)} sahne üretildi")
 
-    # ── ADIM 2: Ses üretimi (SES-ÖNCELİKLİ) ──
-    voice_files, durations = generate_voices(scenes, lang, project_name, project_dir)
+        if dry_run:
+            print("\n   🏃 DRY RUN tamamlandı. Senaryo üretildi, API çağrısı yok.")
+            _write_progress("done", 100, "DRY RUN tamamlandı", is_done=True)
+            return
 
-    # ── ADIM 3: Onay ──
-    if not present_for_approval(script, durations, project_dir, auto_approve=auto_approve):
-        print("\n   🛑 İptal edildi.")
-        sys.exit(0)
+        # ── ADIM 2: Ses üretimi (SES-ÖNCELİKLİ) ──
+        _write_progress("voice", 20, "Ses üretimi başlıyor...")
+        voice_files, durations = generate_voices(scenes, lang, project_name, project_dir)
+        _write_progress("voice", 30, f"{len(voice_files)} ses dosyası hazır")
 
-    # ── ADIM 4: Görseller ──
-    image_files = generate_scene_images(scenes, project_dir)
+        # ── ADIM 3: Onay ──
+        _write_progress("approval", 32, "İçerik onayı bekleniyor...")
+        if not present_for_approval(script, durations, project_dir, auto_approve=auto_approve):
+            print("\n   🛑 İptal edildi.")
+            _write_progress("idle", 0, "Kullanıcı tarafından iptal edildi")
+            sys.exit(0)
+        _write_progress("approval", 35, "İçerik onaylandı")
 
-    # ── ADIM 5: Videolar ──
-    video_files = generate_videos(scenes, image_files, project_dir)
+        # ── ADIM 4: Görseller ──
+        _write_progress("images", 38, "Sahne görselleri üretiliyor...")
+        image_files = generate_scene_images(scenes, project_dir)
+        _write_progress("images", 50, f"{len(image_files)} görsel hazır")
 
-    if len(video_files) < len(scenes):
-        print(f"\n   ⚠️ {len(video_files)}/{len(scenes)} video hazır — devam ediliyor")
+        # ── ADIM 5: Videolar ──
+        _write_progress("videos", 52, "Video üretimi başlıyor (Kling API)...")
+        video_files = generate_videos(scenes, image_files, project_dir)
+        _write_progress("videos", 70, f"{len(video_files)}/{len(scenes)} video hazır")
 
-    # ── ADIM 6: Kurgu ──
-    draft = compose_edit(video_files, voice_files, durations, project_dir, project_name)
-    if not draft:
-        print("\n   ❌ Kurgu başarısız!")
+        if len(video_files) < len(scenes):
+            print(f"\n   ⚠️ {len(video_files)}/{len(scenes)} video hazır — devam ediliyor")
+
+        # ── ADIM 6: Kurgu ──
+        _write_progress("edit", 72, "Kurgu oluşturuluyor...")
+        draft = compose_edit(video_files, voice_files, durations, project_dir, project_name)
+        if not draft:
+            raise RuntimeError("Kurgu başarısız — draft oluşturulamadı")
+        _write_progress("edit", 80, "Draft montaj hazır")
+
+        # ── ADIM 7: Altyazı ──
+        _write_progress("subtitles", 82, "Altyazılar ekleniyor...")
+        subtitled = add_subtitles(draft, scenes, durations, project_dir, project_name, lang)
+        _write_progress("subtitles", 88, "Altyazılı video hazır")
+
+        # ── ADIM 8: Final Slowdown ──
+        _write_progress("slowdown", 90, "Final slowdown uygulanıyor...")
+        final = apply_slowdown(subtitled, project_dir, project_name)
+        _write_progress("slowdown", 93, "Slowdown tamamlandı")
+
+        # ── ADIM 9: Thumbnail (şartlı) ──
+        if _ct.get('thumbnail', False):
+            _write_progress("thumbnail", 95, "Thumbnail üretiliyor...")
+            title = script.get("title", project_name)
+            generate_thumbnail(final, project_dir, project_name, title)
+        else:
+            print(f"\n   🖼️ Thumbnail atlandı ({_ct['label']} için gerekli değil)")
+
+        # ── BİTTİ ──
+        print("\n" + "═" * 60)
+        print("🎉 MOLO CONTENT AGENT — TAMAMLANDI!")
+        if os.path.exists(final):
+            dur = get_audio_duration(final)
+            size = os.path.getsize(final) / (1024 * 1024)
+            print(f"   📁 {final}")
+            print(f"   ⏱️  {dur:.1f}s | 💾 {size:.1f} MB | {_ct['label']}")
+        print("═" * 60)
+        _write_progress("done", 100, "Pipeline başarıyla tamamlandı!", is_done=True)
+
+    except KeyboardInterrupt:
+        print("\n   ⛔ Pipeline kullanıcı tarafından durduruldu.")
+        _write_progress("error", 0, "Kullanıcı tarafından durduruldu", is_error=True)
+        sys.exit(130)
+    except Exception as e:
+        print(f"\n   ❌ Pipeline hatası: {e}")
+        import traceback
+        traceback.print_exc()
+        _write_progress("error", 0, f"Hata: {str(e)[:200]}", is_error=True)
         sys.exit(1)
-
-    # ── ADIM 7: Altyazı ──
-    subtitled = add_subtitles(draft, scenes, durations, project_dir, project_name, lang)
-
-    # ── ADIM 8: Final Slowdown ──
-    final = apply_slowdown(subtitled, project_dir, project_name)
-
-    # ── ADIM 9: Thumbnail (şartlı) ──
-    if _ct.get('thumbnail', False):
-        title = script.get("title", project_name)
-        generate_thumbnail(final, project_dir, project_name, title)
-    else:
-        print(f"\n   🖼️ Thumbnail atlandı ({_ct['label']} için gerekli değil)")
-
-    # ── BİTTİ ──
-    print("\n" + "═" * 60)
-    print("🎉 MOLO CONTENT AGENT — TAMAMLANDI!")
-    if os.path.exists(final):
-        dur = get_audio_duration(final)
-        size = os.path.getsize(final) / (1024 * 1024)
-        print(f"   📁 {final}")
-        print(f"   ⏱️  {dur:.1f}s | 💾 {size:.1f} MB | {_ct['label']}")
-    print("═" * 60)
 
 
 if __name__ == "__main__":
