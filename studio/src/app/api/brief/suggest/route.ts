@@ -61,7 +61,7 @@ Yanıtını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
 ]`;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -77,8 +77,8 @@ Yanıtını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
 
     if (!response.ok) {
       const err = await response.text();
-      console.error("Gemini API error:", err);
-      return NextResponse.json({ error: "AI yanıt veremedi" }, { status: 502 });
+      console.error("Gemini API error:", response.status, err.slice(0, 500));
+      return NextResponse.json({ error: `AI yanıt veremedi (${response.status})` }, { status: 502 });
     }
 
     const result = await response.json();
