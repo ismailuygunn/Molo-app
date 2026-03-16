@@ -23,7 +23,6 @@ __pycache__/
 .git/
 
 # Generated data (deploy empty)
-projects/
 _voices/
 _images-generated/
 _videos-raw/
