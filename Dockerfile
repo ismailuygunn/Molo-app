@@ -37,14 +37,21 @@ COPY --from=builder /app/studio/node_modules ./studio/node_modules
 COPY --from=builder /app/studio/package.json ./studio/package.json
 COPY --from=builder /app/studio/public ./studio/public
 
-# Copy scripts, config & project data
+# Copy scripts, config & reference data
 COPY scripts/ ./scripts/
 COPY _config/ ./_config/
-COPY projects/ ./projects/
 COPY _reference/ ./_reference/
 
+# Seed data: projects are copied to projects-seed/ (NOT projects/)
+# The boot script will copy them to the persistent volume on first boot
+COPY projects/ ./projects-seed/
+
+# Boot script
+COPY start.sh ./start.sh
+RUN chmod +x start.sh
+
 # Create data directories (will be populated at runtime)
-RUN mkdir -p projects _voices _images-generated _videos-raw _reference _bgm
+RUN mkdir -p projects _voices _images-generated _videos-raw _bgm
 
 # Set env
 ENV NODE_ENV=production
@@ -53,5 +60,5 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-WORKDIR /app/studio
-CMD ["npm", "start"]
+# Use boot script instead of direct npm start
+CMD ["./start.sh"]
