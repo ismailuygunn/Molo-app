@@ -1,0 +1,38 @@
+{
+  "title": "MOLO auf dem Wartebildschirm",
+  "scenes": [
+    {
+      "scene": 1,
+      "text": "Oh! Erwischt! Ich war gerade dabei, unseren Wartebildschirm zu optimieren... aber hallo zusammen! Ich bin MOLO, euer digitaler Gastgeber. Manchmal bin ich etwas übereifrig, ich gebe es zu!",
+      "environment": "studio",
+      "molo_pose": "front-wave",
+      "voice_direction": "energetic",
+      "shot_type": "medium-close",
+      "emotion_note": "surprised, then quickly charming and acknowledging"
+    },
+    {
+      "scene": 2,
+      "text": "Keine Sorge, ich bin nicht untätig! Ich sorge nur dafür, dass eure Wartezeit bei uns so angenehm wie möglich wird. Ich prüfe alles, von der Bildschärfe bis zur perfekten Lichtstimmung. Meine Augen sehen eben alles!",
+      "environment": "clinic",
+      "molo_pose": "front",
+      "voice_direction": "playful",
+      "shot_type": "close-medium",
+      "emotion_note": "sly, proud, attentive"
+    },
+    {
+      "scene": 3,
+      "text": "Ich freue mich schon darauf, euch persönlich zu begrüßen und dafür zu sorgen, dass ihr euch von Anfang an wohlfühlt. Kommt vorbei und erlebt, wie wir bei İstadental jedes Detail für euch perfektionieren! Bis bald!",
+      "environment": "studio",
+      "molo_pose": "front-wave",
+      "voice_direction": "warm",
+      "shot_type": "medium",
+      "emotion_note": "friendly, inviting"
+    }
+  ],
+  "durations": [
+    10.77,
+    10.54,
+    11.61
+  ],
+  "total_duration": 32.92
+}

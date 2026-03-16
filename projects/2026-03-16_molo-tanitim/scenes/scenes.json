@@ -1,0 +1,23 @@
+[
+  {
+    "scene": 1,
+    "text": "Hallo! Ich bin Molo, der freundliche Zahnroboter von İstadental!",
+    "environment": "clinic",
+    "reference_image": "front-wave.jpg",
+    "voice_direction": "energetic"
+  },
+  {
+    "scene": 2,
+    "text": "Ich passe auf eure Zähne auf und zeige euch, wie ihr gesund lächeln könnt.",
+    "environment": "studio",
+    "reference_image": "front.jpeg",
+    "voice_direction": "informative"
+  },
+  {
+    "scene": 3,
+    "text": "Kommt vorbei, wir freuen uns auf euch! Tschüss, bis bald!",
+    "environment": "studio",
+    "reference_image": "front-wave.jpg",
+    "voice_direction": "warm"
+  }
+]

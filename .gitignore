@@ -1,0 +1,64 @@
+# ═══════════════════════════════════════
+# Molo — Git Ignore
+# ═══════════════════════════════════════
+
+# Environment & Secrets
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node.js
+node_modules/
+studio/.next/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.agents/
+.gemini/
+.vscode/
+
+# ── Root dir media ──
+/0314.mp4
+/molo_*.mp4
+/kling_*.mp4
+/ElevenLabs_*
+/Gemini_Generated_Image_*
+/Ekran Resmi*
+/bosekran.jpg
+/ekran*.jpg
+/kacis*.jpg
+/Molo_referances.png
+/R5_*.JPG
+/klinik_/
+
+# ── Asset Directories (large binaries) ──
+_images-generated/
+_videos-raw/
+_voices/
+_reference/
+
+# ── Project generated content ──
+projects/**/*.png
+projects/**/*.jpg
+projects/**/*.jpeg
+projects/**/*.mp4
+projects/**/*.mp3
+projects/**/*.wav
+projects/**/*.srt
+projects/**/*.ass
+projects/*/audio/
+projects/*/draft/
+projects/*/final/
+projects/*/subtitles/
+projects/*/scenes/video_tasks.json
+
+# Pipeline artifacts
+.pipeline.log
+.pipeline.pid
+.render.log

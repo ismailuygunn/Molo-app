@@ -1,0 +1,23 @@
+[
+  {
+    "scene": 1,
+    "text": "Hallo! Ich bin Molo, euer Zahnfreund bei Istadental. Schön, dass ihr da seid!",
+    "video_prompt": "Molo walks into frame from the right side with small, rigid, robotic steps on a reflective surface. The hologram cone on top is open and glowing brightly in cyan. Molo stops at center, faces the camera, and raises one hand in a cheerful wave. Dark blue atmospheric background with soft fog. Camera: Static front view, medium shot. Cinematic lighting with blue rim light.",
+    "start": 0.0,
+    "end": 5.0
+  },
+  {
+    "scene": 2,
+    "text": "Willkommen in unserer Klinik. Hier sorgen wir für euer strahlendes Lächeln, ganz entspannt und schmerzfrei.",
+    "video_prompt": "Molo stands facing camera, slightly turned to 3/4 angle. The hologram cone projects a bright holographic display showing a sparkling white tooth icon and small stars. Molo gestures toward the hologram with one arm in a small, stiff, robotic motion. Warm welcoming atmosphere, dark blue background with reflective floor. Camera: Slow gentle zoom in. Cinematic lighting.",
+    "start": 5.5,
+    "end": 11.0
+  },
+  {
+    "scene": 3,
+    "text": "Wir freuen uns auf euch! Bis bald, euer Molo.",
+    "video_prompt": "Molo stands on reflective surface, waves goodbye with one hand in a small, gentle, robotic gesture. The hologram cone gently dims and the light softens. Molo's blue eyes glow warmly. Soft blue ambient light. Camera: Slow zoom out, revealing the full atmospheric scene. Dark blue foggy background.",
+    "start": 11.5,
+    "end": 15.0
+  }
+]

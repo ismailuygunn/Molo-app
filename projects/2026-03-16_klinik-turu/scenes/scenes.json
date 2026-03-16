@@ -1,0 +1,58 @@
+{
+  "title": "Molos Klinik-Entdeckungstour",
+  "scenes": [
+    {
+      "scene": 1,
+      "text": "Guten Morgen, Welt! Oder eher: Guten Morgen, İstadental! Bin ich schon der Erste? Alles blitzt ja hier! Meine Sensoren melden: Premium-Atmosphäre. Das fängt ja gut an.",
+      "environment": "clinic",
+      "molo_pose": "front-wave",
+      "voice_direction": "energetic",
+      "shot_type": "medium",
+      "emotion_note": "excited curiosity, wide-eyed, entering the clinic"
+    },
+    {
+      "scene": 2,
+      "text": "Ah, der berühmte Zahnarztstuhl! Sieht ja gemütlicher aus als mein eigener Schlafmodus. Ob man hier auch mal kurz ein Nickerchen machen könnte? Aber dafür bin ich ja nicht hier, oder?",
+      "environment": "clinic",
+      "molo_pose": "front",
+      "voice_direction": "playful",
+      "shot_type": "medium",
+      "emotion_note": "playful observation, eyeing the dental chair with cheeky humor"
+    },
+    {
+      "scene": 3,
+      "text": "Meine Sensoren erfassen High-Tech! Diese Geräte hier... unglaublich präzise, oder? Da staunt sogar ein kleiner Roboter wie ich. Effizienz und Innovation, genau mein Ding!",
+      "environment": "clinic",
+      "molo_pose": "front",
+      "voice_direction": "informative",
+      "shot_type": "medium-close",
+      "emotion_note": "impressed by technology, slightly proud, robotic fascination"
+    },
+    {
+      "scene": 4,
+      "text": "Hey, wenn jemand Lust auf was hat, einfach den QR-Code da vorne scannen. Wenn ich hier so rumlaufe, falle ich ein bisschen auf.",
+      "environment": "clinic",
+      "molo_pose": "front",
+      "voice_direction": "mischievous",
+      "shot_type": "medium-close",
+      "emotion_note": "self-aware humor, breaking fourth wall, casual and cheeky"
+    },
+    {
+      "scene": 5,
+      "text": "So, mein kleiner Erkundungsflug ist beendet. Aber eure Reise fängt gerade erst an! Kommt doch vorbei, ich bin schon gespannt, euch hier zu begrüßen. Bis bald bei İstadental!",
+      "environment": "clinic",
+      "molo_pose": "front-wave",
+      "voice_direction": "warm",
+      "shot_type": "medium-close",
+      "emotion_note": "warm farewell, genuine invitation, trustworthy and memorable"
+    }
+  ],
+  "durations": [
+    9.52,
+    9.01,
+    9.1,
+    7.15,
+    9.71
+  ],
+  "total_duration": 44.49
+}
