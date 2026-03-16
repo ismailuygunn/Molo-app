@@ -61,4 +61,4 @@ ENV PORT=3000
 EXPOSE 3000
 
 # Use boot script instead of direct npm start
-CMD ["./start.sh"]
+CMD ["/app/start.sh"]
