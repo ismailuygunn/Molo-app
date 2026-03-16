@@ -58,6 +58,7 @@ from config import (
 import random
 
 # ── Aktif içerik türü profili (main'de set edilir) ──
+_content_type_key = DEFAULT_CONTENT_TYPE
 _ct = CONTENT_TYPES[DEFAULT_CONTENT_TYPE].copy()
 
 from google import genai
@@ -372,6 +373,7 @@ def generate_scene_images(scenes, project_dir):
             env_block = f"""Also use the provided clinic background reference as the environmental base for this composition. The final image must clearly place MOLO inside that premium clinic environment, and the clinic should remain visible and readable as part of the scene. Do not let MOLO fill the entire frame. Do not crop MOLO too close. Do not make MOLO oversized."""
 
         # Premium prompt oluştur
+        orient_text = "horizontal wide" if _ct['orientation'] == 'horizontal' else "vertical"
         prompt = f"""{CHARACTER_IDENTITY_LOCK}
 
 {env_block}
@@ -396,7 +398,7 @@ Important composition rules:
 - the environment must remain visible in the background
 - the mouth area must be clean and readable for lip-sync
 - the face must remain symmetrical and stable
-- the image must feel designed for a vertical digital display host
+- the image must feel designed for a {orient_text} digital display host
 
 {AVOID_LIST}"""
 
@@ -604,7 +606,7 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name)
         n = i + 1
         out = str(project_dir / "draft" / f"s{n:02d}_final.mp4")
         dur = durations[i]
-        vf = get_normalize_filter(with_quality=True)
+        vf = get_normalize_filter(with_quality=True, content_type=_content_type_key)
 
         # Ping-pong: video ters-düz loop ile daha doğal animasyon
         # [0:v]split → normal + tersine → concat → loop
@@ -1050,14 +1052,15 @@ def main():
                 lang = line.split(":", 1)[1].strip().lower()[:2]
 
     # İçerik türü oku
-    global _ct
+    global _ct, _content_type_key
     content_type = DEFAULT_CONTENT_TYPE
     for line in brief_text.split("\n"):
         ll = line.lower().strip()
-        if "içerik türü:" in ll or "content type:" in ll or "tür:" in ll:
+        if "İçerik türü:" in ll or "içerik türü:" in ll or "content type:" in ll or "tür:" in ll:
             val = line.split(":", 1)[1].strip().lower()
             if val in CONTENT_TYPES:
                 content_type = val
+    _content_type_key = content_type
     _ct = CONTENT_TYPES[content_type].copy()
 
     print("╔══════════════════════════════════════╗")
