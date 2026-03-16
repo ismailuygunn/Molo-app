@@ -194,12 +194,13 @@ export default function BriefPage() {
       if (!res.ok) {
         setError(data.error || "Brief oluşturulamadı");
         toast.error(data.error || "Brief oluşturulamadı");
+        setLoading(false);
         return;
       }
 
       if (data.projectId) {
         setSavedProjectId(data.projectId);
-        toast.success("Brief kaydedildi — Senaryo üretiliyor...");
+        toast.success("Brief kaydedildi — Pipeline başlatılıyor...");
 
         await fetch("/api/pipeline", {
           method: "POST",
@@ -207,28 +208,8 @@ export default function BriefPage() {
           body: JSON.stringify({ projectId: data.projectId }),
         });
 
-        let attempts = 0;
-        const pollInterval = setInterval(async () => {
-          attempts++;
-          try {
-            const scenesRes = await fetch(`/api/projects/${encodeURIComponent(data.projectId)}/scenes`);
-            const scenesData = await scenesRes.json();
-            if (scenesData.scenes && scenesData.scenes.length > 0) {
-              clearInterval(pollInterval);
-              setPreviewScenes(scenesData.scenes);
-              setShowPreview(true);
-              setLoading(false);
-            }
-          } catch {
-            // ignore
-          }
-          if (attempts > 60) {
-            clearInterval(pollInterval);
-            setLoading(false);
-            toast.warning("Senaryo üretimi uzun sürüyor — sahneler sayfasını kontrol edin");
-            router.push(`/scenes?project=${data.projectId}`);
-          }
-        }, 3000);
+        // Redirect immediately to scenes page where real-time pipeline progress is shown
+        router.push(`/scenes?project=${data.projectId}`);
       }
     } catch (e) {
       setError("Bir hata oluştu");

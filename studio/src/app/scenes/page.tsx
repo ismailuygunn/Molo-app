@@ -355,10 +355,11 @@ function ScenesContent() {
     setPlayingAudio(true);
   };
 
-  // Get scene-specific files
-  const getSceneImage = (sceneNum: number) => files.scenes_images.find(f => f.includes(`scene_${sceneNum}_`)) || files.scenes_images[sceneNum - 1];
-  const getSceneVideo = (sceneNum: number) => files.scenes_videos.find(f => f.includes(`scene_${sceneNum}`)) || files.scenes_videos[sceneNum - 1];
-  const getSceneAudio = (sceneNum: number) => files.audio.find(f => f.includes(`scene_${sceneNum}`)) || files.audio[sceneNum - 1];
+  // Get scene-specific files (zero-padded to match pipeline naming: scene_01, scene_02, etc.)
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const getSceneImage = (sceneNum: number) => files.scenes_images.find(f => f.includes(`scene_${pad(sceneNum)}`));
+  const getSceneVideo = (sceneNum: number) => files.scenes_videos.find(f => f.includes(`scene_${pad(sceneNum)}`));
+  const getSceneAudio = (sceneNum: number) => files.audio.find(f => f.includes(`scene_${pad(sceneNum)}`));
 
   if (!projectId) {
     return (
