@@ -21,6 +21,7 @@ import {
   Wand2,
   ArrowRight,
   Info,
+  Film,
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/components/toast";
@@ -66,6 +67,7 @@ export default function BriefPage() {
   const [contentType, setContentType] = useState("sosyal");
   const [lang, setLang] = useState("de");
   const [tone, setTone] = useState("Eğlenceli");
+  const [maxScenes, setMaxScenes] = useState(4);
   const [concept, setConcept] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -143,7 +145,7 @@ export default function BriefPage() {
       const res = await fetch("/api/brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ konu, contentType, lang, tone, concept }),
+        body: JSON.stringify({ konu, contentType, lang, tone, concept, maxScenes }),
       });
       const data = await res.json();
 
@@ -187,7 +189,7 @@ export default function BriefPage() {
       const res = await fetch("/api/brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ konu, contentType, lang, tone, concept }),
+        body: JSON.stringify({ konu, contentType, lang, tone, concept, maxScenes }),
       });
       const data = await res.json();
 
@@ -313,6 +315,35 @@ export default function BriefPage() {
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
+          </div>
+        </div>
+
+        {/* Sahne Sayısı */}
+        <div>
+          <label className="label">
+            <Film size={14} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} />
+            Sahne Sayısı
+            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 6, fontWeight: 400 }}>(≈ maliyet kontrolü)</span>
+          </label>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <input
+              type="range"
+              min={2}
+              max={8}
+              value={maxScenes}
+              onChange={(e) => setMaxScenes(Number(e.target.value))}
+              style={{ flex: 1, accentColor: "var(--accent-blue)" }}
+            />
+            <span style={{
+              fontWeight: 700, fontSize: 18, minWidth: 32, textAlign: "center",
+              color: maxScenes <= 3 ? "var(--accent-green, #22c55e)" : maxScenes <= 5 ? "var(--accent-blue)" : "var(--accent-amber)",
+            }}>
+              {maxScenes}
+            </span>
+          </div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+            {maxScenes <= 3 ? "💰 Düşük maliyet" : maxScenes <= 5 ? "⚖️ Dengeli" : "🎬 Detaylı içerik"}
+            {" — "}{maxScenes} sahne × ~8-12s = ~{maxScenes * 10}s video
           </div>
         </div>
 

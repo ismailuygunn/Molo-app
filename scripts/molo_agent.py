@@ -230,7 +230,7 @@ def split_into_subtitle_chunks(text, max_chars=80):
 # ADIM 1: BRİEF OKUMA & SENARYO ÜRETİMİ
 # ═══════════════════════════════════════
 
-def generate_script(brief_path, lang="de"):
+def generate_script(brief_path, lang="de", max_scenes=4):
     """Brief dosyasını okur, Gemini ile senaryo üretir."""
     brief = Path(brief_path).read_text(encoding="utf-8")
 
@@ -238,6 +238,7 @@ def generate_script(brief_path, lang="de"):
     print("📝 ADIM 1: Senaryo Üretimi (Gemini)")
     print("=" * 60)
     print(f"   📄 Brief: {brief_path}")
+    print(f"   🎬 Maks sahne: {max_scenes}")
 
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
@@ -252,6 +253,7 @@ CONTENT FORMAT: {_ct['scene_direction']}
 
 CRITICAL RULES FOR SCRIPT WRITING:
 - Write the script in {target_lang}
+- Generate EXACTLY {max_scenes} scenes. No more, no less.
 - Each scene should be max ~80 words / ~8-12 seconds of speech
 - First scene: energetic greeting (MOLO introduces topic)
 - Middle scenes: informative content with subtle humor and personality
@@ -303,6 +305,16 @@ OUTPUT FORMAT — Return ONLY valid JSON, no markdown:
         sys.exit(1)
 
     scenes = script.get("scenes", [])
+
+    # Sahne sayısı limiti
+    if len(scenes) > max_scenes:
+        print(f"   ⚠️ {len(scenes)} sahne üretildi → {max_scenes}'e kırpıldı")
+        scenes = scenes[:max_scenes]
+        # Sahne numaralarını yeniden düzenle
+        for i, s in enumerate(scenes):
+            s["scene"] = i + 1
+        script["scenes"] = scenes
+
     print(f"   ✅ {len(scenes)} sahne üretildi: {script.get('title', '?')}")
     for s in scenes:
         print(f"      Sahne {s['scene']}: [{s['voice_direction']}] {s['text'][:60]}...")
@@ -1296,6 +1308,18 @@ def main():
     _content_type_key = content_type
     _ct = CONTENT_TYPES[content_type].copy()
 
+    # Maksimum sahne sayısı oku (varsayılan 4)
+    max_scenes = 4
+    for line in brief_text.split("\n"):
+        ll = line.lower().strip()
+        if any(m in ll for m in ["maksimum sahne:", "max_scenes:", "max sahne:", "sahne sayısı:"]):
+            try:
+                val = int(line.split(":", 1)[1].strip())
+                if 1 <= val <= 10:
+                    max_scenes = val
+            except (ValueError, IndexError):
+                pass
+
     # Progress tracking başlat
     global _progress_path
     _progress_path = str(project_dir / "progress.json")
@@ -1309,6 +1333,7 @@ def main():
     print(f"   🌍 Dil: {lang}")
     print(f"   🎬 İçerik: {_ct['label']} ({_ct['width']}x{_ct['height']})")
     print(f"   🐢 Slowdown: {AUDIO_SLOWDOWN}x")
+    print(f"   🎬 Maks sahne: {max_scenes}")
 
     if dry_run:
         print(f"\n   🏃 DRY RUN — API çağrısı yapılmayacak")
@@ -1329,7 +1354,7 @@ def main():
             print(f"   ⏩ Senaryo atlandı (checkpoint — {len(scenes)} sahne)")
         else:
             _write_progress("script", 10, "Senaryo üretiliyor...")
-            script = generate_script(brief_path, lang)
+            script = generate_script(brief_path, lang, max_scenes=max_scenes)
             scenes = script["scenes"]
             if "script" not in completed:
                 completed.append("script")

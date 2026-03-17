@@ -7,7 +7,7 @@ const PROJECTS_DIR = join(process.cwd(), "..", "projects");
 
 export async function POST(req: NextRequest) {
   try {
-    const { konu, contentType, lang, tone, concept } = await req.json();
+    const { konu, contentType, lang, tone, concept, maxScenes } = await req.json();
 
     if (!konu) {
       return NextResponse.json({ error: "Konu gerekli" }, { status: 400 });
@@ -40,6 +40,7 @@ Konu: ${konu}
 Dil: ${lang}
 İçerik türü: ${contentTypeLabel}
 Ton: ${tone}
+Maksimum sahne: ${maxScenes || 4}
 ${concept ? `\nKonsept:\n${concept}` : ""}
 `;
 
