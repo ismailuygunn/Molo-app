@@ -40,6 +40,7 @@ from config import (
     BASE_DIR, PROJECTS_DIR, REFERENCE_DIR, VOICES_DIR,
     FFMPEG, OUTPUT_WIDTH, OUTPUT_HEIGHT, OUTPUT_FPS,
     KLING_MODEL, KLING_API_BASE, KLING_DURATION, KLING_MAX_PROMPT_CHARS, KLING_CFG_SCALE,
+    KLING_CFG_FIRST_LAST, KLING_CFG_MIDDLE,
     GEMINI_IMAGE_MODEL, GEMINI_TEXT_MODEL, ELEVENLABS_MODEL,
     VOICE_PRESETS, VOICE_DEFAULT, VOICE_PROFILES,
     CHARACTER_PERSONALITY, CHARACTER_IDENTITY_LOCK,
@@ -628,14 +629,21 @@ Avoid: side angle, 3/4 view, oversized mascot, cartoon wobble, arm flailing, fac
     return full
 
 
-def _submit_kling_task(scene, ref_path, scene_duration="5"):
+def _submit_kling_task(scene, ref_path, scene_duration="5", total_scenes=1):
     """Tek bir Kling task'ı submit eder. (task_id, scene_num) döndürür.
-    scene_duration: '5' veya '10' — ses süresine göre akıllı seçim."""
+    scene_duration: '5' veya '10' — ses süresine göre akıllı seçim.
+    total_scenes: toplam sahne sayısı — cfg_scale seçimi için."""
     n = scene["scene"]
     prompt = build_video_prompt(scene)
     if len(prompt) > KLING_MAX_PROMPT_CHARS:
         print(f"   Sahne {n}: {len(prompt)} char ❌ FAZLA")
         return None, n
+
+    # Sahne bazlı cfg_scale: ilk/son sahne daha sıkı, ortalar biraz serbest
+    if n == 1 or n == total_scenes:
+        cfg = KLING_CFG_FIRST_LAST
+    else:
+        cfg = KLING_CFG_MIDDLE
 
     img_b64 = base64.b64encode(open(ref_path, "rb").read()).decode()
     token = get_kling_token()
@@ -643,7 +651,7 @@ def _submit_kling_task(scene, ref_path, scene_duration="5"):
     payload = {
         "model_name": KLING_MODEL, "image": img_b64,
         "prompt": prompt, "duration": scene_duration, "aspect_ratio": _ct['kling_aspect'],
-        "cfg_scale": KLING_CFG_SCALE,
+        "cfg_scale": cfg,
     }
     resp = requests.post(f"{KLING_API_BASE}/v1/videos/image2video",
                          headers=headers, json=payload, timeout=60)
@@ -745,11 +753,12 @@ def generate_videos(scenes, image_files, project_dir, durations=None):
                 n = s["scene"]
                 ref = image_files[idx]
                 sd = scene_durations.get(n, KLING_DURATION)
-                tid, sn = _submit_kling_task(s, ref, scene_duration=sd)
+                tid, sn = _submit_kling_task(s, ref, scene_duration=sd, total_scenes=len(scenes))
                 if tid:
                     out = project_dir / "scenes" / f"scene_{n:02d}.mp4"
+                    cfg_used = KLING_CFG_FIRST_LAST if (n == 1 or n == len(scenes)) else KLING_CFG_MIDDLE
                     active.append((tid, n, str(out), idx))
-                    print(f"   Sahne {n}: {len(build_video_prompt(s))} char | {sd}s → Task={tid}")
+                    print(f"   Sahne {n}: {len(build_video_prompt(s))} char | {sd}s | cfg={cfg_used} → Task={tid}")
                 else:
                     print(f"   Sahne {n}: ❌ submit başarısız")
                     failed_this_round.append(idx)
