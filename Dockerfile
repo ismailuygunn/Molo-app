@@ -43,8 +43,6 @@ COPY scripts/ ./scripts/
 COPY _config/ ./_config/
 COPY _reference/ ./_reference/
 
-# Seed data: projects baked into image for volume seeding
-COPY projects/ ./projects-seed/
 
 # Create data directories
 RUN mkdir -p projects _voices _images-generated _videos-raw _bgm
