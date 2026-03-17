@@ -458,6 +458,42 @@ def present_for_approval(script, durations, project_dir, auto_approve=False):
 # ADIM 4: SAHNE GÖRSELLERİ
 # ═══════════════════════════════════════
 
+QC_MIN_SCORE = 6       # Minimum kabul skoru (1-10)
+QC_MAX_RETRIES = 2     # Maksimum yeniden deneme
+
+
+def _score_image_quality(image_path, molo_ref_path, client):
+    """Gemini ile üretilen görseli skorla. Döner: (overall_score, detail_dict) veya (10, {})."""
+    try:
+        parts = [
+            gtypes.Part.from_bytes(data=open(molo_ref_path, "rb").read(), mime_type="image/jpeg"),
+            gtypes.Part.from_bytes(data=open(image_path, "rb").read(), mime_type="image/png"),
+        ]
+
+        prompt = ('Compare the generated image (second) with the MOLO mascot reference (first). '
+                  'Score 1-10 for each criterion. Return ONLY valid JSON, no explanation:\n'
+                  '{"face_accuracy": <int>, "symmetry": <int>, "hologram_presence": <int>, "overall_quality": <int>}')
+
+        resp = client.models.generate_content(
+            model=GEMINI_TEXT_MODEL,
+            contents=[prompt] + parts,
+        )
+
+        text = resp.text.strip()
+        if "```" in text:
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
+
+        scores = json.loads(text)
+        overall = scores.get("overall_quality", 0)
+        return overall, scores
+    except Exception as e:
+        print(f"      ⚠️ QC skor hesaplanamadı: {e}")
+        return 10, {}  # Hata durumunda geç
+
+
 def generate_scene_images(scenes, project_dir):
     """Her sahne için premium identity-lock promptlarıyla Gemini görseli üretir."""
     print("\n" + "=" * 60)
@@ -532,57 +568,90 @@ Important composition rules:
 
 {AVOID_LIST}"""
 
-        print(f"      🧠 Gemini üretimi...")
+        # ── Kalite kontrollü üretim (max QC_MAX_RETRIES + 1 deneme) ──
+        best_score = 0
+        best_output = None
+        attempts = QC_MAX_RETRIES + 1
 
-        # Gemini çağrısı
-        response = client.models.generate_content(
-            model=GEMINI_IMAGE_MODEL,
-            contents=[prompt] + images_to_send,
-            config=gtypes.GenerateContentConfig(
-                response_modalities=["IMAGE", "TEXT"],
+        for attempt in range(attempts):
+            attempt_suffix = f" (deneme {attempt + 1}/{attempts})" if attempt > 0 else ""
+            print(f"      🧠 Gemini üretimi...{attempt_suffix}")
+
+            response = client.models.generate_content(
+                model=GEMINI_IMAGE_MODEL,
+                contents=[prompt] + images_to_send,
+                config=gtypes.GenerateContentConfig(
+                    response_modalities=["IMAGE", "TEXT"],
+                )
             )
-        )
 
-        # Görseli kaydet
-        saved = False
-        for part in response.candidates[0].content.parts:
-            if hasattr(part, 'inline_data') and part.inline_data:
-                from PIL import Image
-                import io
-                img = Image.open(io.BytesIO(part.inline_data.data))
-                # 1080x1920 zorunlu resize
-                if img.size != (_ct['width'], _ct['height']):
-                    img = img.resize((_ct['width'], _ct['height']), Image.LANCZOS)
+            # Görseli kaydet
+            saved = False
+            attempt_path = str(output).replace(".png", f"_try{attempt}.png") if attempt > 0 else str(output)
 
-                # Karakter tutarlılığı: orijinal Molo referansını sağ alt köşeye overlay
-                try:
-                    ref_overlay = Image.open(str(molo_ref)).convert("RGBA")
-                    # %15 boyut, sağ-alt köşe
-                    overlay_h = int(_ct['height'] * 0.15)
-                    overlay_w = int(ref_overlay.width * (overlay_h / ref_overlay.height))
-                    ref_overlay = ref_overlay.resize((overlay_w, overlay_h), Image.LANCZOS)
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, 'inline_data') and part.inline_data:
+                    from PIL import Image
+                    import io
+                    img = Image.open(io.BytesIO(part.inline_data.data))
+                    if img.size != (_ct['width'], _ct['height']):
+                        img = img.resize((_ct['width'], _ct['height']), Image.LANCZOS)
 
-                    # Yarı-saydam border + padding
-                    padding = 4
-                    canvas = Image.new("RGBA", img.size, (0, 0, 0, 0))
-                    pos_x = img.width - overlay_w - padding - 12
-                    pos_y = img.height - overlay_h - padding - 12
-                    canvas.paste(ref_overlay, (pos_x, pos_y), ref_overlay if ref_overlay.mode == "RGBA" else None)
-                    img = img.convert("RGBA")
-                    img = Image.alpha_composite(img, canvas)
-                    img = img.convert("RGB")
-                    print(f"      🔒 Karakter referansı overlay eklendi ({overlay_w}x{overlay_h})")
-                except Exception as e:
-                    print(f"      ⚠️ Overlay eklenemedi: {e}")
+                    # Karakter tutarlılığı: orijinal Molo referansını sağ alt köşeye overlay
+                    try:
+                        ref_overlay = Image.open(str(molo_ref)).convert("RGBA")
+                        overlay_h = int(_ct['height'] * 0.15)
+                        overlay_w = int(ref_overlay.width * (overlay_h / ref_overlay.height))
+                        ref_overlay = ref_overlay.resize((overlay_w, overlay_h), Image.LANCZOS)
 
-                img.save(str(output), "PNG")
-                print(f"      ✅ {output.name} ({img.size[0]}x{img.size[1]})")
-                image_files.append(str(output))
-                saved = True
+                        padding = 4
+                        canvas = Image.new("RGBA", img.size, (0, 0, 0, 0))
+                        pos_x = img.width - overlay_w - padding - 12
+                        pos_y = img.height - overlay_h - padding - 12
+                        canvas.paste(ref_overlay, (pos_x, pos_y), ref_overlay if ref_overlay.mode == "RGBA" else None)
+                        img = img.convert("RGBA")
+                        img = Image.alpha_composite(img, canvas)
+                        img = img.convert("RGB")
+                    except Exception as e:
+                        print(f"      ⚠️ Overlay eklenemedi: {e}")
+
+                    img.save(attempt_path, "PNG")
+                    saved = True
+                    break
+
+            if not saved:
+                print(f"      ❌ Görsel üretilemedi (deneme {attempt + 1})")
+                continue
+
+            # ── Kalite skoru ──
+            score, details = _score_image_quality(attempt_path, str(molo_ref), client)
+            detail_str = ", ".join(f"{k}={v}" for k, v in details.items()) if details else "N/A"
+            print(f"      🔍 QC: {score}/10 ({detail_str})")
+
+            if score > best_score:
+                best_score = score
+                best_output = attempt_path
+
+            if score >= QC_MIN_SCORE:
                 break
+            else:
+                print(f"      ⚠️ Sahne {n}: kalite skoru düşük ({score}), tekrar deneniyor...")
 
-        if not saved:
-            print(f"      ❌ Görsel üretilemedi!")
+        # En iyi sonucu ana dosyaya taşı
+        if best_output and best_output != str(output):
+            import shutil
+            shutil.copy2(best_output, str(output))
+            for a in range(attempts):
+                try_path = str(output).replace(".png", f"_try{a}.png")
+                if os.path.exists(try_path):
+                    os.remove(try_path)
+
+        if best_output:
+            qc_label = f"✅ QC={best_score}/10" if best_score >= QC_MIN_SCORE else f"⚠️ QC={best_score}/10 (en iyi)"
+            print(f"      {qc_label} → {output.name}")
+            image_files.append(str(output))
+        else:
+            print(f"      ❌ Sahne {n}: hiçbir deneme başarılı olmadı!")
             sys.exit(1)
 
     return image_files
