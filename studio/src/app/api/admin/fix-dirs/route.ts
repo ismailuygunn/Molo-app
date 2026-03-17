@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readdir, stat, cp, rm } from "fs/promises";
 import { join, resolve } from "path";
+import { execSync } from "child_process";
 
 export const dynamic = "force-dynamic";
 
 const PROJECTS_DIR = resolve(process.cwd(), "..", "projects");
+const SEED_DIR = resolve(process.cwd(), "..", "projects-seed");
 
 /**
- * Admin endpoint: fix project directories with non-ASCII characters.
- * GET  → lists all directories with non-ASCII chars
- * POST → renames them to ASCII-safe equivalents
+ * Admin endpoint:
+ * GET  → lists dirs with non-ASCII chars
+ * POST → renames non-ASCII dirs to ASCII-safe
+ * PUT  → seeds volume from Docker image (projects-seed → projects)
  */
 
 function slugify(name: string): string {
@@ -48,14 +51,12 @@ export async function POST() {
       const oldPath = join(PROJECTS_DIR, entry);
       const newPath = join(PROJECTS_DIR, newName);
       
-      // Check if target already exists
       try {
         await stat(newPath);
         results.push({ old: entry, new: newName, status: "skipped — target exists" });
         continue;
       } catch { /* target doesn't exist, good */ }
       
-      // Cross-device safe: copy then delete (EXDEV fix for Docker mounts)
       await cp(oldPath, newPath, { recursive: true });
       await rm(oldPath, { recursive: true, force: true });
       results.push({ old: entry, new: newName, status: "renamed" });
@@ -65,3 +66,56 @@ export async function POST() {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
+
+/** PUT: seed volume from Docker image's projects-seed directory */
+export async function PUT() {
+  try {
+    // Check seed dir exists
+    try {
+      await stat(SEED_DIR);
+    } catch {
+      return NextResponse.json({ error: "No seed directory found at " + SEED_DIR }, { status: 404 });
+    }
+
+    const seedEntries = await readdir(SEED_DIR);
+    const results: Array<{ project: string; copiedFiles: number }> = [];
+    
+    for (const projName of seedEntries) {
+      const seedProj = join(SEED_DIR, projName);
+      const s = await stat(seedProj);
+      if (!s.isDirectory()) continue;
+      
+      const targetProj = join(PROJECTS_DIR, projName);
+      
+      // Use cp -r with no-clobber approach via execSync
+      try {
+        execSync(`mkdir -p "${targetProj}"`);
+        // Copy all files, preserving structure, don't overwrite existing
+        const output = execSync(
+          `cd "${seedProj}" && find . -type f | while read f; do ` +
+          `if [ ! -f "${targetProj}/$f" ]; then ` +
+          `mkdir -p "$(dirname "${targetProj}/$f")" && ` +
+          `cp "$f" "${targetProj}/$f" && echo "$f"; fi; done`,
+          { timeout: 120000 }
+        ).toString();
+        
+        const copiedFiles = output.trim().split("\n").filter(l => l.length > 0).length;
+        results.push({ project: projName, copiedFiles });
+      } catch (err) {
+        results.push({ project: projName, copiedFiles: -1 });
+      }
+    }
+    
+    // Count totals
+    const totalVolume = execSync(`find "${PROJECTS_DIR}" -type f | wc -l`).toString().trim();
+    
+    return NextResponse.json({
+      status: "ok",
+      results,
+      totalFilesOnVolume: parseInt(totalVolume) || 0,
+    });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
+}
+
