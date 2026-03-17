@@ -157,7 +157,8 @@ def concat_videos(video_files, output_path, transition="fade", transition_durati
         cmd = [FFMPEG, "-y"] + inputs + [
             "-filter_complex", filter_graph,
             "-map", "[outv]", "-map", "[outa]",
-            "-c:v", "libx264", "-preset", "medium", "-crf", str(QUALITY_FILTERS["crf"]),
+            "-c:v", "libx264", "-preset", "slow", "-crf", str(QUALITY_FILTERS["crf"]),
+            "-pix_fmt", "yuv420p", "-profile:v", "high", "-movflags", "+faststart",
             "-c:a", "aac", "-b:a", "192k",
             str(output_path)
         ]
@@ -248,7 +249,8 @@ def add_logo_overlay(video_path, logo_path, output_path,
         "-filter_complex",
         f"[1:v]scale={size}:-1,format=rgba,colorchannelmixer=aa={opacity}[logo];[0:v][logo]{overlay_pos}[outv]",
         "-map", "[outv]", "-map", "0:a?",
-        "-c:v", "libx264", "-preset", "fast", "-crf", str(QUALITY_FILTERS["crf"]),
+        "-c:v", "libx264", "-preset", "slow", "-crf", str(QUALITY_FILTERS["crf"]),
+        "-pix_fmt", "yuv420p", "-profile:v", "high", "-movflags", "+faststart",
         "-c:a", "copy",
         str(output_path)
     ]

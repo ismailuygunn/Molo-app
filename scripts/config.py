@@ -513,6 +513,10 @@ QUALITY_FILTERS = {
     "brightness": 0.02,
     "saturation": 1.1,
     "crf": 16,                    # (18 varsayılan, 16 daha yüksek kalite)
+    "pix_fmt": "yuv420p",
+    "profile": "high",
+    "movflags": "+faststart",
+    "preset": "slow",
 }
 
 # ─── Final Video Yavaşlatma ───
