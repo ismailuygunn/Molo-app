@@ -49,6 +49,7 @@ from config import (
     FACE_ANATOMY_LOCK, FACE_CONSISTENCY_VIDEO_LOCK, COMPACT_FACE_LOCK,
     COMPACT_LOCK_EKRAN, COMPACT_MOTION_EKRAN,
     CLINIC_ENV_BLOCK, STUDIO_ENV_BLOCK, EXTERNAL_ENV_BLOCK,
+    IMAGE_QUALITY_LOCK,
     QUALITY_FILTERS, AUDIO_SLOWDOWN, CROSSFADE_DURATION,
     SMART_SLOWDOWN_TARGET_WPS, SMART_SLOWDOWN_FAST_WPS, SMART_SLOWDOWN_SLOW_WPS,
     SMART_SLOWDOWN_MIN, SMART_SLOWDOWN_MAX,
@@ -653,6 +654,8 @@ Important composition rules:
 - the mouth area must be clean and readable for lip-sync
 - the face must remain symmetrical and stable
 - the image must feel designed for a {orient_text} digital display host
+
+{IMAGE_QUALITY_LOCK}
 
 {AVOID_LIST}"""
 

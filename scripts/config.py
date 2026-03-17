@@ -506,6 +506,14 @@ CRITICAL INTEGRATION RULES:
 
 Style: Premium photorealistic composite — a high-quality 3D character naturally placed in a real-world environment, like a luxury brand campaign shot on location."""
 
+# ─── Görsel Kalite Kilidi (Gemini üretim kalitesi) ───
+IMAGE_QUALITY_LOCK = """Quality preservation rules:
+- Render at maximum resolution and sharpness. Every edge must be crisp and well-defined.
+- No compression artifacts, no blur, no noise, no soft focus.
+- Material textures must be detailed and visible (metallic reflections, surface scratches, translucent visor).
+- Color accuracy must be preserved — no washed out colors, no oversaturation.
+- The final image must look like a high-end 3D render, not a compressed web image."""
+
 # ─── FFmpeg Kalite Filtreleri ───
 QUALITY_FILTERS = {
     "unsharp": "3:3:0.5",        # keskinlik
