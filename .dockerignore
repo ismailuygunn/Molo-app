@@ -2,6 +2,9 @@
 # Molo Studio — Docker Ignore
 # ═══════════════════════════════════════
 
+# Secrets — NEVER bake into image
+.env
+.env.*
 # Node
 node_modules/
 studio/node_modules/
