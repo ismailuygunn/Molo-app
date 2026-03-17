@@ -473,19 +473,28 @@ KLING_MAX_RETRIES = 3          # max retry per scene
 
 # ─── FFmpeg Yardımcı Fonksiyonlar ───
 def get_normalize_filter(with_quality=False, content_type=None):
-    """Normalize filter — content type'a göre doğru boyut kullanır."""
+    """Normalize filter — content type'a göre doğru boyut kullanır.
+    Green screen modunda renk düzeltme atlanır ve pad rengi chroma green olur."""
     if content_type and content_type in CONTENT_TYPES:
         ct = CONTENT_TYPES[content_type]
         w, h = ct["width"], ct["height"]
     else:
         w, h = OUTPUT_WIDTH, OUTPUT_HEIGHT
 
+    # Green screen için pad rengi chroma green, renk düzeltme yok
+    is_gs = content_type and CONTENT_TYPES.get(content_type, {}).get("is_greenscreen", False)
+    pad_color = "color=0x00B140" if is_gs else "black"
+
     base = (
         f"scale={w}:{h}:"
         f"force_original_aspect_ratio=decrease,"
-        f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black,"
+        f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:{pad_color},"
         f"setsar=1"
     )
+
+    if is_gs:
+        return base  # unsharp/contrast/brightness/saturation yeşili bozar
+
     if with_quality:
         q = QUALITY_FILTERS
         base += (
