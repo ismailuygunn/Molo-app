@@ -2077,14 +2077,16 @@ def render_from_config(config_path: str):
     # Log source video dimensions (debug)
     try:
         probe = subprocess.run(
-            ["ffprobe", "-v", "quiet", "-select_streams", "v:0",
-             "-show_entries", "stream=width,height", "-of", "json", video_files[0]],
+            [FFMPEG, "-i", video_files[0], "-f", "null", "-"],
             capture_output=True, text=True, timeout=5)
-        vinfo = json.loads(probe.stdout)
-        streams = vinfo.get("streams", [{}])
-        src_w = streams[0].get("width", 0)
-        src_h = streams[0].get("height", 0)
-        print(f"   Kaynak video: {src_w}x{src_h}")
+        for line in probe.stderr.split('\n'):
+            if 'Video:' in line and 'Stream' in line:
+                import re
+                match = re.search(r'(\d{3,4})x(\d{3,4})', line)
+                if match:
+                    src_w, src_h = int(match.group(1)), int(match.group(2))
+                    print(f"   Kaynak video: {src_w}x{src_h}")
+                    break
     except Exception as e:
         print(f"   Video boyut okunamadı: {e}")
 
