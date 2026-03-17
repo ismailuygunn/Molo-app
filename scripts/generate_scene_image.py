@@ -37,7 +37,9 @@ from config import (
     BASE_DIR, REFERENCE_DIR, FFMPEG,
     GEMINI_IMAGE_MODEL, OUTPUT_WIDTH, OUTPUT_HEIGHT,
     ENVIRONMENT_IMAGES, MOLO_POSES, get_normalize_filter,
-    CONTENT_TYPES, DEFAULT_CONTENT_TYPE
+    CONTENT_TYPES, DEFAULT_CONTENT_TYPE,
+    FACE_ANATOMY_LOCK, COMPACT_FACE_LOCK,
+    CLINIC_ENV_BLOCK, STUDIO_ENV_BLOCK, EXTERNAL_ENV_BLOCK,
 )
 
 
@@ -90,19 +92,34 @@ CRITICAL RULES:
 
     "outdoor": """You are given a reference image of a 3D robotic mascot character named "Molo".
 
-Generate a NEW high-quality image placing Molo in this outdoor location: {location}
+Generate a NEW high-quality image placing Molo in this real-world location: {location}
 
-Molo should be standing at the location, facing the camera, in a natural composition.
+Molo should be standing at the location, facing the camera directly, in a natural photorealistic composition.
 
-CRITICAL RULES:
-- Molo must look EXACTLY like the reference: tooth-shaped body, royal blue & white colors,
-  "ISTADENTAL" text on chest, dark visor with blue glowing eyes, holographic cone on top
-- The outdoor environment should be recognizable as {location}
-- Molo should be proportionally sized relative to the surroundings
-- Style: Photorealistic composite, 3D character in real environment
+CRITICAL CHARACTER RULES:
+- Molo must look EXACTLY like the reference image — tooth-shaped molar body, royal blue (#2B5EA7)
+  and white colors, "ISTADENTAL" text on the white chest panel, dark translucent visor with
+  two glowing cyan-blue diamond-shaped eyes (#00D4FF) and a gentle thin LED smile line,
+  holographic inverted-cone projector on top emitting cyan-blue glow
+- FACE: diamond-shaped cyan eyes on dark visor — same shape, size, spacing as reference.
+  Mouth: thin cyan LED line on visor surface. No round eyes, no mouth cavity, no teeth visible,
+  no face morphing, no asymmetric features. Visor proportions constant.
+- The hologram cone on top MUST be open and glowing with bright cyan-blue light
+- Molo should be proportionally sized (approximately 1 meter tall) relative to the surroundings
+
+ENVIRONMENT RULES:
+- The outdoor environment should be immediately recognizable as {location}
+- Generate the background ENTIRELY from the location description — photorealistic quality
+- Molo's lighting must match the environment's natural lighting direction and color temperature
+- Molo's shadow must be consistent with the environment's light source
+- The perspective and camera angle must be consistent between Molo and the background
+- Style: Premium photorealistic composite — like a luxury brand campaign shot on location
 - {format_line}
 - Camera: Eye-level or slight low angle, medium shot, Molo centered
-- Time of day: Golden hour / pleasant lighting""",
+- Time of day: Golden hour / pleasant natural lighting
+
+Avoid: changing Molo's face, round eyes, mouth cavity, face morphing, toy-like rendering,
+cheap composite look, inconsistent lighting, oversized character, cartoon effects.""",
 
     "ekran_studio": """You are given a reference image of a 3D robotic mascot character named "Molo".
 
