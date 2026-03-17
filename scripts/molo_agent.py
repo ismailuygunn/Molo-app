@@ -1595,6 +1595,31 @@ def main():
             val = stripped.split(":", 1)[1].strip().lower()
             if val in CONTENT_TYPES:
                 content_type = val
+
+    # Green screen boyut tespiti
+    if content_type.startswith("greenscreen"):
+        gs_size = "dikey"  # varsayılan
+        for line in brief_text.split("\n"):
+            ll = line.lower().strip()
+            if any(m in ll for m in ["boyut:", "size:", "format:"]):
+                val = line.split(":", 1)[1].strip().lower()
+                if val in ["yatay", "horizontal", "16:9", "landscape"]:
+                    gs_size = "yatay"
+                elif val in ["kare", "square", "1:1"]:
+                    gs_size = "kare"
+                elif val in ["dikey", "vertical", "9:16", "portrait"]:
+                    gs_size = "dikey"
+
+        # Doğru greenscreen profilini seç
+        if gs_size == "yatay":
+            content_type = "greenscreen-yatay"
+        elif gs_size == "kare":
+            content_type = "greenscreen-kare"
+        else:
+            content_type = "greenscreen"  # dikey (varsayılan)
+
+        print(f"   🟢 Green Screen modu: {gs_size} ({CONTENT_TYPES[content_type]['width']}x{CONTENT_TYPES[content_type]['height']})")
+
     _content_type_key = content_type
     _ct = CONTENT_TYPES[content_type].copy()
 
