@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Scissors, Download, Play, Loader2, Film, CheckCircle2, Clock, Settings } from "lucide-react";
+import { ArrowLeft, Scissors, Download, Play, Loader2, Film, CheckCircle2, Clock, Settings, Type, FolderOpen } from "lucide-react";
 import type { Project } from "@/store/studio";
 import { useToast } from "@/components/toast";
 
@@ -14,6 +14,7 @@ function EditContent() {
   const [loading, setLoading] = useState(true);
   const [files, setFiles] = useState<{ draft: string[]; final: string[]; subtitles: string[] }>({ draft: [], final: [], subtitles: [] });
   const [rendering, setRendering] = useState(false);
+  const [activeTab, setActiveTab] = useState<"settings" | "subtitle" | "files">("settings");
   const toast = useToast();
 
   // localStorage persistence for render params
@@ -25,7 +26,7 @@ function EditContent() {
   const [transition, setTransition] = useState(saved.transition ?? "fade");
   const [addSubs, setAddSubs] = useState(saved.addSubs !== false);
   const [fontSize, setFontSize] = useState(saved.fontSize ?? 42);
-  const [marginV, setMarginV] = useState(saved.marginV ?? 550);
+  const [marginV, setMarginV] = useState(saved.marginV ?? 200);
 
   // Save to localStorage on change
   useEffect(() => {
@@ -123,6 +124,12 @@ function EditContent() {
   const videoSrc = files.final[0] || files.draft[0] || "";
   const isHorizontal = project.contentType === "ekran";
 
+  const tabs = [
+    { key: "settings" as const, label: "Kurgu Ayarları", icon: <Settings size={14} /> },
+    { key: "subtitle" as const, label: "Altyazı", icon: <Type size={14} /> },
+    { key: "files" as const, label: "Dosyalar", icon: <FolderOpen size={14} /> },
+  ];
+
   return (
     <>
       <div className="page-header">
@@ -133,7 +140,21 @@ function EditContent() {
             <p className="page-subtitle">Final kurgu ayarları • {project.scenes.length} sahne</p>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {/* Duration badge */}
+          <div style={{
+            padding: "6px 14px", borderRadius: 20,
+            background: "rgba(0,255,200,0.08)", border: "1px solid rgba(0,255,200,0.15)",
+            display: "flex", alignItems: "center", gap: 6,
+          }}>
+            <Clock size={13} style={{ color: "var(--accent-cyan)" }} />
+            <span style={{ fontSize: 13, fontWeight: 700, fontFamily: "var(--font-geist-mono)", color: "var(--accent-cyan)" }}>
+              {finalDuration.toFixed(1)}s
+            </span>
+            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+              ({totalDuration.toFixed(0)}s × {(slowdown / 100).toFixed(2)})
+            </span>
+          </div>
           <button className="btn btn-secondary" onClick={() => handleRender("draft")} disabled={rendering}>
             {rendering ? <Loader2 size={16} className="pulse" /> : <Play size={16} />} Draft
           </button>
@@ -143,76 +164,91 @@ function EditContent() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24 }}>
-        {/* Video Player + Timeline */}
-        <div>
-          <div className="glass-card" style={{ padding: 16 }}>
-            <div style={{ marginBottom: 16, aspectRatio: isHorizontal ? "16/9" : "9/16", maxHeight: 450, background: "#000", borderRadius: 8, overflow: "hidden" }}>
-              {videoSrc ? (
-                <video key={videoSrc} controls style={{ width: "100%", height: "100%", objectFit: "contain" }}>
-                  <source src={videoSrc} type="video/mp4" />
-                </video>
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-muted)", fontSize: 14, flexDirection: "column", gap: 8 }}>
-                  <Film size={32} style={{ opacity: 0.2 }} />
-                  Henüz video yok — Draft oluşturun
-                </div>
-              )}
+      {/* Full-width Video Player */}
+      <div className="glass-card" style={{ padding: 0, overflow: "hidden", marginBottom: 20 }}>
+        <div style={{
+          aspectRatio: isHorizontal ? "16/9" : "9/16",
+          maxHeight: isHorizontal ? "65vh" : "70vh",
+          background: "#000",
+          margin: "0 auto",
+        }}>
+          {videoSrc ? (
+            <video key={videoSrc} controls style={{ width: "100%", height: "100%", objectFit: "contain" }}>
+              <source src={videoSrc} type="video/mp4" />
+            </video>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-muted)", fontSize: 14, flexDirection: "column", gap: 8 }}>
+              <Film size={40} style={{ opacity: 0.15 }} />
+              Henüz video yok — Draft oluşturun
             </div>
+          )}
+        </div>
+      </div>
 
-            {/* Visual Timeline */}
-            <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 600, color: "var(--text-muted)" }}>Timeline</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 2, overflowX: "auto", paddingBottom: 4 }}>
-              {project.scenes.map((s, i) => {
-                const dur = project.durations[i] || 0;
-                const pct = totalDuration > 0 ? Math.max(dur / totalDuration * 100, 8) : 100 / project.scenes.length;
-                return (
-                  <div key={s.scene} style={{ display: "flex", alignItems: "center" }}>
-                    <div style={{
-                      width: `${pct}%`, minWidth: 50,
-                      height: 36, borderRadius: 6,
-                      background: `linear-gradient(135deg, rgba(59,130,246,${0.1 + (i % 2) * 0.05}), rgba(139,92,246,${0.1 + (i % 2) * 0.05}))`,
-                      border: "1px solid var(--border-subtle)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 11, fontWeight: 600, color: "var(--text-secondary)",
-                      cursor: "default",
-                    }}>
-                      S{s.scene} • {dur.toFixed(1)}s
-                    </div>
-                    {i < project.scenes.length - 1 && (
-                      <div style={{
-                        width: 24, textAlign: "center", fontSize: 8,
-                        color: "var(--accent-cyan)", fontWeight: 600,
-                      }}>
-                        ↕{crossfade}s
-                      </div>
-                    )}
+      {/* Timeline — full width */}
+      <div className="glass-card" style={{ padding: "12px 16px", marginBottom: 20 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8 }}>Timeline</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+          {project.scenes.map((s, i) => {
+            const dur = project.durations[i] || 0;
+            const pct = totalDuration > 0 ? Math.max(dur / totalDuration * 100, 8) : 100 / project.scenes.length;
+            return (
+              <div key={s.scene} style={{ display: "flex", alignItems: "center", flex: `${pct} 0 0%` }}>
+                <div style={{
+                  width: "100%", minWidth: 50,
+                  height: 36, borderRadius: 6,
+                  background: `linear-gradient(135deg, rgba(59,130,246,${0.1 + (i % 2) * 0.05}), rgba(139,92,246,${0.1 + (i % 2) * 0.05}))`,
+                  border: "1px solid var(--border-subtle)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 11, fontWeight: 600, color: "var(--text-secondary)",
+                }}>
+                  S{s.scene} • {dur.toFixed(1)}s
+                </div>
+                {i < project.scenes.length - 1 && (
+                  <div style={{
+                    minWidth: 28, textAlign: "center", fontSize: 8,
+                    color: "var(--accent-cyan)", fontWeight: 600,
+                  }}>
+                    ↕{crossfade}s
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Settings Tabs — full width */}
+      <div className="glass-card" style={{ padding: 0, overflow: "hidden" }}>
+        {/* Tab Header */}
+        <div style={{
+          display: "flex", borderBottom: "1px solid var(--border-subtle)",
+        }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                flex: 1, padding: "12px 16px",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                fontSize: 13, fontWeight: activeTab === tab.key ? 700 : 500,
+                color: activeTab === tab.key ? "var(--accent-cyan)" : "var(--text-muted)",
+                background: activeTab === tab.key ? "rgba(0,255,200,0.04)" : "transparent",
+                borderBottom: activeTab === tab.key ? "2px solid var(--accent-cyan)" : "2px solid transparent",
+                border: "none", cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Settings Panel */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Duration Summary */}
-          <div className="glass-card" style={{ padding: 16, textAlign: "center" }}>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Tahmini Süre</div>
-            <div style={{ fontSize: 28, fontWeight: 700, fontFamily: "var(--font-geist-mono)", color: "var(--accent-cyan)" }}>
-              {finalDuration.toFixed(1)}s
-            </div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              ({totalDuration.toFixed(1)}s ham → {(slowdown / 100).toFixed(2)}x slowdown)
-            </div>
-          </div>
-
-          {/* Kurgu Ayarları */}
-          <div className="glass-card" style={{ padding: 20 }}>
-            <div className="section-title" style={{ fontSize: 14, marginBottom: 14 }}>
-              <Settings size={15} /> Kurgu Ayarları
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {/* Tab Content */}
+        <div style={{ padding: 20 }}>
+          {/* ⚙ Kurgu Ayarları */}
+          {activeTab === "settings" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, maxWidth: 600 }}>
               <div>
                 <label className="label">Crossfade</label>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -245,58 +281,62 @@ function EditContent() {
                 </select>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Altyazı */}
-          <div className="glass-card" style={{ padding: 20 }}>
-            <div className="section-title" style={{ fontSize: 14, marginBottom: 12 }}>Altyazı</div>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 12 }}>
-              <input type="checkbox" checked={addSubs} onChange={(e) => setAddSubs(e.target.checked)} /> İngilizce altyazı ekle
-            </label>
-            {addSubs && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <div>
-                  <label className="label">Font Size</label>
-                  <input className="input" type="number" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} style={{ fontSize: 13 }} />
+          {/* 💬 Altyazı */}
+          {activeTab === "subtitle" && (
+            <div style={{ maxWidth: 500 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 16 }}>
+                <input type="checkbox" checked={addSubs} onChange={(e) => setAddSubs(e.target.checked)} /> İngilizce altyazı ekle
+              </label>
+              {addSubs && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div>
+                    <label className="label">Font Size</label>
+                    <input className="input" type="number" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} style={{ fontSize: 13 }} />
+                  </div>
+                  <div>
+                    <label className="label">MarginV</label>
+                    <input className="input" type="number" value={marginV} onChange={(e) => setMarginV(Number(e.target.value))} style={{ fontSize: 13 }} />
+                  </div>
                 </div>
-                <div>
-                  <label className="label">MarginV</label>
-                  <input className="input" type="number" value={marginV} onChange={(e) => setMarginV(Number(e.target.value))} style={{ fontSize: 13 }} />
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+              <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 12 }}>
+                Altyazılar cümle bazlı bölünerek gösterilir — her sahne için kısa parçalar halinde.
+              </p>
+            </div>
+          )}
 
-          {/* Available files */}
-          {(files.draft.length > 0 || files.final.length > 0) && (
-            <div className="glass-card" style={{ padding: 16 }}>
-              <div className="section-title" style={{ fontSize: 12, marginBottom: 8 }}>Mevcut Dosyalar</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
-                {files.draft.map((f, i) => (
-                  <div key={`d-${i}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ color: "var(--text-secondary)" }}>📋 Draft {i + 1}</span>
-                    <a href={f} download className="btn btn-ghost" style={{ fontSize: 11, padding: "2px 8px" }}>
-                      <Download size={11} /> İndir
-                    </a>
-                  </div>
-                ))}
-                {files.final.map((f, i) => (
-                  <div key={`f-${i}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ color: "var(--accent-green)", fontWeight: 600 }}>🎬 Final {i + 1}</span>
-                    <a href={f} download className="btn btn-ghost" style={{ fontSize: 11, padding: "2px 8px" }}>
-                      <Download size={11} /> İndir
-                    </a>
-                  </div>
-                ))}
-                {files.subtitles.map((f, i) => (
-                  <div key={`s-${i}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ color: "var(--text-muted)" }}>💬 Altyazı {i + 1}</span>
-                    <a href={f} download className="btn btn-ghost" style={{ fontSize: 11, padding: "2px 8px" }}>
-                      <Download size={11} /> İndir
-                    </a>
-                  </div>
-                ))}
-              </div>
+          {/* 📂 Dosyalar */}
+          {activeTab === "files" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
+              {files.draft.length === 0 && files.final.length === 0 && (
+                <p style={{ color: "var(--text-muted)" }}>Henüz dosya yok — Draft veya Final oluşturun.</p>
+              )}
+              {files.final.map((f, i) => (
+                <div key={`f-${i}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 8, background: "rgba(0,255,120,0.04)", border: "1px solid rgba(0,255,120,0.1)" }}>
+                  <span style={{ color: "var(--accent-green)", fontWeight: 600 }}><CheckCircle2 size={14} style={{ verticalAlign: -2, marginRight: 6 }} />Final {i + 1}</span>
+                  <a href={f} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
+                    <Download size={12} /> İndir
+                  </a>
+                </div>
+              ))}
+              {files.draft.map((f, i) => (
+                <div key={`d-${i}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>📋 Draft {i + 1}</span>
+                  <a href={f} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
+                    <Download size={12} /> İndir
+                  </a>
+                </div>
+              ))}
+              {files.subtitles.map((f, i) => (
+                <div key={`s-${i}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)" }}>
+                  <span style={{ color: "var(--text-muted)" }}>💬 Altyazı {i + 1}</span>
+                  <a href={f} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
+                    <Download size={12} /> İndir
+                  </a>
+                </div>
+              ))}
             </div>
           )}
         </div>

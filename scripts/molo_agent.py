@@ -145,6 +145,52 @@ def wrap_subtitle(text, max_chars=45):
     return "\\N".join(lines)
 
 
+def split_into_subtitle_chunks(text, max_chars=80):
+    """Uzun metni cümle bazlı altyazı parçalarına böl.
+    
+    Her parça max 2 satır, max ~80 karakter olacak şekilde.
+    Bölme: cümle sonu (.!?) veya virgülden.
+    """
+    import re
+    # Cümle bazlı böl
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    
+    chunks = []
+    current = ""
+    for sent in sentences:
+        if not sent.strip():
+            continue
+        # Eğer mevcut chunk + yeni cümle çok uzunsa, ayır
+        combined = f"{current} {sent}".strip() if current else sent
+        if len(combined) > max_chars and current:
+            chunks.append(current.strip())
+            current = sent
+        else:
+            current = combined
+    if current.strip():
+        chunks.append(current.strip())
+    
+    # Eğer hâlâ çok uzun parçalar varsa, virgülden böl
+    final_chunks = []
+    for chunk in chunks:
+        if len(chunk) > max_chars:
+            parts = chunk.split(', ')
+            sub = ""
+            for p in parts:
+                combined = f"{sub}, {p}".strip(', ') if sub else p
+                if len(combined) > max_chars and sub:
+                    final_chunks.append(sub.strip())
+                    sub = p
+                else:
+                    sub = combined
+            if sub.strip():
+                final_chunks.append(sub.strip())
+        else:
+            final_chunks.append(chunk)
+    
+    return final_chunks if final_chunks else [text]
+
+
 # ═══════════════════════════════════════
 # ADIM 1: BRİEF OKUMA & SENARYO ÜRETİMİ
 # ═══════════════════════════════════════
@@ -922,11 +968,23 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
     cum = 0.2
     for i, (tr, dur) in enumerate(zip(translations, durations)):
-        start = cum
-        end = cum + dur
-        wrapped = wrap_subtitle(tr)
-        ass += f"Dialogue: 0,{format_ass_time(start)},{format_ass_time(end)},Default,,0,0,0,,{wrapped}\n"
-        cum = end + 0.5
+        # Cümle bazlı böl — her sahnenin metni kısa parçalara ayrılır
+        chunks = split_into_subtitle_chunks(tr, max_chars=70)
+        chunk_count = len(chunks)
+        total_chars = sum(len(c) for c in chunks)
+        
+        for j, chunk in enumerate(chunks):
+            # Timing: karakter uzunluğuna orantılı dağılım
+            char_ratio = len(chunk) / total_chars if total_chars > 0 else 1.0 / chunk_count
+            chunk_dur = dur * char_ratio
+            
+            start = cum
+            end = cum + chunk_dur - 0.1  # Küçük boşluk
+            wrapped = wrap_subtitle(chunk)
+            ass += f"Dialogue: 0,{format_ass_time(start)},{format_ass_time(end)},Default,,0,0,0,,{wrapped}\n"
+            cum = end + 0.15  # Parçalar arası kısa geçiş
+        
+        cum += 0.35  # Sahneler arası daha uzun boşluk
 
     with open(ass_path, "w", encoding="utf-8") as f:
         f.write(ass)
