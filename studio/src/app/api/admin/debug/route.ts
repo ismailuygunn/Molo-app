@@ -28,7 +28,7 @@ export async function GET() {
       checks["volume-file-count"] = execSync("find /app/projects -type f 2>/dev/null | wc -l").toString().trim();
     } catch (e) { checks["volume-file-count"] = String(e); }
     
-    // Check start.sh output
+    // Check working directory
     try {
       checks["cwd"] = execSync("pwd").toString().trim();
     } catch { /* */ }
