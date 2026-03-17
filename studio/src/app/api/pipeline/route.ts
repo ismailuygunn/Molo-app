@@ -10,7 +10,7 @@ const PROJECTS_DIR = join(ROOT_DIR, "projects");
 
 export async function POST(req: NextRequest) {
   try {
-    const { projectId } = await req.json();
+    const { projectId, resume } = await req.json();
     if (!projectId) {
       return NextResponse.json({ error: "projectId gerekli" }, { status: 400 });
     }
@@ -48,8 +48,10 @@ export async function POST(req: NextRequest) {
     // Clear previous log
     await writeFile(logPath, `[${new Date().toISOString()}] Pipeline başlatılıyor...\n`, "utf-8");
 
-    // Spawn pipeline with --auto-approve
-    const child = spawn("python3", [scriptPath, briefPath, "--auto-approve"], {
+    // Spawn pipeline with --auto-approve (and --resume if requested)
+    const args = [scriptPath, briefPath, "--auto-approve"];
+    if (resume) args.push("--resume");
+    const child = spawn("python3", args, {
       cwd: ROOT_DIR,
       env: {
         ...process.env,

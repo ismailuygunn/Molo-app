@@ -93,6 +93,41 @@ def _write_progress(step: str, progress: int, message: str = "",
         pass  # Dosya yazılamazsa pipeline'ı durdurmayız
 
 
+def _write_checkpoint(project_dir, step, completed_steps, **state):
+    """Pipeline state'ini checkpoint.json'a yaz — resume için kullanılır."""
+    import json, datetime
+    data = {
+        "step": step,
+        "completed_steps": completed_steps,
+        "updated_at": datetime.datetime.now().isoformat(),
+    }
+    data.update(state)
+    path = Path(project_dir) / "checkpoint.json"
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _load_checkpoint(project_dir):
+    """checkpoint.json varsa yükle, yoksa None döndür."""
+    import json
+    path = Path(project_dir) / "checkpoint.json"
+    if not path.exists():
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _validate_files(file_list):
+    """Dosya listesinden mevcut olanları döndür."""
+    return [f for f in file_list if os.path.exists(f)]
+
+
 # ═══════════════════════════════════════
 # YARDIMCI FONKSİYONLAR
 # ═══════════════════════════════════════
@@ -1196,13 +1231,14 @@ DO NOT make MOLO look childish, flat, or toy-like.
 
 def main():
     if len(sys.argv) < 2:
-        print("Kullanım: python3 molo_agent.py <brief.md> [--dry-run] [--auto-approve]")
+        print("Kullanım: python3 molo_agent.py <brief.md> [--dry-run] [--auto-approve] [--resume]")
         print("Örnek:    python3 molo_agent.py projects/2026-03-16_konu/brief.md")
         sys.exit(1)
 
     brief_path = Path(sys.argv[1])
     dry_run = "--dry-run" in sys.argv
     auto_approve = "--auto-approve" in sys.argv
+    resume = "--resume" in sys.argv
 
     if not brief_path.exists():
         print(f"❌ Brief bulunamadı: {brief_path}")
@@ -1279,11 +1315,25 @@ def main():
 
     _write_progress("starting", 5, "Pipeline başlatılıyor...")
 
+    # ── Checkpoint/Resume ──
+    ckpt = _load_checkpoint(project_dir) if resume else None
+    completed = list(ckpt.get("completed_steps", [])) if ckpt else []
+    if ckpt and completed:
+        print(f"   🔄 RESUME: {len(completed)} adım atlanacak: {', '.join(completed)}")
+
     try:
         # ── ADIM 1: Senaryo ──
-        _write_progress("script", 10, "Senaryo üretiliyor...")
-        script = generate_script(brief_path, lang)
-        scenes = script["scenes"]
+        if "script" in completed and ckpt.get("script"):
+            script = ckpt["script"]
+            scenes = script["scenes"]
+            print(f"   ⏩ Senaryo atlandı (checkpoint — {len(scenes)} sahne)")
+        else:
+            _write_progress("script", 10, "Senaryo üretiliyor...")
+            script = generate_script(brief_path, lang)
+            scenes = script["scenes"]
+            if "script" not in completed:
+                completed.append("script")
+            _write_checkpoint(project_dir, "script", completed, script=script)
         _write_progress("script", 15, f"{len(scenes)} sahne üretildi")
 
         if dry_run:
@@ -1292,57 +1342,158 @@ def main():
             return
 
         # ── ADIM 2: Ses üretimi (SES-ÖNCELİKLİ) ──
-        _write_progress("voice", 20, "Ses üretimi başlıyor...")
-        voice_files, durations = generate_voices(scenes, lang, project_name, project_dir)
+        if "voice" in completed and ckpt.get("voice_files"):
+            voice_files = _validate_files(ckpt["voice_files"])
+            durations = ckpt.get("durations", [])
+            if len(voice_files) == len(ckpt["voice_files"]):
+                print(f"   ⏩ Ses üretimi atlandı (checkpoint — {len(voice_files)} dosya)")
+            else:
+                print(f"   ⚠️ {len(ckpt['voice_files']) - len(voice_files)} ses dosyası eksik, yeniden üretiliyor...")
+                completed = [s for s in completed if s != "voice"]
+                _write_progress("voice", 20, "Ses üretimi başlıyor...")
+                voice_files, durations = generate_voices(scenes, lang, project_name, project_dir)
+                completed.append("voice")
+                _write_checkpoint(project_dir, "voice", completed,
+                                  script=script, voice_files=voice_files, durations=durations)
+        else:
+            _write_progress("voice", 20, "Ses üretimi başlıyor...")
+            voice_files, durations = generate_voices(scenes, lang, project_name, project_dir)
+            if "voice" not in completed:
+                completed.append("voice")
+            _write_checkpoint(project_dir, "voice", completed,
+                              script=script, voice_files=voice_files, durations=durations)
         _write_progress("voice", 30, f"{len(voice_files)} ses dosyası hazır")
 
         # ── ADIM 3: Onay ──
-        _write_progress("approval", 32, "İçerik onayı bekleniyor...")
-        if not present_for_approval(script, durations, project_dir, auto_approve=auto_approve):
-            print("\n   🛑 İptal edildi.")
-            _write_progress("idle", 0, "Kullanıcı tarafından iptal edildi")
-            sys.exit(0)
+        if "approval" not in completed:
+            _write_progress("approval", 32, "İçerik onayı bekleniyor...")
+            if not present_for_approval(script, durations, project_dir, auto_approve=auto_approve):
+                print("\n   🛑 İptal edildi.")
+                _write_progress("idle", 0, "Kullanıcı tarafından iptal edildi")
+                sys.exit(0)
+            completed.append("approval")
+            _write_checkpoint(project_dir, "approval", completed,
+                              script=script, voice_files=voice_files, durations=durations)
+        else:
+            print("   ⏩ Onay atlandı (checkpoint)")
         _write_progress("approval", 35, "İçerik onaylandı")
 
         # ── ADIM 4: Görseller ──
-        _write_progress("images", 38, "Sahne görselleri üretiliyor...")
-        image_files = generate_scene_images(scenes, project_dir)
+        if "images" in completed and ckpt.get("image_files"):
+            image_files = _validate_files(ckpt["image_files"])
+            if len(image_files) == len(ckpt["image_files"]):
+                print(f"   ⏩ Görseller atlandı (checkpoint — {len(image_files)} dosya)")
+            else:
+                print(f"   ⚠️ {len(ckpt['image_files']) - len(image_files)} görsel eksik, yeniden üretiliyor...")
+                completed = [s for s in completed if s != "images"]
+                _write_progress("images", 38, "Sahne görselleri üretiliyor...")
+                image_files = generate_scene_images(scenes, project_dir)
+                completed.append("images")
+                _write_checkpoint(project_dir, "images", completed,
+                                  script=script, voice_files=voice_files, durations=durations,
+                                  image_files=[str(f) for f in image_files])
+        else:
+            _write_progress("images", 38, "Sahne görselleri üretiliyor...")
+            image_files = generate_scene_images(scenes, project_dir)
+            if "images" not in completed:
+                completed.append("images")
+            _write_checkpoint(project_dir, "images", completed,
+                              script=script, voice_files=voice_files, durations=durations,
+                              image_files=[str(f) for f in image_files])
         _write_progress("images", 50, f"{len(image_files)} görsel hazır")
 
         # ── ADIM 5: Videolar ──
-        _write_progress("videos", 52, "Video üretimi başlıyor (Kling API)...")
-        video_files = generate_videos(scenes, image_files, project_dir, durations=durations)
+        if "videos" in completed and ckpt.get("video_files"):
+            video_files = _validate_files(ckpt["video_files"])
+            if len(video_files) == len(ckpt["video_files"]):
+                print(f"   ⏩ Videolar atlandı (checkpoint — {len(video_files)} dosya)")
+            else:
+                print(f"   ⚠️ {len(ckpt['video_files']) - len(video_files)} video eksik, yeniden üretiliyor...")
+                completed = [s for s in completed if s != "videos"]
+                _write_progress("videos", 52, "Video üretimi başlıyor (Kling API)...")
+                video_files = generate_videos(scenes, image_files, project_dir, durations=durations)
+                completed.append("videos")
+                _write_checkpoint(project_dir, "videos", completed,
+                                  script=script, voice_files=voice_files, durations=durations,
+                                  image_files=[str(f) for f in image_files],
+                                  video_files=[str(f) for f in video_files])
+        else:
+            _write_progress("videos", 52, "Video üretimi başlıyor (Kling API)...")
+            video_files = generate_videos(scenes, image_files, project_dir, durations=durations)
+            if "videos" not in completed:
+                completed.append("videos")
+            _write_checkpoint(project_dir, "videos", completed,
+                              script=script, voice_files=voice_files, durations=durations,
+                              image_files=[str(f) for f in image_files],
+                              video_files=[str(f) for f in video_files])
         _write_progress("videos", 70, f"{len(video_files)}/{len(scenes)} video hazır")
 
         if len(video_files) < len(scenes):
             print(f"\n   ⚠️ {len(video_files)}/{len(scenes)} video hazır — devam ediliyor")
 
         # ── ADIM 6: Kurgu ──
-        _write_progress("edit", 72, "Kurgu oluşturuluyor...")
-        draft = compose_edit(video_files, voice_files, durations, project_dir, project_name)
-        if not draft:
-            raise RuntimeError("Kurgu başarısız — draft oluşturulamadı")
+        if "edit" in completed and ckpt.get("draft") and os.path.exists(ckpt["draft"]):
+            draft = ckpt["draft"]
+            print(f"   ⏩ Kurgu atlandı (checkpoint)")
+        else:
+            _write_progress("edit", 72, "Kurgu oluşturuluyor...")
+            draft = compose_edit(video_files, voice_files, durations, project_dir, project_name)
+            if not draft:
+                raise RuntimeError("Kurgu başarısız — draft oluşturulamadı")
+            if "edit" not in completed:
+                completed.append("edit")
+            _write_checkpoint(project_dir, "edit", completed,
+                              script=script, voice_files=voice_files, durations=durations,
+                              image_files=[str(f) for f in image_files],
+                              video_files=[str(f) for f in video_files],
+                              draft=draft)
         _write_progress("edit", 80, "Draft montaj hazır")
 
         # ── ADIM 7: Altyazı ──
-        _write_progress("subtitles", 82, "Altyazılar ekleniyor...")
-        subtitled = add_subtitles(draft, scenes, durations, project_dir, project_name, lang)
+        if "subtitles" in completed and ckpt.get("subtitled") and os.path.exists(ckpt["subtitled"]):
+            subtitled = ckpt["subtitled"]
+            print(f"   ⏩ Altyazı atlandı (checkpoint)")
+        else:
+            _write_progress("subtitles", 82, "Altyazılar ekleniyor...")
+            subtitled = add_subtitles(draft, scenes, durations, project_dir, project_name, lang)
+            if "subtitles" not in completed:
+                completed.append("subtitles")
+            _write_checkpoint(project_dir, "subtitles", completed,
+                              script=script, voice_files=voice_files, durations=durations,
+                              image_files=[str(f) for f in image_files],
+                              video_files=[str(f) for f in video_files],
+                              draft=draft, subtitled=subtitled)
         _write_progress("subtitles", 88, "Altyazılı video hazır")
 
         # ── ADIM 8: Final Slowdown ──
-        _write_progress("slowdown", 90, "Final slowdown uygulanıyor...")
-        final = apply_slowdown(subtitled, project_dir, project_name)
+        if "slowdown" in completed and ckpt.get("final") and os.path.exists(ckpt["final"]):
+            final = ckpt["final"]
+            print(f"   ⏩ Slowdown atlandı (checkpoint)")
+        else:
+            _write_progress("slowdown", 90, "Final slowdown uygulanıyor...")
+            final = apply_slowdown(subtitled, project_dir, project_name)
+            if "slowdown" not in completed:
+                completed.append("slowdown")
+            _write_checkpoint(project_dir, "slowdown", completed,
+                              script=script, voice_files=voice_files, durations=durations,
+                              draft=draft, subtitled=subtitled, final=final)
         _write_progress("slowdown", 93, "Slowdown tamamlandı")
 
         # ── ADIM 9: Thumbnail (şartlı) ──
         if _ct.get('thumbnail', False):
-            _write_progress("thumbnail", 95, "Thumbnail üretiliyor...")
-            title = script.get("title", project_name)
-            generate_thumbnail(final, project_dir, project_name, title)
+            if "thumbnail" in completed:
+                print(f"   ⏩ Thumbnail atlandı (checkpoint)")
+            else:
+                _write_progress("thumbnail", 95, "Thumbnail üretiliyor...")
+                title = script.get("title", project_name)
+                generate_thumbnail(final, project_dir, project_name, title)
+                if "thumbnail" not in completed:
+                    completed.append("thumbnail")
         else:
             print(f"\n   🖼️ Thumbnail atlandı ({_ct['label']} için gerekli değil)")
 
         # ── BİTTİ ──
+        _write_checkpoint(project_dir, "done", completed)
         print("\n" + "═" * 60)
         print("🎉 MOLO CONTENT AGENT — TAMAMLANDI!")
         if os.path.exists(final):
@@ -1355,12 +1506,14 @@ def main():
 
     except KeyboardInterrupt:
         print("\n   ⛔ Pipeline kullanıcı tarafından durduruldu.")
+        _write_checkpoint(project_dir, "interrupted", completed)
         _write_progress("error", 0, "Kullanıcı tarafından durduruldu", is_error=True)
         sys.exit(130)
     except Exception as e:
         print(f"\n   ❌ Pipeline hatası: {e}")
         import traceback
         traceback.print_exc()
+        _write_checkpoint(project_dir, "error", completed, error=str(e)[:500])
         _write_progress("error", 0, f"Hata: {str(e)[:200]}", is_error=True)
         sys.exit(1)
 

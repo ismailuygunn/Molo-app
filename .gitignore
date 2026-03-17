@@ -59,3 +59,4 @@ projects/*/scenes/video_tasks.json
 .pipeline.log
 .pipeline.pid
 .render.log
+projects/*/checkpoint.json
