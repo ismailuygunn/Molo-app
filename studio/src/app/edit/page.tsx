@@ -16,9 +16,15 @@ interface SceneFiles {
   scenes_images: string[];
   scenes_videos: string[];
   audio: string[];
-  draft: string[];
-  final: string[];
-  subtitles: string[];
+  draft: FileInfo[];
+  final: FileInfo[];
+  subtitles: FileInfo[];
+}
+
+interface FileInfo {
+  url: string;
+  size: number;
+  name: string;
 }
 
 interface SubtitleEntry {
@@ -184,6 +190,7 @@ function EditContent() {
   const [selectedSubIdx, setSelectedSubIdx] = useState(0);
   const [settingsChanged, setSettingsChanged] = useState(false);
   const [lastRenderConfig, setLastRenderConfig] = useState<Record<string, unknown> | null>(null);
+  const [renderKey, setRenderKey] = useState(0);
   const toast = useToast();
 
   // localStorage persistence
@@ -227,12 +234,12 @@ function EditContent() {
   // Fetch subtitles for preview
   useEffect(() => {
     if (sceneFiles.subtitles.length === 0) return;
-    const assUrl = sceneFiles.subtitles.find(f => f.endsWith('.ass')) || sceneFiles.subtitles.find(f => f.endsWith('.srt'));
-    if (!assUrl) return;
-    fetch(assUrl)
+    const assFile = sceneFiles.subtitles.find(f => f.name.endsWith('.ass')) || sceneFiles.subtitles.find(f => f.name.endsWith('.srt'));
+    if (!assFile) return;
+    fetch(assFile.url)
       .then(r => r.text())
       .then(content => {
-        if (assUrl.endsWith('.ass')) {
+        if (assFile.name.endsWith('.ass')) {
           // Parse ASS Dialogue lines
           const entries: SubtitleEntry[] = [];
           const lines = content.split('\n');
@@ -271,14 +278,24 @@ function EditContent() {
     if (!projectId) return;
     fetch(`/api/projects/${encodeURIComponent(projectId)}/files`)
       .then((r) => r.json())
-      .then((data) => setSceneFiles({
-        scenes_images: data.scenes_images || [],
-        scenes_videos: data.scenes_videos || [],
-        audio: data.audio || [],
-        draft: data.draft || [],
-        final: data.final || [],
-        subtitles: data.subtitles || [],
-      }));
+      .then((data) => {
+        // scenes_images, scenes_videos, audio remain string[]
+        // draft, final, subtitles are now FileInfo[]
+        const toFileInfo = (arr: unknown[]): FileInfo[] =>
+          arr.map((item: unknown) =>
+            typeof item === 'string'
+              ? { url: item, size: 0, name: item.split('/').pop() || '' }
+              : item as FileInfo
+          );
+        setSceneFiles({
+          scenes_images: data.scenes_images || [],
+          scenes_videos: data.scenes_videos || [],
+          audio: data.audio || [],
+          draft: toFileInfo(data.draft || []),
+          final: toFileInfo(data.final || []),
+          subtitles: toFileInfo(data.subtitles || []),
+        });
+      });
   };
 
   const handleRender = async (type: "draft" | "final") => {
@@ -303,6 +320,8 @@ function EditContent() {
       }
 
       toast.info("Render başlatıldı, işleniyor...");
+      setLastRenderConfig({ crossfade, slowdown, crf, transition, addSubs, fontSize, marginV });
+      setSettingsChanged(false);
 
       // Poll for progress via render log
       const startDraftCount = sceneFiles.draft.length;
@@ -326,14 +345,21 @@ function EditContent() {
 
           if (hasDraft || hasFinal) {
             clearInterval(pollInterval);
+            const toFileInfo = (arr: unknown[]): FileInfo[] =>
+              arr.map((item: unknown) =>
+                typeof item === 'string'
+                  ? { url: item, size: 0, name: item.split('/').pop() || '' }
+                  : item as FileInfo
+              );
             setSceneFiles({
               scenes_images: logData.scenes_images || [],
               scenes_videos: logData.scenes_videos || [],
               audio: logData.audio || [],
-              draft: newDrafts,
-              final: newFinals,
-              subtitles: logData.subtitles || [],
+              draft: toFileInfo(logData.draft || []),
+              final: toFileInfo(logData.final || []),
+              subtitles: toFileInfo(logData.subtitles || []),
             });
+            setRenderKey(k => k + 1);
             toast.success(`${type === "final" ? "Final" : "Draft"} render tamamlandı!`);
             setRendering(false);
             setRenderProgress("");
@@ -374,7 +400,7 @@ function EditContent() {
 
   const totalDuration = project.durations.reduce((a, b) => a + b, 0);
   const finalDuration = totalDuration / (slowdown / 100);
-  const videoSrc = sceneFiles.final[0] || sceneFiles.draft[0] || "";
+  const videoSrc = (sceneFiles.final[0]?.url || sceneFiles.draft[0]?.url || "");
   const isHorizontal = project.contentType === "ekran";
 
   const tabs = [
@@ -470,20 +496,26 @@ function EditContent() {
       )}
 
       {/* ═══ VIDEO PLAYER ═══ */}
-      <div className={`video-container ${isHorizontal ? "landscape" : ""}`} style={{ marginBottom: 16, margin: isHorizontal ? "0 0 16px" : "0 auto 16px" }}>
+      <div style={{
+        marginBottom: 16, display: "flex", justifyContent: "center", alignItems: "center",
+        minHeight: videoSrc ? 0 : 120,
+      }}>
         {videoSrc ? (
-          <video key={videoSrc} controls style={{
-            width: "100%", height: "100%", objectFit: "contain",
+          <video key={`${videoSrc}_${renderKey}`} controls style={{
+            maxHeight: "45vh", maxWidth: "100%", width: "auto",
+            display: "block", borderRadius: 12,
+            boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
           }}>
             <source src={videoSrc} type="video/mp4" />
           </video>
         ) : (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "center",
-            height: "100%", width: "100%",
-            color: "var(--text-muted)", fontSize: 14, flexDirection: "column", gap: 8,
+            height: 120, width: "100%", borderRadius: 12,
+            border: "1px dashed var(--border-subtle)",
+            color: "var(--text-muted)", fontSize: 13, flexDirection: "column", gap: 6,
           }}>
-            <Film size={32} style={{ opacity: 0.15 }} />
+            <Film size={28} style={{ opacity: 0.15 }} />
             Henüz video yok — Draft oluşturun
           </div>
         )}
@@ -586,10 +618,28 @@ function EditContent() {
                 <select className="input select" value={transition} onChange={(e) => setTransition(e.target.value)} style={{ fontSize: 13 }}>
                   <option value="fade">Fade</option>
                   <option value="fadeblack">Fade Black</option>
+                  <option value="fadewhite">Fade White</option>
                   <option value="dissolve">Dissolve</option>
                   <option value="wipeleft">Wipe Left</option>
+                  <option value="wiperight">Wipe Right</option>
+                  <option value="wipeup">Wipe Up</option>
+                  <option value="wipedown">Wipe Down</option>
                   <option value="slideright">Slide Right</option>
+                  <option value="slideleft">Slide Left</option>
+                  <option value="slideup">Slide Up</option>
+                  <option value="slidedown">Slide Down</option>
                 </select>
+              </div>
+              <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  className="btn btn-ghost"
+                  style={{ fontSize: 11, padding: "5px 12px" }}
+                  onClick={() => {
+                    setCrossfade(0.7); setSlowdown(88); setCrf(16); setTransition("fade");
+                  }}
+                >
+                  Varsayılanlara Sıfırla
+                </button>
               </div>
             </div>
           )}
@@ -607,13 +657,15 @@ function EditContent() {
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <label className="label" style={{ margin: 0, fontSize: 11 }}>Font Size</label>
                       <input className="input" type="number" value={fontSize}
-                        onChange={(e) => setFontSize(Number(e.target.value))}
+                        min={10} max={100}
+                        onChange={(e) => setFontSize(Math.max(10, Math.min(100, Number(e.target.value))))}
                         style={{ fontSize: 12, width: 65, padding: "4px 8px" }} />
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <label className="label" style={{ margin: 0, fontSize: 11 }}>MarginV</label>
                       <input className="input" type="number" value={marginV}
-                        onChange={(e) => setMarginV(Number(e.target.value))}
+                        min={0} max={800}
+                        onChange={(e) => setMarginV(Math.max(0, Math.min(800, Number(e.target.value))))}
                         style={{ fontSize: 12, width: 65, padding: "4px 8px" }} />
                     </div>
                     {subtitlesDirty && (
@@ -668,7 +720,7 @@ function EditContent() {
                   <div style={{
                     position: "relative",
                     aspectRatio: isHorizontal ? "16/9" : "9/16",
-                    maxHeight: isHorizontal ? 280 : 320,
+                    maxHeight: isHorizontal ? 220 : 200,
                     background: "#000",
                     display: "flex", alignItems: "flex-end", justifyContent: "center",
                     overflow: "hidden", margin: "0 auto",
@@ -763,6 +815,28 @@ function EditContent() {
                             fontFamily: "inherit", outline: "none",
                           }}
                         />
+                        {/* Delete button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const updated = subtitleEntries.filter((_, j) => j !== idx);
+                            // Re-index
+                            const reindexed = updated.map((e, i) => ({ ...e, index: i + 1 }));
+                            setSubtitleEntries(reindexed);
+                            setSubtitlesDirty(true);
+                            if (selectedSubIdx >= reindexed.length) setSelectedSubIdx(Math.max(0, reindexed.length - 1));
+                          }}
+                          title="Bu altyazıyı sil"
+                          style={{
+                            background: "none", border: "none", cursor: "pointer",
+                            color: "var(--text-muted)", padding: 4, borderRadius: 4,
+                            opacity: 0.4, transition: "opacity 0.15s",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+                          onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.4")}
+                        >
+                          <X size={12} />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -787,52 +861,114 @@ function EditContent() {
 
           {/* 📂 Dosyalar */}
           {activeTab === "files" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13 }}>
               {sceneFiles.draft.length === 0 && sceneFiles.final.length === 0 && (
-                <p style={{ color: "var(--text-muted)" }}>Henüz dosya yok — Draft veya Final oluşturun.</p>
+                <div style={{
+                  padding: 24, textAlign: "center", borderRadius: 10,
+                  border: "1px dashed var(--border-subtle)",
+                  color: "var(--text-muted)", fontSize: 13,
+                }}>
+                  <FolderOpen size={24} style={{ opacity: 0.2, marginBottom: 8 }} />
+                  <p>Henüz dosya yok — Draft veya Final oluşturun.</p>
+                </div>
               )}
-              {sceneFiles.final.map((f, i) => (
-                <div key={`f-${i}`} style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "8px 12px", borderRadius: 8,
-                  background: "rgba(0,255,120,0.04)", border: "1px solid rgba(0,255,120,0.1)",
-                }}>
-                  <span style={{ color: "var(--accent-green)", fontWeight: 600 }}>
-                    <CheckCircle2 size={14} style={{ verticalAlign: -2, marginRight: 6 }} />
-                    Final {i + 1}
-                  </span>
-                  <a href={f} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
-                    <Download size={12} /> İndir
-                  </a>
-                </div>
-              ))}
-              {sceneFiles.draft.map((f, i) => (
-                <div key={`d-${i}`} style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)",
-                }}>
-                  <span style={{ color: "var(--text-secondary)" }}>📋 Draft {i + 1}</span>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => setPreviewModal({ src: f, type: "video" })} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
-                      <Eye size={12} /> Oynat
-                    </button>
-                    <a href={f} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
-                      <Download size={12} /> İndir
-                    </a>
+
+              {/* Final files */}
+              {sceneFiles.final.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--accent-green)", marginBottom: 6, letterSpacing: 0.5 }}>
+                    FINAL ({sceneFiles.final.length})
                   </div>
+                  {sceneFiles.final.map((f, i) => (
+                    <div key={`f-${i}`} style={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      padding: "10px 12px", borderRadius: 8, marginBottom: 4,
+                      background: "rgba(0,255,120,0.04)", border: "1px solid rgba(0,255,120,0.1)",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <CheckCircle2 size={14} style={{ color: "var(--accent-green)" }} />
+                        <div>
+                          <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 12 }}>{f.name}</div>
+                          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                            {f.size > 0 ? `${(f.size / 1024 / 1024).toFixed(1)} MB` : ""}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => setPreviewModal({ src: f.url, type: "video" })} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
+                          <Eye size={12} /> Oynat
+                        </button>
+                        <a href={f.url} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
+                          <Download size={12} /> İndir
+                        </a>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              {sceneFiles.subtitles.map((f, i) => (
-                <div key={`s-${i}`} style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "8px 12px", borderRadius: 8, background: "rgba(255,255,255,0.02)",
-                }}>
-                  <span style={{ color: "var(--text-muted)" }}>💬 Altyazı {i + 1}</span>
-                  <a href={f} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
-                    <Download size={12} /> İndir
-                  </a>
+              )}
+
+              {/* Draft files */}
+              {sceneFiles.draft.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", marginBottom: 6, letterSpacing: 0.5 }}>
+                    DRAFT ({sceneFiles.draft.length})
+                  </div>
+                  {sceneFiles.draft.map((f, i) => (
+                    <div key={`d-${i}`} style={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      padding: "10px 12px", borderRadius: 8, marginBottom: 4,
+                      background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-subtle)",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Film size={14} style={{ color: "var(--text-muted)" }} />
+                        <div>
+                          <div style={{ fontWeight: 500, color: "var(--text-secondary)", fontSize: 12 }}>{f.name}</div>
+                          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                            {f.size > 0 ? `${(f.size / 1024 / 1024).toFixed(1)} MB` : ""}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => setPreviewModal({ src: f.url, type: "video" })} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
+                          <Eye size={12} /> Oynat
+                        </button>
+                        <a href={f.url} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
+                          <Download size={12} /> İndir
+                        </a>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {/* Subtitle files */}
+              {sceneFiles.subtitles.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--accent-cyan)", marginBottom: 6, letterSpacing: 0.5 }}>
+                    ALTYAZI ({sceneFiles.subtitles.length})
+                  </div>
+                  {sceneFiles.subtitles.map((f, i) => (
+                    <div key={`s-${i}`} style={{
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      padding: "10px 12px", borderRadius: 8, marginBottom: 4,
+                      background: "rgba(0,255,200,0.02)", border: "1px solid var(--border-subtle)",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Type size={14} style={{ color: "var(--accent-cyan)" }} />
+                        <div>
+                          <div style={{ fontWeight: 500, color: "var(--text-secondary)", fontSize: 12 }}>{f.name}</div>
+                          <div style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                            {f.size > 0 ? `${(f.size / 1024).toFixed(1)} KB` : ""}
+                          </div>
+                        </div>
+                      </div>
+                      <a href={f.url} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
+                        <Download size={12} /> İndir
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

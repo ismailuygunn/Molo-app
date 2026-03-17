@@ -5,6 +5,12 @@ import { join, resolve, extname } from "path";
 
 const PROJECTS_DIR = resolve(process.cwd(), "..", "projects");
 
+interface FileInfo {
+  url: string;
+  size: number;
+  name: string;
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -13,7 +19,7 @@ export async function GET(
   const projectDir = join(PROJECTS_DIR, id);
 
   try {
-    const result: Record<string, string[]> = {
+    const result: Record<string, (string | FileInfo)[]> = {
       scenes_images: [],
       scenes_videos: [],
       audio: [],
@@ -42,6 +48,7 @@ export async function GET(
 
           const ext = extname(file).toLowerCase();
           const apiPath = `/api/files/${id}/${dir.name}/${file}`;
+          const info: FileInfo = { url: apiPath, size: s.size, name: file };
 
           if (dir.name === "scenes") {
             if ([".png", ".jpg", ".jpeg"].includes(ext)) {
@@ -54,11 +61,11 @@ export async function GET(
               result.audio.push(apiPath);
             }
           } else if (dir.name === "draft") {
-            result.draft.push(apiPath);
+            result.draft.push(info);
           } else if (dir.name === "final") {
-            result.final.push(apiPath);
+            result.final.push(info);
           } else if (dir.name === "subtitles") {
-            result.subtitles.push(apiPath);
+            result.subtitles.push(info);
           }
         }
       } catch {
@@ -66,10 +73,14 @@ export async function GET(
       }
     }
 
-    // Sort all arrays
-    for (const key of Object.keys(result)) {
-      result[key].sort();
-    }
+    // Sort scene arrays alphabetically (simple string paths)
+    (result.scenes_images as string[]).sort();
+    (result.scenes_videos as string[]).sort();
+    (result.audio as string[]).sort();
+    // Sort file info arrays by name
+    (result.draft as FileInfo[]).sort((a, b) => a.name.localeCompare(b.name));
+    (result.final as FileInfo[]).sort((a, b) => a.name.localeCompare(b.name));
+    (result.subtitles as FileInfo[]).sort((a, b) => a.name.localeCompare(b.name));
 
     return NextResponse.json(result);
   } catch (error) {
@@ -77,3 +88,4 @@ export async function GET(
     return NextResponse.json({ error: "Dosyalar listelenemedi" }, { status: 500 });
   }
 }
+
