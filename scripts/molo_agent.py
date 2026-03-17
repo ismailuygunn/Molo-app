@@ -693,9 +693,42 @@ def build_video_prompt(scene):
     shot = scene.get("shot_type", "medium")
     emotion = scene.get("emotion_note", "warm, premium, welcoming")
     voice_dir = scene.get("voice_direction", "warm")
-    is_ekran = _ct.get("orientation") == "horizontal"
+    is_gs = _ct.get("is_greenscreen", False)
+    is_ekran = _ct.get("orientation") == "horizontal" and not is_gs
 
-    if is_ekran:
+    if is_gs:
+        # Green screen modu
+        from config import COMPACT_LOCK_GS, COMPACT_MOTION_GS
+        lock = COMPACT_LOCK_GS
+        motion = COMPACT_MOTION_GS
+
+        orientation = _ct.get("orientation", "vertical")
+        if orientation == "horizontal":
+            framing = f"Horizontal {_ct['aspect']} green screen composition. MOLO positioned at left-third for compositing flexibility."
+        elif orientation == "square":
+            framing = f"Square {_ct['aspect']} green screen composition. MOLO centered, filling 60-70% of frame."
+        else:
+            framing = f"Vertical {_ct['aspect']} green screen composition. MOLO centered, symmetrical, front-facing."
+
+        scene_block = f"""{framing}
+
+{_ct['scene_direction']}
+
+{_ct.get('video_prompt_boost', '')}
+
+Performance mood: {emotion}. Voice direction: {voice_dir}.
+Character acting: warm, precise, premium, slightly robotic, controlled.
+
+CRITICAL GREEN SCREEN RULES:
+- Background: MUST be perfectly flat solid chroma green (#00B140)
+- No shadows on green. No gradient. No particles. No fog.
+- No floor. No reflections. No props. No environmental elements.
+- Green must fill every pixel of background uniformly.
+- Only MOLO character visible against the green.
+
+Avoid: {shot} angle changes, background color variation, shadow on green, any non-green background element, floor reflection, ambient particles, green spill on character, changing MOLO's face/hologram/proportions, elastic motion, cartoon effects."""
+
+    elif is_ekran:
         # Premium yatay ekran formatı
         lock = COMPACT_LOCK_EKRAN
         motion = COMPACT_MOTION_EKRAN
