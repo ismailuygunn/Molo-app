@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Download, Play, Loader2, Film, Clock, Settings,
   Type, FolderOpen, Volume2, VolumeX, Eye, Pause, CheckCircle2, X,
-  Save, Edit3, AlertTriangle, Info
+  Save, Edit3, AlertTriangle, Info, StopCircle
 } from "lucide-react";
 import type { Project } from "@/store/studio";
 import { useToast } from "@/components/toast";
@@ -312,8 +312,14 @@ function EditContent() {
         }),
       });
       const data = await res.json();
-      if (data.error) {
-        toast.error(`Render hatası: ${data.error}`);
+      if (!res.ok || data.error) {
+        if (res.status === 409) {
+          toast.warning("Render zaten çalışıyor — önce durdurun veya bitmesini bekleyin");
+          setRendering(true);
+          setRenderProgress("Önceki render devam ediyor...");
+        } else {
+          toast.error(`Render hatası: ${data.error}`);
+        }
         setRendering(false);
         setRenderProgress("");
         return;
@@ -363,6 +369,22 @@ function EditContent() {
       toast.error("Render başlatılamadı");
       setRendering(false);
       setRenderProgress("");
+    }
+  };
+
+  const handleCancelRender = async () => {
+    if (!projectId) return;
+    try {
+      await fetch("/api/render", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+      setRendering(false);
+      setRenderProgress("");
+      toast.info("Render durduruldu");
+    } catch {
+      toast.error("Render durdurulamadı");
     }
   };
 
@@ -473,7 +495,14 @@ function EditContent() {
           display: "flex", alignItems: "center", gap: 10,
         }}>
           <Loader2 size={16} className="pulse" style={{ color: "var(--accent-blue)" }} />
-          <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{renderProgress}</span>
+          <span style={{ fontSize: 13, color: "var(--text-secondary)", flex: 1 }}>{renderProgress}</span>
+          <button
+            onClick={handleCancelRender}
+            className="btn btn-ghost"
+            style={{ fontSize: 11, padding: "4px 10px", color: "var(--accent-red, #ef4444)" }}
+          >
+            <StopCircle size={14} /> Durdur
+          </button>
         </div>
       )}
 
