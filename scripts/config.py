@@ -597,7 +597,7 @@ def get_normalize_filter(with_quality=False, content_type=None):
 
     base = (
         f"scale={w}:{h}:"
-        f"force_original_aspect_ratio=decrease,"
+        f"force_original_aspect_ratio=decrease:flags=lanczos,"
         f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:{pad_color},"
         f"setsar=1"
     )
