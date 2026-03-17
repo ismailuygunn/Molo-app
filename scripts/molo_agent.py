@@ -549,6 +549,28 @@ Important composition rules:
                 # 1080x1920 zorunlu resize
                 if img.size != (_ct['width'], _ct['height']):
                     img = img.resize((_ct['width'], _ct['height']), Image.LANCZOS)
+
+                # Karakter tutarlılığı: orijinal Molo referansını sağ alt köşeye overlay
+                try:
+                    ref_overlay = Image.open(str(molo_ref)).convert("RGBA")
+                    # %15 boyut, sağ-alt köşe
+                    overlay_h = int(_ct['height'] * 0.15)
+                    overlay_w = int(ref_overlay.width * (overlay_h / ref_overlay.height))
+                    ref_overlay = ref_overlay.resize((overlay_w, overlay_h), Image.LANCZOS)
+
+                    # Yarı-saydam border + padding
+                    padding = 4
+                    canvas = Image.new("RGBA", img.size, (0, 0, 0, 0))
+                    pos_x = img.width - overlay_w - padding - 12
+                    pos_y = img.height - overlay_h - padding - 12
+                    canvas.paste(ref_overlay, (pos_x, pos_y), ref_overlay if ref_overlay.mode == "RGBA" else None)
+                    img = img.convert("RGBA")
+                    img = Image.alpha_composite(img, canvas)
+                    img = img.convert("RGB")
+                    print(f"      🔒 Karakter referansı overlay eklendi ({overlay_w}x{overlay_h})")
+                except Exception as e:
+                    print(f"      ⚠️ Overlay eklenemedi: {e}")
+
                 img.save(str(output), "PNG")
                 print(f"      ✅ {output.name} ({img.size[0]}x{img.size[1]})")
                 image_files.append(str(output))
