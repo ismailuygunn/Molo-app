@@ -604,9 +604,26 @@ Avoid: side angle, 3/4 view, oversized mascot, cartoon wobble, arm flailing, fac
     full = f"{lock}\n\n{motion}\n\n{scene_block}"
 
     if len(full) > KLING_MAX_PROMPT_CHARS:
-        excess = len(full) - KLING_MAX_PROMPT_CHARS + 50
-        scene_block = scene_block[:-excess]
+        original_len = len(full)
+        # "Avoid:" bloğunu koru — her zaman prompt'un sonunda kalmalı
+        avoid_marker = "Avoid:"
+        if avoid_marker in scene_block:
+            parts = scene_block.rsplit(avoid_marker, 1)
+            content_part = parts[0].rstrip()
+            avoid_part = avoid_marker + parts[1]
+        else:
+            content_part = scene_block
+            avoid_part = ""
+
+        # İçerik kısmını kırp, avoid bloğunu koru
+        overhead = len(lock) + len(motion) + len(avoid_part) + 10  # +10 newlines
+        max_content = KLING_MAX_PROMPT_CHARS - overhead
+        if len(content_part) > max_content:
+            content_part = content_part[:max_content].rstrip()
+
+        scene_block = f"{content_part}\n\n{avoid_part}" if avoid_part else content_part
         full = f"{lock}\n\n{motion}\n\n{scene_block}"
+        print(f"   ⚠️ Prompt kırpıldı: {original_len} → {len(full)} char (Avoid bloğu korundu)")
 
     return full
 
