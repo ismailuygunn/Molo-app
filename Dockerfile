@@ -6,9 +6,11 @@
 # ── Stage 1: Build Next.js ──
 FROM node:20-slim AS builder
 
+ENV NODE_OPTIONS="--max_old_space_size=512"
+
 WORKDIR /app/studio
 COPY studio/package*.json ./
-RUN npm ci --prefer-offline
+RUN npm install --prefer-offline --no-audit --no-fund
 
 COPY studio/ ./
 RUN npm run build
