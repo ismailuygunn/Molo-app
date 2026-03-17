@@ -20,6 +20,13 @@ interface SceneFiles {
   subtitles: string[];
 }
 
+interface SubtitleEntry {
+  index: number;
+  start: string;
+  end: string;
+  text: string;
+}
+
 /* ────────────── Scene Preview Modal ────────────── */
 function SceneModal({ src, type, onClose }: { src: string; type: "video" | "audio"; onClose: () => void }) {
   return (
@@ -170,6 +177,7 @@ function EditContent() {
   const [renderProgress, setRenderProgress] = useState("");
   const [activeTab, setActiveTab] = useState<"settings" | "subtitle" | "files">("settings");
   const [previewModal, setPreviewModal] = useState<{ src: string; type: "video" | "audio" } | null>(null);
+  const [subtitleEntries, setSubtitleEntries] = useState<SubtitleEntry[]>([]);
   const toast = useToast();
 
   // localStorage persistence
@@ -201,6 +209,49 @@ function EditContent() {
       });
     fetchFiles();
   }, [projectId]);
+
+  // Fetch subtitles for preview
+  useEffect(() => {
+    if (sceneFiles.subtitles.length === 0) return;
+    const assUrl = sceneFiles.subtitles.find(f => f.endsWith('.ass')) || sceneFiles.subtitles.find(f => f.endsWith('.srt'));
+    if (!assUrl) return;
+    fetch(assUrl)
+      .then(r => r.text())
+      .then(content => {
+        if (assUrl.endsWith('.ass')) {
+          // Parse ASS Dialogue lines
+          const entries: SubtitleEntry[] = [];
+          const lines = content.split('\n');
+          let idx = 1;
+          for (const line of lines) {
+            if (line.startsWith('Dialogue:')) {
+              const parts = line.substring(10).split(',');
+              if (parts.length >= 10) {
+                const start = parts[1].trim();
+                const end = parts[2].trim();
+                const text = parts.slice(9).join(',').replace(/\\N/g, ' ').replace(/\{[^}]*\}/g, '').trim();
+                if (text) entries.push({ index: idx++, start, end, text });
+              }
+            }
+          }
+          setSubtitleEntries(entries);
+        } else {
+          // Parse SRT
+          const blocks = content.trim().split('\n\n');
+          const entries: SubtitleEntry[] = [];
+          for (const block of blocks) {
+            const lines = block.split('\n');
+            if (lines.length >= 3) {
+              const [start, end] = lines[1].split(' --> ');
+              const text = lines.slice(2).join(' ').trim();
+              entries.push({ index: parseInt(lines[0]), start: start.trim(), end: end.trim(), text });
+            }
+          }
+          setSubtitleEntries(entries);
+        }
+      })
+      .catch(() => {});
+  }, [sceneFiles.subtitles]);
 
   const fetchFiles = () => {
     if (!projectId) return;
@@ -395,16 +446,15 @@ function EditContent() {
       {/* ═══ VIDEO PLAYER (full width) ═══ */}
       <div className="glass-card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
         <div style={{
-          aspectRatio: isHorizontal ? "16/9" : "9/16",
-          maxHeight: isHorizontal ? "60vh" : "65vh",
-          background: "#000", margin: "0 auto",
+          width: "100%",
+          background: "#000",
         }}>
           {videoSrc ? (
-            <video key={videoSrc} controls style={{ width: "100%", height: "100%", objectFit: "contain" }}>
+            <video key={videoSrc} controls style={{ width: "100%", display: "block" }}>
               <source src={videoSrc} type="video/mp4" />
             </video>
           ) : (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--text-muted)", fontSize: 14, flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-muted)", fontSize: 14, flexDirection: "column", gap: 8 }}>
               <Film size={40} style={{ opacity: 0.15 }} />
               Henüz video yok — Draft oluşturun
             </div>
@@ -519,25 +569,72 @@ function EditContent() {
 
           {/* 💬 Altyazı */}
           {activeTab === "subtitle" && (
-            <div style={{ maxWidth: 500 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 16 }}>
-                <input type="checkbox" checked={addSubs} onChange={(e) => setAddSubs(e.target.checked)} /> İngilizce altyazı ekle
-              </label>
-              {addSubs && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div>
-                    <label className="label">Font Size</label>
-                    <input className="input" type="number" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} style={{ fontSize: 13 }} />
+            <div>
+              <div style={{ display: "flex", gap: 20, marginBottom: 20, flexWrap: "wrap" as const }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                  <input type="checkbox" checked={addSubs} onChange={(e) => setAddSubs(e.target.checked)} /> İngilizce altyazı ekle
+                </label>
+                {addSubs && (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <label className="label" style={{ margin: 0, fontSize: 11 }}>Font Size</label>
+                      <input className="input" type="number" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} style={{ fontSize: 12, width: 60, padding: "4px 8px" }} />
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <label className="label" style={{ margin: 0, fontSize: 11 }}>MarginV</label>
+                      <input className="input" type="number" value={marginV} onChange={(e) => setMarginV(Number(e.target.value))} style={{ fontSize: 12, width: 60, padding: "4px 8px" }} />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Subtitle Preview */}
+              {subtitleEntries.length > 0 ? (
+                <div style={{ borderRadius: 10, border: "1px solid var(--border-subtle)", overflow: "hidden" }}>
+                  <div style={{
+                    padding: "8px 12px", fontSize: 11, fontWeight: 700,
+                    color: "var(--accent-cyan)", background: "rgba(0,255,200,0.04)",
+                    borderBottom: "1px solid var(--border-subtle)",
+                    letterSpacing: 0.5,
+                  }}>
+                    ALTYAZI ÖNİZLEME ({subtitleEntries.length} parça)
                   </div>
-                  <div>
-                    <label className="label">MarginV</label>
-                    <input className="input" type="number" value={marginV} onChange={(e) => setMarginV(Number(e.target.value))} style={{ fontSize: 13 }} />
+                  <div style={{ maxHeight: 260, overflowY: "auto", scrollbarWidth: "thin" as const }}>
+                    {subtitleEntries.map((entry) => (
+                      <div key={entry.index} style={{
+                        display: "flex", gap: 10, padding: "8px 12px",
+                        borderBottom: "1px solid rgba(255,255,255,0.03)",
+                        fontSize: 12, alignItems: "flex-start",
+                      }}>
+                        <span style={{
+                          minWidth: 22, textAlign: "center", fontSize: 10, fontWeight: 700,
+                          color: "var(--accent-cyan)", background: "rgba(0,255,200,0.08)",
+                          borderRadius: 4, padding: "2px 4px",
+                        }}>
+                          {entry.index}
+                        </span>
+                        <span style={{
+                          minWidth: 90, fontSize: 10, fontFamily: "var(--font-geist-mono)",
+                          color: "var(--text-muted)", lineHeight: 1.8,
+                        }}>
+                          {entry.start.replace(/^\d:/, '')} → {entry.end.replace(/^\d:/, '')}
+                        </span>
+                        <span style={{ color: "var(--text-secondary)", flex: 1, lineHeight: 1.4 }}>
+                          {entry.text}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
+              ) : sceneFiles.subtitles.length === 0 ? (
+                <p style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                  Henüz altyazı yok. Final render sonrası oluşturulur.
+                </p>
+              ) : (
+                <p style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                  Altyazı dosyası yükleniyor...
+                </p>
               )}
-              <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 12 }}>
-                Altyazılar cümle bazlı bölünerek gösterilir. Draft/Final renderda uygulanır.
-              </p>
             </div>
           )}
 
