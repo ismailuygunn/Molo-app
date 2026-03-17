@@ -1006,23 +1006,26 @@ Style: Default,Arial,{font_size if font_size is not None else _ct['subtitle_font
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
-    cum = 0.2
+    cum = 0.3  # İlk altyazı için okuma gecikmesi
     for i, (tr, dur) in enumerate(zip(translations, durations)):
         chunks = split_into_subtitle_chunks(tr, max_chars=45)
         chunk_count = len(chunks)
-        total_chars = sum(len(c) for c in chunks)
+        total_words = sum(len(c.split()) for c in chunks)
 
         for j, chunk in enumerate(chunks):
-            char_ratio = len(chunk) / total_chars if total_chars > 0 else 1.0 / chunk_count
-            chunk_dur = dur * char_ratio
+            # Kelime bazlı süre hesabı (karakter yerine)
+            word_count = len(chunk.split())
+            word_ratio = word_count / total_words if total_words > 0 else 1.0 / chunk_count
+            chunk_dur = max(1.5, dur * word_ratio)  # Minimum 1.5s gösterim
 
-            start = cum
-            end = cum + chunk_dur - 0.1
+            # Okuma gecikmesi (chunk başına 0.3s)
+            start = cum + 0.3
+            end = start + chunk_dur - 0.1
             wrapped = wrap_subtitle(chunk)
             ass += f"Dialogue: 0,{format_ass_time(start)},{format_ass_time(end)},Default,,0,0,0,,{wrapped}\n"
-            cum = end + 0.15
+            cum = end + 0.15  # Chunk arası kısa geçiş
 
-        cum += 0.35
+        cum += 0.5  # Sahneler arası boşluk (0.35 → 0.5)
 
     with open(ass_path, "w", encoding="utf-8") as f:
         f.write(ass)
