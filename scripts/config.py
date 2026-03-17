@@ -466,6 +466,42 @@ Prohibited face artifacts:
 # ─── Kompakt Yüz Kilidi (Kling 2500 char limiti için kısa versiyon) ───
 COMPACT_FACE_LOCK = """Face lock: diamond-shaped cyan (#00D4FF) eyes on dark visor, exactly matching reference. Eyes stay identical shape/size/spacing/color in every frame. Mouth: thin cyan LED smile line on visor surface, max 30% of eye height when open. No round eyes, no mouth cavity, no teeth, no tongue, no face morphing, no eye warping, no glow spikes, no asymmetric features. Visor proportions constant throughout."""
 
+# ─── Sahne Ortam Prompt Blokları ───
+CLINIC_ENV_BLOCK = """Also use the provided clinic background reference as the environmental base for this composition. The final image must clearly place MOLO inside that premium dental clinic environment. The clinic interior should remain visible, readable, and recognizable behind and around MOLO.
+
+MOLO should appear naturally present in the clinic — standing on the clinic floor with correct perspective, matching the clinic's lighting direction and color temperature. The composite must feel photorealistic, as if MOLO physically exists in this space.
+
+Do not let MOLO fill the entire frame. Do not crop MOLO too close. Do not make MOLO oversized relative to the clinic furniture."""
+
+
+STUDIO_ENV_BLOCK = """Create a dark atmospheric premium studio environment for this scene.
+
+Background: deep dark blue gradient (#0D2847 to #1A3A5C) with subtle volumetric fog.
+Floor: highly reflective mirror-like dark surface creating a soft reflection of MOLO.
+Lighting: dramatic rim lighting from behind creating blue edge highlights on MOLO's body, with a main soft key light from front-left. A cool cyan glow emanates upward from MOLO's hologram cone.
+Atmosphere: subtle particle effects and soft volumetric haze for depth.
+
+This is a controlled studio environment — no clinic elements, no outdoor elements, no props."""
+
+
+EXTERNAL_ENV_BLOCK = """Generate a photorealistic background environment based on this description:
+
+LOCATION: {environment}
+VISUAL DESCRIPTION: {background_description}
+
+MOLO must be naturally placed in this real-world environment. The background must be generated ENTIRELY from the description above — no reference photo is used for the background.
+
+CRITICAL INTEGRATION RULES:
+- MOLO's lighting must match the environment's natural lighting direction, color temperature, and intensity
+- MOLO's shadow must be consistent with the environment's light source
+- MOLO should be proportionally sized (approximately 1 meter tall) relative to the surroundings
+- The perspective and camera angle must be consistent between MOLO and the background
+- The environment should feel photorealistic and naturally inhabited
+- DO NOT make the background look like a cheap composite or green screen cutout
+- The environment should be immediately recognizable as the described location
+
+Style: Premium photorealistic composite — a high-quality 3D character naturally placed in a real-world environment, like a luxury brand campaign shot on location."""
+
 # ─── FFmpeg Kalite Filtreleri ───
 QUALITY_FILTERS = {
     "unsharp": "3:3:0.5",        # keskinlik

@@ -48,6 +48,7 @@ from config import (
     COMPACT_LOCK, COMPACT_MOTION, COMPACT_FACE_LOCK,
     FACE_ANATOMY_LOCK,
     COMPACT_LOCK_EKRAN, COMPACT_MOTION_EKRAN,
+    CLINIC_ENV_BLOCK, STUDIO_ENV_BLOCK, EXTERNAL_ENV_BLOCK,
     QUALITY_FILTERS, AUDIO_SLOWDOWN, CROSSFADE_DURATION,
     SMART_SLOWDOWN_TARGET_WPS, SMART_SLOWDOWN_FAST_WPS, SMART_SLOWDOWN_SLOW_WPS,
     SMART_SLOWDOWN_MIN, SMART_SLOWDOWN_MAX,
@@ -569,7 +570,7 @@ def generate_scene_images(scenes, project_dir):
                 data=open(env_ref, "rb").read(),
                 mime_type="image/jpeg"
             ))
-            env_block = f"""Also use the provided clinic background reference as the environmental base for this composition. The final image must clearly place MOLO inside that premium clinic environment, and the clinic should remain visible and readable as part of the scene. Do not let MOLO fill the entire frame. Do not crop MOLO too close. Do not make MOLO oversized."""
+            env_block = CLINIC_ENV_BLOCK
 
         # Premium prompt oluştur
         orient_text = "horizontal wide" if _ct['orientation'] == 'horizontal' else "vertical"
