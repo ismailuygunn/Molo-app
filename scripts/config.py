@@ -163,6 +163,33 @@ VOICE_DEFAULT = {
     "speed": 1.00,
 }
 
+# ─── Altyazı Stilleri ───
+SUBTITLE_STYLES = {
+    "premium": {
+        "fontname": "Montserrat",
+        "bold": True,
+        "outline": 2,
+        "shadow": 1,
+        "border_style": 1,           # 1=outline+shadow, 3=opaque box
+        "primary_color": "&H00FFFFFF",
+        "outline_color": "&H40000000",  # Yarı-saydam siyah
+        "back_color": "&H80000000",     # Yarı-saydam arka plan
+        "spacing": 1,
+    },
+    "minimal": {
+        "fontname": "Arial",
+        "bold": True,
+        "outline": 1,
+        "shadow": 0,
+        "border_style": 4,
+        "primary_color": "&H00FFFFFF",
+        "outline_color": "&H00000000",
+        "back_color": "&H96000000",
+        "spacing": 0,
+    },
+}
+DEFAULT_SUBTITLE_STYLE = "premium"
+
 # ─── Molo Karakter Kişiliği (İçerik/senaryo üretiminde kullanılır) ───
 CHARACTER_PERSONALITY = """MOLO is İstadental's brand mascot and digital host. Small, blue, attentive, intelligent, and slightly robotic. Charming but never childish. Premium, modern, and memorable.
 

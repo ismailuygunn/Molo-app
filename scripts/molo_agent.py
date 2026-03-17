@@ -50,6 +50,7 @@ from config import (
     QUALITY_FILTERS, AUDIO_SLOWDOWN, CROSSFADE_DURATION,
     SMART_SLOWDOWN_TARGET_WPS, SMART_SLOWDOWN_FAST_WPS, SMART_SLOWDOWN_SLOW_WPS,
     SMART_SLOWDOWN_MIN, SMART_SLOWDOWN_MAX,
+    SUBTITLE_STYLES, DEFAULT_SUBTITLE_STYLE,
     TRANSITION_TYPES, DEFAULT_TRANSITION,
     BGM_VOLUME_DB, BGM_FADE_IN, BGM_FADE_OUT, BGM_DIR,
     THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT,
@@ -991,6 +992,9 @@ def add_subtitles(draft_path, scenes, durations, project_dir, project_name, lang
     ass_path = project_dir / "subtitles" / "subs_en.ass"
     ass_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Altyazı stili
+    ss = SUBTITLE_STYLES.get(DEFAULT_SUBTITLE_STYLE, SUBTITLE_STYLES["premium"])
+
     ass = f"""[Script Info]
 Title: {project_name}
 ScriptType: v4.00+
@@ -1000,7 +1004,7 @@ WrapStyle: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,{font_size if font_size is not None else _ct['subtitle_fontsize']},&H00FFFFFF,&H000000FF,&H00000000,&H96000000,-1,0,0,0,100,100,0,0,4,0,0,2,20,20,{margin_v if margin_v is not None else _ct['subtitle_margin_v']},1
+Style: Default,{ss['fontname']},{font_size if font_size is not None else _ct['subtitle_fontsize']},{ss['primary_color']},&H000000FF,{ss['outline_color']},{ss['back_color']},{'-1' if ss['bold'] else '0'},0,0,0,100,100,{ss['spacing']},0,{ss['border_style']},{ss['outline']},{ss['shadow']},2,20,20,{margin_v if margin_v is not None else _ct['subtitle_margin_v']},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
