@@ -443,20 +443,30 @@ function EditContent() {
         </div>
       )}
 
-      {/* ═══ VIDEO PLAYER (compact) ═══ */}
-      <div className="glass-card" style={{ padding: 0, overflow: "hidden", marginBottom: 16, display: "flex", justifyContent: "center", background: "#000" }}>
-        <div style={{ maxHeight: "55vh", width: "100%", display: "flex", justifyContent: "center" }}>
-          {videoSrc ? (
-            <video key={videoSrc} controls style={{ maxHeight: "55vh", maxWidth: "100%", display: "block" }}>
+      {/* ═══ VIDEO PLAYER ═══ */}
+      <div className="glass-card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
+        {videoSrc ? (
+          <div style={{
+            position: "relative",
+            width: isHorizontal ? "100%" : "auto",
+            maxHeight: "50vh",
+            aspectRatio: isHorizontal ? "16/9" : "9/16",
+            margin: "0 auto",
+            background: "#000",
+          }}>
+            <video key={videoSrc} controls style={{
+              position: "absolute", top: 0, left: 0,
+              width: "100%", height: "100%", objectFit: "contain",
+            }}>
               <source src={videoSrc} type="video/mp4" />
             </video>
-          ) : (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 280, width: "100%", color: "var(--text-muted)", fontSize: 14, flexDirection: "column", gap: 8 }}>
-              <Film size={40} style={{ opacity: 0.15 }} />
-              Henüz video yok — Draft oluşturun
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 180, color: "var(--text-muted)", fontSize: 14, flexDirection: "column", gap: 8 }}>
+            <Film size={32} style={{ opacity: 0.15 }} />
+            Henüz video yok — Draft oluşturun
+          </div>
+        )}
       </div>
 
       {/* ═══ FAZ 2: INTERACTIVE TIMELINE ═══ */}
