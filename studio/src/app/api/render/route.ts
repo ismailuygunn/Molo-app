@@ -45,6 +45,7 @@ sys.path.insert(0, '${SCRIPTS_DIR}')
 from dotenv import load_dotenv
 load_dotenv(Path('${ROOT_DIR}') / '.env')
 from molo_agent import compose_edit, add_subtitles, apply_slowdown
+import molo_agent
 from config import *
 
 project_dir = Path('${projectDir}')
@@ -61,6 +62,17 @@ scenes = data['scenes'] if isinstance(data, dict) else data
 durations = data.get('durations', []) if isinstance(data, dict) else []
 config = json.loads(Path('${configPath}').read_text())
 
+# Set content type from brief (critical for correct resolution + subtitle positioning)
+brief_path = project_dir / 'brief.json'
+if brief_path.exists():
+    brief = json.loads(brief_path.read_text())
+    ct_key = brief.get('contentType', 'sosyal')
+else:
+    ct_key = 'sosyal'
+molo_agent._content_type_key = ct_key
+molo_agent._ct = CONTENT_TYPES.get(ct_key, CONTENT_TYPES['sosyal']).copy()
+print(f'Content type: {ct_key}')
+
 # Collect existing scene videos and audio files
 from glob import glob
 video_files = sorted(glob(str(project_dir / 'scenes' / '*.mp4')))
@@ -73,25 +85,32 @@ if not video_files:
 print(f'Found {len(video_files)} videos, {len(voice_files)} audio files')
 print(f'Config: {json.dumps(config, indent=2)}')
 
-# Step 1: Compose edit — merge scene videos + audio with crossfade
-draft = compose_edit(video_files, voice_files, durations, project_dir, project_name)
+# Step 1: Compose edit — merge scene videos + audio with user settings
+draft = compose_edit(video_files, voice_files, durations, project_dir, project_name,
+                     crossfade=config.get('crossfade'),
+                     crf=config.get('crf'),
+                     transition=config.get('transition'))
 if not draft:
     print('Compose failed')
     sys.exit(1)
 print(f'Draft created: {draft}')
 
-# Step 2: Add subtitles (if enabled)
+# Step 2: Add subtitles (if enabled) with user font/margin settings
 if config.get('addSubtitles', True):
     lang = 'de'
-    subtitled = add_subtitles(draft, scenes, durations, project_dir, project_name, lang)
+    subtitled = add_subtitles(draft, scenes, durations, project_dir, project_name, lang,
+                              font_size=config.get('fontSize'),
+                              margin_v=config.get('marginV'))
     if subtitled:
         print(f'Subtitled: {subtitled}')
-        # Step 3: Apply slowdown
-        final = apply_slowdown(subtitled, project_dir, project_name)
+        # Step 3: Apply slowdown with user speed
+        final = apply_slowdown(subtitled, project_dir, project_name,
+                               speed=config.get('slowdown'))
         print(f'Final: {final}')
 else:
     # No subtitles — apply slowdown directly to draft
-    final = apply_slowdown(draft, project_dir, project_name)
+    final = apply_slowdown(draft, project_dir, project_name,
+                           speed=config.get('slowdown'))
     print(f'Final (no subs): {final}')
 
 print('Render complete!')

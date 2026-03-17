@@ -726,7 +726,8 @@ def generate_videos(scenes, image_files, project_dir, durations=None):
 # ADIM 6: KURGU & EFEKT
 # ═══════════════════════════════════════
 
-def compose_edit(video_files, voice_files, durations, project_dir, project_name):
+def compose_edit(video_files, voice_files, durations, project_dir, project_name,
+                 crossfade=None, crf=None, transition=None):
     """Ses-video eşleştir, kalite filtrele, crossfade, final yap.
     Akıllı süre yönetimi: video > ses → trim, video < ses → tek reverse + loop (max 2x)."""
     print("\n" + "=" * 60)
@@ -825,14 +826,10 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name)
     draft = str(project_dir / "draft" / f"{project_name}_draft.mp4")
 
     # Her sahne geçişi için farklı transition tipi seç
-    transitions = []
-    available = [t for t in TRANSITION_TYPES if t != DEFAULT_TRANSITION]
-    transitions.append(DEFAULT_TRANSITION)  # ilk geçiş her zaman fade
-    for _ in range(len(merged) - 2):
-        transitions.append(random.choice(available))
-    if len(merged) > 2:
-        transitions.append(DEFAULT_TRANSITION)  # son geçiş de fade
-    fade = CROSSFADE_DURATION
+    fade = crossfade if crossfade is not None else CROSSFADE_DURATION
+    user_crf = crf if crf is not None else QUALITY_FILTERS["crf"]
+    user_transition = transition if transition is not None else DEFAULT_TRANSITION
+    transitions = [user_transition] * (len(merged) - 1)
 
     # Dinamik offset hesaplama
     actual_durations = [get_audio_duration(f) for f in merged]
@@ -848,7 +845,7 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name)
         cmd = [FFMPEG, "-y"] + inputs + ["-filter_complex", fg,
                "-map", "[outv]", "-map", "[outa]",
                "-c:v", "libx264", "-preset", "medium",
-               "-crf", str(QUALITY_FILTERS["crf"]),
+               "-crf", str(user_crf),
                "-c:a", "aac", "-b:a", "192k", draft]
     elif len(merged) == 3:
         o1 = actual_durations[0] - fade
@@ -864,7 +861,7 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name)
         cmd = [FFMPEG, "-y"] + inputs + ["-filter_complex", fg,
                "-map", "[outv]", "-map", "[outa]",
                "-c:v", "libx264", "-preset", "medium",
-               "-crf", str(QUALITY_FILTERS["crf"]),
+               "-crf", str(user_crf),
                "-c:a", "aac", "-b:a", "192k", draft]
     else:
         # 4+ sahne: zincirleme xfade
@@ -894,7 +891,7 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name)
         cmd = [FFMPEG, "-y"] + inputs + ["-filter_complex", fg,
                "-map", "[outv]", "-map", "[outa]",
                "-c:v", "libx264", "-preset", "medium",
-               "-crf", str(QUALITY_FILTERS["crf"]),
+               "-crf", str(user_crf),
                "-c:a", "aac", "-b:a", "192k", draft]
 
     r = subprocess.run(cmd, capture_output=True, text=True)
@@ -927,7 +924,8 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name)
 # ADIM 7: ALTYAZI (ASS)
 # ═══════════════════════════════════════
 
-def add_subtitles(draft_path, scenes, durations, project_dir, project_name, lang="de"):
+def add_subtitles(draft_path, scenes, durations, project_dir, project_name, lang="de",
+                  font_size=None, margin_v=None):
     """İngilizce çeviri + ASS altyazı + final oluştur."""
     print("\n" + "=" * 60)
     print("🔤 ADIM 7: Altyazı (DE → EN)")
@@ -960,7 +958,7 @@ WrapStyle: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,{_ct['subtitle_fontsize']},&H00FFFFFF,&H000000FF,&H00000000,&H96000000,-1,0,0,0,100,100,0,0,4,0,0,2,20,20,{_ct['subtitle_margin_v']},1
+Style: Default,Arial,{font_size if font_size is not None else _ct['subtitle_fontsize']},&H00FFFFFF,&H000000FF,&H00000000,&H96000000,-1,0,0,0,100,100,0,0,4,0,0,2,20,20,{margin_v if margin_v is not None else _ct['subtitle_margin_v']},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -1053,7 +1051,7 @@ def _mix_bgm(draft_path, total_duration, project_dir, project_name):
 # ADIM 8: FİNAL SLOWDOWN
 # ═══════════════════════════════════════
 
-def apply_slowdown(input_path, project_dir, project_name):
+def apply_slowdown(input_path, project_dir, project_name, speed=None):
     """Final videoya hafif yavaşlatma uygular."""
     print("\n" + "=" * 60)
     print(f"🐢 ADIM 8: Final Slowdown ({AUDIO_SLOWDOWN}x = %{int((1-AUDIO_SLOWDOWN)*100)} yavaşlatma)")
@@ -1062,7 +1060,7 @@ def apply_slowdown(input_path, project_dir, project_name):
     final = str(project_dir / "final" / f"{project_name}_final.mp4")
     (project_dir / "final").mkdir(parents=True, exist_ok=True)
 
-    speed = AUDIO_SLOWDOWN
+    speed = speed if speed is not None else AUDIO_SLOWDOWN
     cmd = [
         FFMPEG, "-y", "-i", input_path,
         "-filter_complex",

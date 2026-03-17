@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Download, Play, Loader2, Film, Clock, Settings,
-  Type, FolderOpen, Volume2, VolumeX, Eye, Pause, CheckCircle2, X
+  Type, FolderOpen, Volume2, VolumeX, Eye, Pause, CheckCircle2, X,
+  Save, Edit3, AlertTriangle, Info
 } from "lucide-react";
 import type { Project } from "@/store/studio";
 import { useToast } from "@/components/toast";
@@ -178,6 +179,11 @@ function EditContent() {
   const [activeTab, setActiveTab] = useState<"settings" | "subtitle" | "files">("settings");
   const [previewModal, setPreviewModal] = useState<{ src: string; type: "video" | "audio" } | null>(null);
   const [subtitleEntries, setSubtitleEntries] = useState<SubtitleEntry[]>([]);
+  const [subtitlesDirty, setSubtitlesDirty] = useState(false);
+  const [savingSubs, setSavingSubs] = useState(false);
+  const [selectedSubIdx, setSelectedSubIdx] = useState(0);
+  const [settingsChanged, setSettingsChanged] = useState(false);
+  const [lastRenderConfig, setLastRenderConfig] = useState<Record<string, unknown> | null>(null);
   const toast = useToast();
 
   // localStorage persistence
@@ -193,9 +199,17 @@ function EditContent() {
 
   useEffect(() => {
     if (projectId) {
-      localStorage.setItem(storageKey, JSON.stringify({ crossfade, slowdown, crf, transition, addSubs, fontSize, marginV }));
+      const currentConfig = { crossfade, slowdown, crf, transition, addSubs, fontSize, marginV };
+      localStorage.setItem(storageKey, JSON.stringify(currentConfig));
+      // Check if settings changed since last render
+      if (lastRenderConfig) {
+        const changed = Object.keys(currentConfig).some(
+          (k) => (currentConfig as Record<string, unknown>)[k] !== (lastRenderConfig as Record<string, unknown>)[k]
+        );
+        setSettingsChanged(changed);
+      }
     }
-  }, [crossfade, slowdown, crf, transition, addSubs, fontSize, marginV, projectId, storageKey]);
+  }, [crossfade, slowdown, crf, transition, addSubs, fontSize, marginV, projectId, storageKey, lastRenderConfig]);
 
   // Fetch project + files
   useEffect(() => {
@@ -399,10 +413,22 @@ function EditContent() {
               ({totalDuration.toFixed(0)}s × {(slowdown / 100).toFixed(2)})
             </span>
           </div>
-          <button className="btn btn-secondary" onClick={() => handleRender("draft")} disabled={rendering}>
+          {settingsChanged && (
+            <div style={{
+              padding: "5px 12px", borderRadius: 16,
+              background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)",
+              display: "flex", alignItems: "center", gap: 5,
+              fontSize: 11, color: "var(--accent-amber)",
+            }}>
+              <AlertTriangle size={12} /> Ayarlar değişti
+            </div>
+          )}
+          <button className="btn btn-secondary" onClick={() => handleRender("draft")} disabled={rendering}
+            title={`Crossfade: ${crossfade}s, Slowdown: ${(slowdown/100).toFixed(2)}x, CRF: ${crf}, Geçiş: ${transition}${addSubs ? `, Font: ${fontSize}pt` : ''}`}>
             {rendering ? <Loader2 size={16} className="pulse" /> : <Play size={16} />} Draft
           </button>
-          <button className="btn btn-primary" onClick={() => handleRender("final")} disabled={rendering}>
+          <button className="btn btn-primary" onClick={() => handleRender("final")} disabled={rendering}
+            title={`Crossfade: ${crossfade}s, Slowdown: ${(slowdown/100).toFixed(2)}x, CRF: ${crf}, Geçiş: ${transition}${addSubs ? `, Font: ${fontSize}pt` : ''}`}>
             <Download size={16} /> Final
           </button>
         </div>
@@ -444,20 +470,17 @@ function EditContent() {
       )}
 
       {/* ═══ VIDEO PLAYER ═══ */}
-      <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }}>
+      <div className={`video-container ${isHorizontal ? "landscape" : ""}`} style={{ marginBottom: 16, margin: isHorizontal ? "0 0 16px" : "0 auto 16px" }}>
         {videoSrc ? (
           <video key={videoSrc} controls style={{
-            maxHeight: "50vh", maxWidth: "100%",
-            borderRadius: 12, display: "block",
-            background: "#000",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+            width: "100%", height: "100%", objectFit: "contain",
           }}>
             <source src={videoSrc} type="video/mp4" />
           </video>
         ) : (
-          <div className="glass-card" style={{
+          <div style={{
             display: "flex", alignItems: "center", justifyContent: "center",
-            height: 180, width: "100%",
+            height: "100%", width: "100%",
             color: "var(--text-muted)", fontSize: 14, flexDirection: "column", gap: 8,
           }}>
             <Film size={32} style={{ opacity: 0.15 }} />
@@ -574,7 +597,8 @@ function EditContent() {
           {/* 💬 Altyazı */}
           {activeTab === "subtitle" && (
             <div>
-              <div style={{ display: "flex", gap: 20, marginBottom: 16, flexWrap: "wrap" as const, alignItems: "center" }}>
+              {/* Controls row */}
+              <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" as const, alignItems: "center" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
                   <input type="checkbox" checked={addSubs} onChange={(e) => setAddSubs(e.target.checked)} /> İngilizce altyazı ekle
                 </label>
@@ -582,12 +606,45 @@ function EditContent() {
                   <>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <label className="label" style={{ margin: 0, fontSize: 11 }}>Font Size</label>
-                      <input className="input" type="number" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} style={{ fontSize: 12, width: 60, padding: "4px 8px" }} />
+                      <input className="input" type="number" value={fontSize}
+                        onChange={(e) => setFontSize(Number(e.target.value))}
+                        style={{ fontSize: 12, width: 65, padding: "4px 8px" }} />
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <label className="label" style={{ margin: 0, fontSize: 11 }}>MarginV</label>
-                      <input className="input" type="number" value={marginV} onChange={(e) => setMarginV(Number(e.target.value))} style={{ fontSize: 12, width: 60, padding: "4px 8px" }} />
+                      <input className="input" type="number" value={marginV}
+                        onChange={(e) => setMarginV(Number(e.target.value))}
+                        style={{ fontSize: 12, width: 65, padding: "4px 8px" }} />
                     </div>
+                    {subtitlesDirty && (
+                      <button
+                        className="btn btn-primary"
+                        style={{ padding: "6px 14px", fontSize: 12 }}
+                        disabled={savingSubs}
+                        onClick={async () => {
+                          setSavingSubs(true);
+                          try {
+                            const ct = project.contentType === "ekran"
+                              ? { w: 1920, h: 1080 } : { w: 1080, h: 1920 };
+                            const res = await fetch(`/api/projects/${encodeURIComponent(projectId!)}/save-subtitles`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                entries: subtitleEntries, fontSize, marginV,
+                                width: ct.w, height: ct.h,
+                              }),
+                            });
+                            const data = await res.json();
+                            if (data.error) toast.error(data.error);
+                            else { toast.success("Altyazılar kaydedildi!"); setSubtitlesDirty(false); }
+                          } catch { toast.error("Kaydetme hatası"); }
+                          setSavingSubs(false);
+                        }}
+                      >
+                        {savingSubs ? <Loader2 size={12} className="pulse" /> : <Save size={12} />}
+                        Kaydet
+                      </button>
+                    )}
                   </>
                 )}
               </div>
@@ -598,91 +655,132 @@ function EditContent() {
                   marginBottom: 16, borderRadius: 10, overflow: "hidden",
                   border: "1px solid var(--border-subtle)",
                 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", padding: "6px 12px", letterSpacing: 0.5, background: "rgba(255,255,255,0.02)" }}>
-                    CANLI ÖNİZLEME
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, color: "var(--text-muted)",
+                    padding: "6px 12px", letterSpacing: 0.5, background: "rgba(255,255,255,0.02)",
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                  }}>
+                    <span>CANLI ÖNİZLEME — Sahne {selectedSubIdx + 1}</span>
+                    <span style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 400 }}>
+                      Font: {fontSize}pt, Margin: {marginV}
+                    </span>
                   </div>
                   <div style={{
                     position: "relative",
                     aspectRatio: isHorizontal ? "16/9" : "9/16",
-                    maxHeight: 220, background: "#000",
+                    maxHeight: isHorizontal ? 280 : 320,
+                    background: "#000",
                     display: "flex", alignItems: "flex-end", justifyContent: "center",
                     overflow: "hidden", margin: "0 auto",
                   }}>
-                    {/* Mock video frame */}
-                    {sceneFiles.scenes_images[0] && (
+                    {/* Scene image background */}
+                    {sceneFiles.scenes_images[Math.min(selectedSubIdx, sceneFiles.scenes_images.length - 1)] && (
                       <img
-                        src={sceneFiles.scenes_images[0]}
+                        src={sceneFiles.scenes_images[Math.min(selectedSubIdx, sceneFiles.scenes_images.length - 1)]}
                         alt="preview"
-                        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.35 }}
+                        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.5 }}
                       />
                     )}
                     {/* Subtitle text overlay */}
                     <div style={{
                       position: "relative", zIndex: 1,
                       textAlign: "center",
-                      padding: `0 16px ${Math.max(8, Math.round(marginV / 30))}px`,
+                      padding: `0 16px ${Math.max(8, Math.round(marginV / 25))}px`,
                       width: "100%",
                     }}>
                       <span style={{
-                        fontSize: Math.max(10, Math.min(24, Math.round(fontSize / 2.5))),
+                        fontSize: Math.max(10, Math.min(28, Math.round(fontSize / 2))),
                         fontWeight: 700, color: "#fff",
                         textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)",
-                        lineHeight: 1.4,
+                        lineHeight: 1.4, display: "inline-block",
+                        background: "rgba(0,0,0,0.5)", padding: "4px 10px", borderRadius: 6,
                       }}>
-                        {subtitleEntries[0]?.text.slice(0, 60) || "Sample subtitle text"}
-                        {(subtitleEntries[0]?.text.length || 0) > 60 ? "..." : ""}
+                        {subtitleEntries[selectedSubIdx]?.text || "..."}
                       </span>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Subtitle entries list */}
+              {/* ═══ EDITABLE SUBTITLE LIST ═══ */}
               {subtitleEntries.length > 0 ? (
                 <div style={{ borderRadius: 10, border: "1px solid var(--border-subtle)", overflow: "hidden" }}>
                   <div style={{
                     padding: "8px 12px", fontSize: 11, fontWeight: 700,
                     color: "var(--accent-cyan)", background: "rgba(0,255,200,0.04)",
                     borderBottom: "1px solid var(--border-subtle)",
-                    letterSpacing: 0.5,
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
                   }}>
-                    ALTYAZI ÖNİZLEME ({subtitleEntries.length} parça)
+                    <span>ALTYAZI DÜZENLEME ({subtitleEntries.length} parça)</span>
+                    <span style={{ fontSize: 9, color: "var(--text-muted)", fontWeight: 400 }}>
+                      Metin düzenleyip &quot;Kaydet&quot; tuşuna basın
+                    </span>
                   </div>
-                  <div style={{ maxHeight: 220, overflowY: "auto", scrollbarWidth: "thin" as const }}>
-                    {subtitleEntries.map((entry) => (
-                      <div key={entry.index} style={{
-                        display: "flex", gap: 10, padding: "6px 12px",
-                        borderBottom: "1px solid rgba(255,255,255,0.03)",
-                        fontSize: 12, alignItems: "flex-start",
-                      }}>
+                  <div style={{ maxHeight: 320, overflowY: "auto", scrollbarWidth: "thin" as const }}>
+                    {subtitleEntries.map((entry, idx) => (
+                      <div
+                        key={entry.index}
+                        onClick={() => setSelectedSubIdx(idx)}
+                        style={{
+                          display: "flex", gap: 8, padding: "8px 12px",
+                          borderBottom: "1px solid rgba(255,255,255,0.04)",
+                          fontSize: 12, alignItems: "flex-start",
+                          background: selectedSubIdx === idx ? "rgba(0,255,200,0.04)" : "transparent",
+                          cursor: "pointer", transition: "background 0.15s",
+                        }}
+                      >
+                        {/* Index badge */}
                         <span style={{
-                          minWidth: 22, textAlign: "center", fontSize: 10, fontWeight: 700,
-                          color: "var(--accent-cyan)", background: "rgba(0,255,200,0.08)",
-                          borderRadius: 4, padding: "2px 4px",
+                          minWidth: 24, textAlign: "center", fontSize: 10, fontWeight: 700,
+                          color: selectedSubIdx === idx ? "var(--accent-cyan)" : "var(--text-muted)",
+                          background: selectedSubIdx === idx ? "rgba(0,255,200,0.12)" : "rgba(255,255,255,0.04)",
+                          borderRadius: 4, padding: "2px 4px", marginTop: 2,
                         }}>
                           {entry.index}
                         </span>
-                        <span style={{
-                          minWidth: 90, fontSize: 10, fontFamily: "var(--font-geist-mono)",
-                          color: "var(--text-muted)", lineHeight: 1.8,
-                        }}>
-                          {entry.start.replace(/^\d:/, '')} → {entry.end.replace(/^\d:/, '')}
-                        </span>
-                        <span style={{ color: "var(--text-secondary)", flex: 1, lineHeight: 1.4 }}>
-                          {entry.text}
-                        </span>
+                        {/* Timestamp */}
+                        <div style={{ minWidth: 110, fontSize: 10, fontFamily: "var(--font-geist-mono)", color: "var(--text-muted)", lineHeight: 2 }}>
+                          {entry.start} → {entry.end}
+                        </div>
+                        {/* Editable text */}
+                        <textarea
+                          value={entry.text}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            const updated = [...subtitleEntries];
+                            updated[idx] = { ...entry, text: e.target.value };
+                            setSubtitleEntries(updated);
+                            setSubtitlesDirty(true);
+                          }}
+                          rows={Math.max(1, Math.ceil(entry.text.length / 50))}
+                          style={{
+                            flex: 1, fontSize: 12, lineHeight: 1.4,
+                            color: "var(--text-primary)",
+                            background: "rgba(255,255,255,0.03)",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                            borderRadius: 6, padding: "4px 8px",
+                            resize: "vertical", minHeight: 28,
+                            fontFamily: "inherit", outline: "none",
+                          }}
+                        />
                       </div>
                     ))}
                   </div>
                 </div>
               ) : sceneFiles.subtitles.length === 0 ? (
-                <p style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                  Henüz altyazı yok. Final render sonrası oluşturulur.
-                </p>
+                <div style={{
+                  padding: 24, textAlign: "center", borderRadius: 10,
+                  border: "1px dashed var(--border-subtle)",
+                  color: "var(--text-muted)", fontSize: 13,
+                }}>
+                  <Type size={24} style={{ opacity: 0.2, marginBottom: 8 }} />
+                  <p>Henüz altyazı yok — Draft veya Final render sonrası oluşturulur.</p>
+                </div>
               ) : (
-                <p style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                  Altyazı dosyası yükleniyor...
-                </p>
+                <div style={{ padding: 16, textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+                  <Loader2 size={16} className="pulse" style={{ marginBottom: 4 }} />
+                  <p>Altyazı dosyası yükleniyor...</p>
+                </div>
               )}
             </div>
           )}
