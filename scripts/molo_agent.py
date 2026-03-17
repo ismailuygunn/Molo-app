@@ -822,16 +822,15 @@ def generate_videos(scenes, image_files, project_dir, durations=None):
 # ═══════════════════════════════════════
 
 def compose_edit(video_files, voice_files, durations, project_dir, project_name,
-                 crossfade=None, crf=None, transition=None):
-    """Ses-video eşleştir, kalite filtrele, crossfade, final yap.
+                 crf=None):
+    """Ses-video eşleştir, kalite filtrele. Merged sahne dosyaları listesi döndürür.
     Akıllı süre yönetimi: video > ses → trim, video < ses → tek reverse + loop (max 2x)."""
     print("\n" + "=" * 60)
-    print("🎬 ADIM 6: Kurgu & Efekt (Akıllı Süre)")
+    print("🎬 ADIM 6: Per-Scene Merge (Video + Ses)")
     print("=" * 60)
 
     num = min(len(video_files), len(voice_files))
 
-    # 6a: Her sahne: akıllı uzatma + kalite filtre + ses birleştir
     merged = []
     for i in range(num):
         n = i + 1
@@ -848,7 +847,6 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name,
         success = False
 
         if video_dur >= pad_dur:
-            # Video yeterince uzun → sadece trim + kalite filtre
             cmd = [
                 FFMPEG, "-y",
                 "-i", video_files[i],
@@ -869,7 +867,6 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name,
                 success = True
 
         if not success and video_dur * 2 >= pad_dur:
-            # Video'nun ters-düz versiyonu yeterli → tek reverse (doğal ping-pong)
             pingpong_vf = f"[0:v]split[fwd][rev];[rev]reverse[r];[fwd][r]concat=n=2:v=1:a=0,{vf}[v]"
             cmd = [
                 FFMPEG, "-y",
@@ -891,7 +888,6 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name,
                 success = True
 
         if not success:
-            # Son çare: stream_loop ile max 2 tekrar
             loop_count = min(2, max(1, int(pad_dur / max(video_dur, 1)) + 1))
             cmd = [
                 FFMPEG, "-y",
@@ -917,102 +913,8 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name,
         print("   ❌ Yetersiz sahne!")
         return None
 
-    # 6b: Crossfade (rastgele geçiş tipleriyle)
-    draft = str(project_dir / "draft" / f"{project_name}_draft.mp4")
-
-    # Her sahne geçişi için farklı transition tipi seç
-    fade = crossfade if crossfade is not None else CROSSFADE_DURATION
-    user_crf = crf if crf is not None else QUALITY_FILTERS["crf"]
-    user_transition = transition if transition is not None else DEFAULT_TRANSITION
-    transitions = [user_transition] * (len(merged) - 1)
-
-    # Dinamik offset hesaplama
-    actual_durations = [get_audio_duration(f) for f in merged]
-
-    if len(merged) == 2:
-        o1 = actual_durations[0] - fade
-        inputs = []
-        for s in merged:
-            inputs.extend(["-i", s])
-        tr = transitions[0] if transitions else DEFAULT_TRANSITION
-        fg = (f"[0:v][1:v]xfade=transition={tr}:duration={fade}:offset={o1:.2f}[outv];"
-              f"[0:a][1:a]concat=n=2:v=0:a=1[outa]")
-        cmd = [FFMPEG, "-y"] + inputs + ["-filter_complex", fg,
-               "-map", "[outv]", "-map", "[outa]",
-               "-c:v", "libx264", "-preset", "medium",
-               "-crf", str(user_crf),
-               "-c:a", "aac", "-b:a", "192k", draft]
-    elif len(merged) == 3:
-        o1 = actual_durations[0] - fade
-        o2 = o1 + actual_durations[1] - fade
-        inputs = []
-        for s in merged:
-            inputs.extend(["-i", s])
-        tr1 = transitions[0] if len(transitions) > 0 else DEFAULT_TRANSITION
-        tr2 = transitions[1] if len(transitions) > 1 else DEFAULT_TRANSITION
-        fg = (f"[0:v][1:v]xfade=transition={tr1}:duration={fade}:offset={o1:.2f}[v01];"
-              f"[v01][2:v]xfade=transition={tr2}:duration={fade}:offset={o2:.2f}[outv];"
-              f"[0:a][1:a][2:a]concat=n=3:v=0:a=1[outa]")
-        cmd = [FFMPEG, "-y"] + inputs + ["-filter_complex", fg,
-               "-map", "[outv]", "-map", "[outa]",
-               "-c:v", "libx264", "-preset", "medium",
-               "-crf", str(user_crf),
-               "-c:a", "aac", "-b:a", "192k", draft]
-    else:
-        # 4+ sahne: zincirleme xfade
-        inputs = []
-        for s in merged:
-            inputs.extend(["-i", s])
-
-        fg_parts = []
-        audio_parts = []
-        cum_offset = 0
-        prev = "[0:v]"
-
-        for i in range(1, len(merged)):
-            cum_offset += actual_durations[i - 1] - fade
-            out_label = f"[v{i:02d}]" if i < len(merged) - 1 else "[outv]"
-            tr = transitions[i-1] if i-1 < len(transitions) else DEFAULT_TRANSITION
-            fg_parts.append(
-                f"{prev}[{i}:v]xfade=transition={tr}:duration={fade}:offset={cum_offset:.2f}{out_label}"
-            )
-            prev = out_label
-
-        for i in range(len(merged)):
-            audio_parts.append(f"[{i}:a]")
-
-        fg = ";".join(fg_parts) + ";" + "".join(audio_parts) + f"concat=n={len(merged)}:v=0:a=1[outa]"
-
-        cmd = [FFMPEG, "-y"] + inputs + ["-filter_complex", fg,
-               "-map", "[outv]", "-map", "[outa]",
-               "-c:v", "libx264", "-preset", "medium",
-               "-crf", str(user_crf),
-               "-c:a", "aac", "-b:a", "192k", draft]
-
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode != 0:
-        print(f"   ⚠️ Crossfade başarısız, concat deniyor...")
-        concat_f = str(project_dir / "draft" / "concat.txt")
-        with open(concat_f, "w") as f:
-            for s in merged:
-                f.write(f"file '{s}'\n")
-        cmd2 = [FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", concat_f,
-                "-c:v", "libx264", "-crf", str(QUALITY_FILTERS["crf"]),
-                "-c:a", "aac", draft]
-        subprocess.run(cmd2, capture_output=True, text=True)
-        print(f"   ✅ Draft (concat)")
-    else:
-        trs = ', '.join(transitions[:len(merged)-1])
-        print(f"   ✅ Draft (crossfade: {trs})")
-
-    total = get_audio_duration(draft)
-    size = os.path.getsize(draft) / (1024 * 1024)
-    print(f"   📁 {size:.1f} MB, {total:.1f}s")
-
-    # 6c: Arka plan müziği (BGM)
-    draft = _mix_bgm(draft, total, project_dir, project_name)
-
-    return draft
+    print(f"\n   ✅ {len(merged)} sahne birleştirildi (per-scene encode tamamlandı)")
+    return merged
 
 
 # ═══════════════════════════════════════
@@ -1021,9 +923,9 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name,
 
 def add_subtitles(draft_path, scenes, durations, project_dir, project_name, lang="de",
                   font_size=None, margin_v=None):
-    """İngilizce çeviri + ASS altyazı + final oluştur."""
+    """İngilizce çeviri + ASS altyazı dosyası oluştur. ASS dosya yolunu döndürür."""
     print("\n" + "=" * 60)
-    print("🔤 ADIM 7: Altyazı (DE → EN)")
+    print("🔤 ADIM 7: Altyazı Çeviri + ASS Üretimi")
     print("=" * 60)
 
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -1063,44 +965,27 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
     cum = 0.2
     for i, (tr, dur) in enumerate(zip(translations, durations)):
-        # Cümle bazlı böl — her sahnenin metni kısa parçalara ayrılır
         chunks = split_into_subtitle_chunks(tr, max_chars=45)
         chunk_count = len(chunks)
         total_chars = sum(len(c) for c in chunks)
-        
+
         for j, chunk in enumerate(chunks):
-            # Timing: karakter uzunluğuna orantılı dağılım
             char_ratio = len(chunk) / total_chars if total_chars > 0 else 1.0 / chunk_count
             chunk_dur = dur * char_ratio
-            
+
             start = cum
-            end = cum + chunk_dur - 0.1  # Küçük boşluk
+            end = cum + chunk_dur - 0.1
             wrapped = wrap_subtitle(chunk)
             ass += f"Dialogue: 0,{format_ass_time(start)},{format_ass_time(end)},Default,,0,0,0,,{wrapped}\n"
-            cum = end + 0.15  # Parçalar arası kısa geçiş
-        
-        cum += 0.35  # Sahneler arası daha uzun boşluk
+            cum = end + 0.15
+
+        cum += 0.35
 
     with open(ass_path, "w", encoding="utf-8") as f:
         f.write(ass)
     print(f"   ✅ ASS: {ass_path}")
 
-    # Altyazı yak
-    sub_path = str(project_dir / "draft" / f"{project_name}_subtitled.mp4")
-    cmd = [FFMPEG, "-y", "-i", draft_path,
-           "-vf", f"ass={ass_path}",
-           "-c:v", "libx264", "-preset", "medium",
-           "-crf", str(QUALITY_FILTERS["crf"]),
-           "-c:a", "copy", sub_path]
-    r = subprocess.run(cmd, capture_output=True, text=True)
-
-    if r.returncode == 0:
-        print(f"   ✅ Altyazılı draft: {sub_path}")
-    else:
-        print(f"   ❌ Altyazı yakma hatası")
-        return draft_path
-
-    return sub_path
+    return str(ass_path)
 
 
 # ═══════════════════════════════════════
@@ -1145,43 +1030,129 @@ def _mix_bgm(draft_path, total_duration, project_dir, project_name):
 
 
 # ═══════════════════════════════════════
-# ADIM 8: FİNAL SLOWDOWN
+# ADIM 8: FİNAL COMPOSE (Crossfade + Sub + Slowdown)
 # ═══════════════════════════════════════
 
-def apply_slowdown(input_path, project_dir, project_name, speed=None):
-    """Final videoya hafif yavaşlatma uygular."""
+def compose_final(merged_scenes, ass_path, project_dir, project_name,
+                  crossfade=None, transition=None, speed=None):
+    """Crossfade + Altyazı + Slowdown + BGM'ı TEK FFmpeg encode ile final video yap.
+    4 encode yerine 2 encode: per-scene merge (encode 1) + bu fonksiyon (encode 2)."""
     print("\n" + "=" * 60)
-    print(f"🐢 ADIM 8: Final Slowdown ({AUDIO_SLOWDOWN}x = %{int((1-AUDIO_SLOWDOWN)*100)} yavaşlatma)")
+    print("🎬 ADIM 8: Final Compose (Crossfade + Altyazı + Slowdown)")
     print("=" * 60)
 
-    final = str(project_dir / "final" / f"{project_name}_final.mp4")
+    final_path = str(project_dir / "final" / f"{project_name}_final.mp4")
     (project_dir / "final").mkdir(parents=True, exist_ok=True)
 
-    speed = speed if speed is not None else AUDIO_SLOWDOWN
-    cmd = [
-        FFMPEG, "-y", "-i", input_path,
-        "-filter_complex",
-        f"[0:v]setpts={1/speed}*PTS[v];[0:a]atempo={speed}[a]",
-        "-map", "[v]", "-map", "[a]",
+    fade = crossfade if crossfade is not None else CROSSFADE_DURATION
+    user_transition = transition if transition is not None else DEFAULT_TRANSITION
+    slowdown = speed if speed is not None else AUDIO_SLOWDOWN
+    transitions = [user_transition] * (len(merged_scenes) - 1)
+
+    # Merged sahnelerin gerçek sürelerini ölç
+    actual_durations = [get_audio_duration(f) for f in merged_scenes]
+    sc_count = len(merged_scenes)
+
+    # ── Inputs ──
+    inputs = []
+    for s in merged_scenes:
+        inputs.extend(["-i", s])
+
+    # ── Video filter chain: xfade → ass → setpts ──
+    vf_parts = []
+    cum_offset = 0
+    prev = "[0:v]"
+
+    if sc_count == 1:
+        xfade_out = "[0:v]"
+    else:
+        for i in range(1, sc_count):
+            cum_offset += actual_durations[i - 1] - fade
+            is_last = (i == sc_count - 1)
+            out_label = "[xout]" if is_last else f"[v{i:02d}]"
+            tr = transitions[i - 1] if i - 1 < len(transitions) else DEFAULT_TRANSITION
+            vf_parts.append(
+                f"{prev}[{i}:v]xfade=transition={tr}:duration={fade}:offset={cum_offset:.2f}{out_label}"
+            )
+            prev = out_label
+        xfade_out = "[xout]"
+
+    # ASS overlay + slowdown
+    slowdown_pts = 1.0 / slowdown
+    ass_escaped = str(ass_path).replace("\\", "/").replace(":", "\\:") if ass_path else None
+
+    if ass_path and os.path.exists(ass_path):
+        vf_parts.append(f"{xfade_out}ass={ass_escaped},setpts={slowdown_pts:.4f}*PTS[outv]")
+    else:
+        vf_parts.append(f"{xfade_out}setpts={slowdown_pts:.4f}*PTS[outv]")
+
+    # ── Audio filter chain: concat → atempo ──
+    if sc_count == 1:
+        af = f"[0:a]atempo={slowdown}[outa]"
+    else:
+        audio_labels = "".join(f"[{i}:a]" for i in range(sc_count))
+        af = f"{audio_labels}concat=n={sc_count}:v=0:a=1[acat];[acat]atempo={slowdown}[outa]"
+
+    # ── Birleştirilmiş filter_complex ──
+    fg = ";".join(vf_parts) + ";" + af
+
+    cmd = [FFMPEG, "-y"] + inputs + [
+        "-filter_complex", fg,
+        "-map", "[outv]", "-map", "[outa]",
         "-c:v", "libx264", "-preset", "medium",
         "-crf", str(QUALITY_FILTERS["crf"]),
         "-c:a", "aac", "-b:a", "192k",
         "-r", str(OUTPUT_FPS),
-        final
+        final_path
     ]
 
+    print(f"   🔧 Tek encode: crossfade({fade}s) + ASS + slowdown({slowdown}x)")
+    print(f"   📄 {sc_count} sahne → {final_path}")
+
     r = subprocess.run(cmd, capture_output=True, text=True)
-    if r.returncode == 0:
-        dur = get_audio_duration(final)
-        size = os.path.getsize(final) / (1024 * 1024)
-        print(f"   ✅ Final: {final}")
-        print(f"   📁 {size:.1f} MB, {dur:.1f}s")
-        return final
+
+    if r.returncode != 0:
+        print(f"   ⚠️ Birleşik render başarısız, fallback deniyor...")
+        print(f"   stderr: {r.stderr[-300:]}")
+
+        # Fallback: crossfade olmadan concat + sub + slow
+        concat_f = str(project_dir / "draft" / "concat.txt")
+        with open(concat_f, "w") as f:
+            for s in merged_scenes:
+                f.write(f"file '{s}'\n")
+
+        fallback_vf = f"ass={ass_escaped},setpts={slowdown_pts:.4f}*PTS" if (ass_path and os.path.exists(ass_path)) else f"setpts={slowdown_pts:.4f}*PTS"
+
+        cmd2 = [
+            FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", concat_f,
+            "-vf", fallback_vf,
+            "-af", f"atempo={slowdown}",
+            "-c:v", "libx264", "-preset", "medium",
+            "-crf", str(QUALITY_FILTERS["crf"]),
+            "-c:a", "aac", "-b:a", "192k",
+            "-r", str(OUTPUT_FPS),
+            final_path
+        ]
+        r2 = subprocess.run(cmd2, capture_output=True, text=True)
+        if r2.returncode == 0:
+            print(f"   ✅ Fallback başarılı (concat + sub + slow)")
+        else:
+            print(f"   ❌ Fallback da başarısız: {r2.stderr[-200:]}")
+            return None
     else:
-        print(f"   ⚠️ Slowdown başarısız, kopyalanıyor...")
-        import shutil
-        shutil.copy2(input_path, final)
-        return final
+        trs = ', '.join(transitions[:sc_count - 1])
+        print(f"   ✅ Final render (xfade: {trs})")
+
+    # BGM ekleme (-c:v copy, encode yok)
+    total_dur = get_audio_duration(final_path)
+    final_path = _mix_bgm(final_path, total_dur, project_dir, project_name)
+
+    dur = get_audio_duration(final_path)
+    size = os.path.getsize(final_path) / (1024 * 1024)
+    print(f"   📁 {final_path}")
+    print(f"   ⏱️  {dur:.1f}s | 💾 {size:.1f} MB")
+
+    return final_path
 
 
 # ═══════════════════════════════════════
@@ -1504,53 +1475,69 @@ def main():
         if len(video_files) < len(scenes):
             print(f"\n   ⚠️ {len(video_files)}/{len(scenes)} video hazır — devam ediliyor")
 
-        # ── ADIM 6: Kurgu ──
-        if "edit" in completed and ckpt.get("draft") and os.path.exists(ckpt["draft"]):
-            draft = ckpt["draft"]
-            print(f"   ⏩ Kurgu atlandı (checkpoint)")
+        # ── ADIM 6: Per-Scene Merge ──
+        if "edit" in completed and ckpt.get("merged_scenes"):
+            merged_scenes = _validate_files(ckpt["merged_scenes"])
+            if len(merged_scenes) == len(ckpt["merged_scenes"]):
+                print(f"   ⏩ Per-scene merge atlandı (checkpoint — {len(merged_scenes)} dosya)")
+            else:
+                print(f"   ⚠️ {len(ckpt['merged_scenes']) - len(merged_scenes)} merge eksik, yeniden oluşturuluyor...")
+                completed = [s for s in completed if s != "edit"]
+                _write_progress("edit", 72, "Per-scene merge oluşturuluyor...")
+                merged_scenes = compose_edit(video_files, voice_files, durations, project_dir, project_name)
+                if not merged_scenes:
+                    raise RuntimeError("Per-scene merge başarısız")
+                completed.append("edit")
+                _write_checkpoint(project_dir, "edit", completed,
+                                  script=script, voice_files=voice_files, durations=durations,
+                                  image_files=[str(f) for f in image_files],
+                                  video_files=[str(f) for f in video_files],
+                                  merged_scenes=merged_scenes)
         else:
-            _write_progress("edit", 72, "Kurgu oluşturuluyor...")
-            draft = compose_edit(video_files, voice_files, durations, project_dir, project_name)
-            if not draft:
-                raise RuntimeError("Kurgu başarısız — draft oluşturulamadı")
+            _write_progress("edit", 72, "Per-scene merge oluşturuluyor...")
+            merged_scenes = compose_edit(video_files, voice_files, durations, project_dir, project_name)
+            if not merged_scenes:
+                raise RuntimeError("Per-scene merge başarısız")
             if "edit" not in completed:
                 completed.append("edit")
             _write_checkpoint(project_dir, "edit", completed,
                               script=script, voice_files=voice_files, durations=durations,
                               image_files=[str(f) for f in image_files],
                               video_files=[str(f) for f in video_files],
-                              draft=draft)
-        _write_progress("edit", 80, "Draft montaj hazır")
+                              merged_scenes=merged_scenes)
+        _write_progress("edit", 78, f"{len(merged_scenes)} sahne merge edildi")
 
-        # ── ADIM 7: Altyazı ──
-        if "subtitles" in completed and ckpt.get("subtitled") and os.path.exists(ckpt["subtitled"]):
-            subtitled = ckpt["subtitled"]
+        # ── ADIM 7: Altyazı (sadece ASS üretimi) ──
+        if "subtitles" in completed and ckpt.get("ass_path") and os.path.exists(ckpt["ass_path"]):
+            ass_path = ckpt["ass_path"]
             print(f"   ⏩ Altyazı atlandı (checkpoint)")
         else:
-            _write_progress("subtitles", 82, "Altyazılar ekleniyor...")
-            subtitled = add_subtitles(draft, scenes, durations, project_dir, project_name, lang)
+            _write_progress("subtitles", 80, "Altyazı çevirisi yapılıyor...")
+            ass_path = add_subtitles(None, scenes, durations, project_dir, project_name, lang)
             if "subtitles" not in completed:
                 completed.append("subtitles")
             _write_checkpoint(project_dir, "subtitles", completed,
                               script=script, voice_files=voice_files, durations=durations,
                               image_files=[str(f) for f in image_files],
                               video_files=[str(f) for f in video_files],
-                              draft=draft, subtitled=subtitled)
-        _write_progress("subtitles", 88, "Altyazılı video hazır")
+                              merged_scenes=merged_scenes, ass_path=ass_path)
+        _write_progress("subtitles", 85, "ASS altyazı hazır")
 
-        # ── ADIM 8: Final Slowdown ──
-        if "slowdown" in completed and ckpt.get("final") and os.path.exists(ckpt["final"]):
+        # ── ADIM 8: Final Compose (crossfade + altyazı + slowdown — TEK encode) ──
+        if "final" in completed and ckpt.get("final") and os.path.exists(ckpt["final"]):
             final = ckpt["final"]
-            print(f"   ⏩ Slowdown atlandı (checkpoint)")
+            print(f"   ⏩ Final compose atlandı (checkpoint)")
         else:
-            _write_progress("slowdown", 90, "Final slowdown uygulanıyor...")
-            final = apply_slowdown(subtitled, project_dir, project_name)
-            if "slowdown" not in completed:
-                completed.append("slowdown")
-            _write_checkpoint(project_dir, "slowdown", completed,
+            _write_progress("final", 87, "Final render (crossfade + altyazı + slowdown)...")
+            final = compose_final(merged_scenes, ass_path, project_dir, project_name)
+            if not final:
+                raise RuntimeError("Final compose başarısız")
+            if "final" not in completed:
+                completed.append("final")
+            _write_checkpoint(project_dir, "final", completed,
                               script=script, voice_files=voice_files, durations=durations,
-                              draft=draft, subtitled=subtitled, final=final)
-        _write_progress("slowdown", 93, "Slowdown tamamlandı")
+                              merged_scenes=merged_scenes, ass_path=ass_path, final=final)
+        _write_progress("final", 93, "Final video hazır")
 
         # ── ADIM 9: Thumbnail (şartlı) ──
         if _ct.get('thumbnail', False):
