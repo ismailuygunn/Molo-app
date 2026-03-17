@@ -312,6 +312,7 @@ OUTPUT FORMAT — Return ONLY valid JSON, no markdown:
       "scene": 1,
       "text": "what MOLO says in {target_lang}",
       "environment": "clinic",
+      "background_description": "",
       "molo_pose": "front-wave",
       "voice_direction": "energetic",
       "shot_type": "medium",
