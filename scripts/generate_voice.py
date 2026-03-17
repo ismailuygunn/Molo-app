@@ -84,7 +84,7 @@ def log_error(tool, prompt, expected, actual, solution):
     print(f"📝 Hata günlüğüne kaydedildi: {ERROR_LOG}")
 
 
-def generate_voice(scenes, lang="de", project_name=None, dry_run=False):
+def generate_voice(scenes, lang="de", project_name=None, dry_run=False, auto_approve=False):
     """
     Sahne bazlı ses üretimi.
     
@@ -121,10 +121,13 @@ def generate_voice(scenes, lang="de", project_name=None, dry_run=False):
     
     # ── Onay iste ──
     print(f"\n💰 API çağrısı yapılacak: {len(scenes)} ses dosyası")
-    confirm = input("Devam etmek istiyor musunuz? (e/h): ").strip().lower()
-    if confirm != "e":
-        print("❌ İptal edildi.")
-        return []
+    if not auto_approve:
+        confirm = input("Devam etmek istiyor musunuz? (e/h): ").strip().lower()
+        if confirm != "e":
+            print("❌ İptal edildi.")
+            return []
+    else:
+        print("   ✅ Otomatik onay")
     
     # ── API çağrısı ──
     client = get_client()
