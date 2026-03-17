@@ -1184,15 +1184,19 @@ def add_subtitles(draft_path, scenes, durations, project_dir, project_name, lang
     lang_names = {"de": "German", "tr": "Turkish", "en": "English"}
     source = lang_names.get(lang, lang)
     texts = [s["text"] for s in scenes]
-    translations = []
-    for text in texts:
-        resp = gemini_with_retry(lambda: client.models.generate_content(
-            model=GEMINI_TEXT_MODEL,
-            contents=f"Translate this {source} text to English. Return ONLY the translation:\n\n{text}"
-        ))
-        tr = resp.text.strip()
-        print(f"   🔄 '{text[:35]}...' → '{tr[:35]}...'")
-        translations.append(tr)
+    if lang == "en":
+        translations = texts
+        print("   ℹ️ Kaynak dil İngilizce — çeviri atlandı")
+    else:
+        translations = []
+        for text in texts:
+            resp = gemini_with_retry(lambda: client.models.generate_content(
+                model=GEMINI_TEXT_MODEL,
+                contents=f"Translate this {source} text to English. Return ONLY the translation:\n\n{text}"
+            ))
+            tr = resp.text.strip()
+            print(f"   🔄 '{text[:35]}...' → '{tr[:35]}...'")
+            translations.append(tr)
 
     # ASS oluştur
     ass_path = project_dir / "subtitles" / "subs_en.ass"
