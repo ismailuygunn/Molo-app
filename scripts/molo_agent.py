@@ -69,6 +69,22 @@ _ct = CONTENT_TYPES[DEFAULT_CONTENT_TYPE].copy()
 from google import genai
 from google.genai import types as gtypes
 
+
+def gemini_with_retry(func, max_retries=3, delay=5):
+    """Gemini API çağrısını exponential backoff ile tekrarla."""
+    for attempt in range(max_retries):
+        try:
+            return func()
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait = delay * (attempt + 1)
+                print(f"   ⚠️ Gemini hatası (deneme {attempt+1}/{max_retries}): {e}")
+                print(f"      {wait}s sonra tekrar deneniyor...")
+                time.sleep(wait)
+            else:
+                print(f"   ❌ Gemini {max_retries} denemede de başarısız: {e}")
+                raise
+
 # ═══════════════════════════════════════
 # İLERLEME TAKİBİ
 # ═══════════════════════════════════════
@@ -288,14 +304,14 @@ OUTPUT FORMAT — Return ONLY valid JSON, no markdown:
   ]
 }}"""
 
-    response = client.models.generate_content(
+    response = gemini_with_retry(lambda: client.models.generate_content(
         model=GEMINI_TEXT_MODEL,
         contents=f"Write a MOLO script based on this brief:\n\n{brief}",
         config=gtypes.GenerateContentConfig(
             system_instruction=system_prompt,
             temperature=0.8,
         )
-    )
+    ))
 
     # JSON parse
     text = response.text.strip()
@@ -474,10 +490,10 @@ def _score_image_quality(image_path, molo_ref_path, client):
                   'Score 1-10 for each criterion. Return ONLY valid JSON, no explanation:\n'
                   '{"face_accuracy": <int>, "symmetry": <int>, "hologram_presence": <int>, "overall_quality": <int>}')
 
-        resp = client.models.generate_content(
+        resp = gemini_with_retry(lambda: client.models.generate_content(
             model=GEMINI_TEXT_MODEL,
             contents=[prompt] + parts,
-        )
+        ))
 
         text = resp.text.strip()
         if "```" in text:
@@ -577,13 +593,13 @@ Important composition rules:
             attempt_suffix = f" (deneme {attempt + 1}/{attempts})" if attempt > 0 else ""
             print(f"      🧠 Gemini üretimi...{attempt_suffix}")
 
-            response = client.models.generate_content(
+            response = gemini_with_retry(lambda: client.models.generate_content(
                 model=GEMINI_IMAGE_MODEL,
                 contents=[prompt] + images_to_send,
                 config=gtypes.GenerateContentConfig(
                     response_modalities=["IMAGE", "TEXT"],
                 )
-            )
+            ))
 
             # Görseli kaydet
             saved = False
@@ -948,10 +964,10 @@ def check_video_consistency(video_files, scenes, project_dir):
                       '{"face_shape": <int>, "eye_design": <int>, "hologram": <int>, '
                       '"body_proportions": <int>, "color_palette": <int>, "consistency": <int>}')
 
-            resp = client.models.generate_content(
+            resp = gemini_with_retry(lambda: client.models.generate_content(
                 model=GEMINI_TEXT_MODEL,
                 contents=[prompt] + parts,
-            )
+            ))
 
             text = resp.text.strip()
             if "```" in text:
@@ -1159,10 +1175,10 @@ def add_subtitles(draft_path, scenes, durations, project_dir, project_name, lang
     texts = [s["text"] for s in scenes]
     translations = []
     for text in texts:
-        resp = client.models.generate_content(
+        resp = gemini_with_retry(lambda: client.models.generate_content(
             model=GEMINI_TEXT_MODEL,
             contents=f"Translate this {source} text to English. Return ONLY the translation:\n\n{text}"
-        )
+        ))
         tr = resp.text.strip()
         print(f"   🔄 '{text[:35]}...' → '{tr[:35]}...'")
         translations.append(tr)
@@ -1456,13 +1472,13 @@ DO NOT make MOLO look childish, flat, or toy-like.
     print(f"   🧠 Gemini thumbnail üretimi...")
 
     try:
-        response = client.models.generate_content(
+        response = gemini_with_retry(lambda: client.models.generate_content(
             model=GEMINI_IMAGE_MODEL,
             contents=[prompt] + images_to_send,
             config=gtypes.GenerateContentConfig(
                 response_modalities=["IMAGE", "TEXT"],
             )
-        )
+        ))
 
         for part in response.candidates[0].content.parts:
             if hasattr(part, 'inline_data') and part.inline_data:
