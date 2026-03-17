@@ -1907,6 +1907,24 @@ def render_from_config(config_path: str):
     _ct = CONTENT_TYPES.get(ct_key, CONTENT_TYPES["sosyal"]).copy()
     print(f"   Content type: {ct_key} ({_ct['width']}x{_ct['height']})")
 
+    # Detect language from brief
+    lang = "de"
+    if brief_path.exists():
+        _lang_map = {
+            "de": "de", "deutsch": "de", "almanca": "de", "german": "de",
+            "tr": "tr", "türkçe": "tr", "turkish": "tr",
+            "en": "en", "english": "en", "ingilizce": "en",
+        }
+        for line in brief_text.splitlines():
+            ll = line.lower().strip()
+            if "dil:" in ll or "language:" in ll:
+                raw = line.split(":", 1)[1].strip().lower()
+                for key, code in _lang_map.items():
+                    if key in raw:
+                        lang = code
+                        break
+        print(f"   Dil: {lang}")
+
     # Collect existing scene videos and audio
     video_files = sorted(glob(str(project_dir / "scenes" / "*.mp4")))
     voice_files = sorted(glob(str(project_dir / "audio" / "*.mp3")))
@@ -1945,7 +1963,7 @@ def render_from_config(config_path: str):
     ass_path = None
     if config.get("addSubtitles", True):
         try:
-            ass_path = add_subtitles(None, scenes, durations, project_dir, project_name, "de",
+            ass_path = add_subtitles(None, scenes, durations, project_dir, project_name, lang,
                                      font_size=config.get("fontSize"),
                                      margin_v=config.get("marginV"))
             if ass_path and os.path.exists(ass_path):
