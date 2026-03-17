@@ -42,15 +42,10 @@ COPY scripts/ ./scripts/
 COPY _config/ ./_config/
 COPY _reference/ ./_reference/
 
-# Seed data: projects are copied to projects-seed/ (NOT projects/)
-# The boot script will copy them to the persistent volume on first boot
+# Seed data: projects baked into image for volume seeding
 COPY projects/ ./projects-seed/
 
-# Boot script
-COPY start.sh ./start.sh
-RUN chmod +x start.sh
-
-# Create data directories (will be populated at runtime)
+# Create data directories
 RUN mkdir -p projects _voices _images-generated _videos-raw _bgm
 
 # Set env
@@ -60,5 +55,6 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-# Start the app — shell form for reliable cd
-CMD cd /app/studio && npm start
+# Set working directory to studio and start directly (proven working pattern)
+WORKDIR /app/studio
+CMD ["npm", "start"]
