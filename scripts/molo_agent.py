@@ -40,7 +40,7 @@ from config import (
     BASE_DIR, PROJECTS_DIR, REFERENCE_DIR, VOICES_DIR,
     FFMPEG, OUTPUT_WIDTH, OUTPUT_HEIGHT, OUTPUT_FPS,
     KLING_MODEL, KLING_API_BASE, KLING_DURATION, KLING_MAX_PROMPT_CHARS, KLING_CFG_SCALE,
-    KLING_CFG_FIRST_LAST, KLING_CFG_MIDDLE,
+    KLING_NEGATIVE_PROMPT, KLING_CFG_FIRST_LAST, KLING_CFG_MIDDLE,
     GEMINI_IMAGE_MODEL, GEMINI_TEXT_MODEL, ELEVENLABS_MODEL,
     VOICE_PRESETS, VOICE_DEFAULT, VOICE_PROFILES,
     CHARACTER_PERSONALITY, CHARACTER_IDENTITY_LOCK,
@@ -745,7 +745,8 @@ def _submit_kling_task(scene, ref_path, scene_duration="5", total_scenes=1):
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
     payload = {
         "model_name": KLING_MODEL, "image": img_b64,
-        "prompt": prompt, "duration": scene_duration, "aspect_ratio": _ct['kling_aspect'],
+        "prompt": prompt, "negative_prompt": KLING_NEGATIVE_PROMPT,
+        "duration": scene_duration, "aspect_ratio": _ct['kling_aspect'],
         "cfg_scale": cfg,
     }
     resp = requests.post(f"{KLING_API_BASE}/v1/videos/image2video",

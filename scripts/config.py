@@ -135,6 +135,7 @@ KLING_MODEL = "kling-v3"                     # ⚠️ En son model — asla dü�
 KLING_API_BASE = "https://api.klingai.com"
 KLING_DURATION = "5"
 KLING_CFG_SCALE = 0.7                         # Prompt'a bağlılık (0-1, 0.5 default, 0.7 sıkı)
+KLING_NEGATIVE_PROMPT = "face morphing, face distortion, asymmetric face, extra limbs, blurry, low quality, watermark, text overlay, childish cartoon, toy-like, plastic glow, oversized mouth, inner mouth glow, elastic body, rubbery motion, bouncing, jittery, flickering, artifacts"
 KLING_CFG_FIRST_LAST = 0.8                    # İlk ve son sahne — karakter tutarlılığı
 KLING_CFG_MIDDLE = 0.7                        # Orta sahneler — biraz yaratıcılık
 KLING_MAX_PROMPT_CHARS = 2500  # ⚠️ API hard limit
