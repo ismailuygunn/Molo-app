@@ -891,6 +891,115 @@ def generate_videos(scenes, image_files, project_dir, durations=None):
 
 
 # ═══════════════════════════════════════
+# ADIM 5b: VİDEO KALİTE KONTROL (opsiyonel)
+# ═══════════════════════════════════════
+
+def check_video_consistency(video_files, scenes, project_dir):
+    """Video karelerini Molo referansıyla karşılaştır. Tutarlılık skorları döndürür.
+    Pipeline'ı durdurmaz — sadece uyarı verir ve skorları scenes.json'a kaydeder."""
+    print("\n" + "=" * 60)
+    print("🔍 ADIM 5b: Video Karakter Tutarlılık Kontrolü")
+    print("=" * 60)
+
+    client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+    quality_scores = {}
+    tmp_dir = project_dir / "draft" / "_qc_frames"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    for i, vf in enumerate(video_files):
+        n = scenes[i]["scene"] if i < len(scenes) else i + 1
+        pose = scenes[i].get("molo_pose", "front") if i < len(scenes) else "front"
+
+        # Molo referans
+        molo_ref = MOLO_POSES.get(pose, MOLO_POSES["front"])
+
+        # FFmpeg ile ilk ve son kareyi çıkar
+        first_frame = str(tmp_dir / f"s{n:02d}_first.png")
+        last_frame = str(tmp_dir / f"s{n:02d}_last.png")
+
+        # İlk kare
+        subprocess.run([
+            FFMPEG, "-y", "-i", vf, "-vframes", "1", "-q:v", "2", first_frame
+        ], capture_output=True, text=True)
+
+        # Son kare
+        subprocess.run([
+            FFMPEG, "-y", "-sseof", "-0.1", "-i", vf, "-vframes", "1", "-q:v", "2", last_frame
+        ], capture_output=True, text=True)
+
+        if not os.path.exists(first_frame):
+            print(f"   Sahne {n}: ⚠️ Kare çıkarılamadı, atlanıyor")
+            continue
+
+        # Gemini'ye gönder
+        try:
+            parts = [
+                gtypes.Part.from_bytes(data=open(str(molo_ref), "rb").read(), mime_type="image/jpeg"),
+            ]
+            if os.path.exists(first_frame):
+                parts.append(gtypes.Part.from_bytes(data=open(first_frame, "rb").read(), mime_type="image/png"))
+            if os.path.exists(last_frame):
+                parts.append(gtypes.Part.from_bytes(data=open(last_frame, "rb").read(), mime_type="image/png"))
+
+            prompt = ('Image 1 is the MOLO mascot reference. Images 2-3 are video frames. '
+                      'Compare the character in the frames to the reference. '
+                      'Score 1-10. Return ONLY valid JSON:\n'
+                      '{"face_shape": <int>, "eye_design": <int>, "hologram": <int>, '
+                      '"body_proportions": <int>, "color_palette": <int>, "consistency": <int>}')
+
+            resp = client.models.generate_content(
+                model=GEMINI_TEXT_MODEL,
+                contents=[prompt] + parts,
+            )
+
+            text = resp.text.strip()
+            if "```" in text:
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+                text = text.strip()
+
+            scores = json.loads(text)
+            overall = scores.get("consistency", 0)
+            quality_scores[n] = overall
+
+            detail_str = ", ".join(f"{k}={v}" for k, v in scores.items())
+            if overall < 5:
+                print(f"   Sahne {n}: ⚠️ Düşük tutarlılık ({overall}/10) — {detail_str}")
+            else:
+                print(f"   Sahne {n}: ✅ {overall}/10 ({detail_str})")
+
+        except Exception as e:
+            print(f"   Sahne {n}: ⚠️ Skor hesaplanamadı: {e}")
+            quality_scores[n] = -1
+
+    # Geçici dosyaları temizle
+    import shutil
+    shutil.rmtree(str(tmp_dir), ignore_errors=True)
+
+    # scenes.json'a kaydet
+    scenes_json = project_dir / "scenes" / "scenes.json"
+    if scenes_json.exists():
+        try:
+            with open(scenes_json, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                data["quality_scores"] = quality_scores
+            elif isinstance(data, list):
+                data = {"scenes": data, "quality_scores": quality_scores}
+            with open(scenes_json, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            print(f"\n   📁 Skorlar kaydedildi: {scenes_json}")
+        except Exception as e:
+            print(f"\n   ⚠️ scenes.json güncelenemedi: {e}")
+
+    avg = sum(v for v in quality_scores.values() if v > 0) / max(1, sum(1 for v in quality_scores.values() if v > 0))
+    print(f"   📊 Ortalama tutarlılık: {avg:.1f}/10")
+
+    return quality_scores
+
+
+# ═══════════════════════════════════════
 # ADIM 6: KURGU & EFEKT
 # ═══════════════════════════════════════
 
@@ -1471,11 +1580,15 @@ def main():
 
     # Akıllı yavaşlatma oku (varsayılan kapalı)
     smart_slowdown = False
+    quality_check = False
     for line in brief_text.split("\n"):
         ll = line.lower().strip()
         if any(m in ll for m in ["akıllı yavaşlatma:", "smart_slowdown:", "smart slowdown:"]):
             val = line.split(":", 1)[1].strip().lower()
             smart_slowdown = val in ["evet", "yes", "true", "1", "on"]
+        if any(m in ll for m in ["kalite kontrol:", "quality_check:", "quality check:"]):
+            val = line.split(":", 1)[1].strip().lower()
+            quality_check = val in ["evet", "yes", "true", "1", "on"]
 
     # Progress tracking başlat
     global _progress_path
@@ -1612,6 +1725,14 @@ def main():
 
         if len(video_files) < len(scenes):
             print(f"\n   ⚠️ {len(video_files)}/{len(scenes)} video hazır — devam ediliyor")
+
+        # ── ADIM 5b: Video Kalite Kontrol (opsiyonel) ──
+        if quality_check and "quality_check" not in completed:
+            _write_progress("quality_check", 71, "Video tutarlılık kontrolü...")
+            check_video_consistency(video_files, scenes, project_dir)
+            completed.append("quality_check")
+        elif quality_check:
+            print(f"   ⏩ Kalite kontrol atlandı (checkpoint)")
 
         # Sahne bazlı slowdown hesapla (smart_slowdown aktifse)
         scene_speeds = None
