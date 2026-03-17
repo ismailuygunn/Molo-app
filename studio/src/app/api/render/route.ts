@@ -44,7 +44,7 @@ from pathlib import Path
 sys.path.insert(0, '${SCRIPTS_DIR}')
 from dotenv import load_dotenv
 load_dotenv(Path('${ROOT_DIR}') / '.env')
-from molo_agent import compose_edit, add_subtitles, apply_slowdown
+from molo_agent import compose_edit, add_subtitles, compose_final
 import molo_agent
 from config import *
 
@@ -62,13 +62,17 @@ scenes = data['scenes'] if isinstance(data, dict) else data
 durations = data.get('durations', []) if isinstance(data, dict) else []
 config = json.loads(Path('${configPath}').read_text())
 
-# Set content type from brief (critical for correct resolution + subtitle positioning)
-brief_path = project_dir / 'brief.json'
+# Set content type from brief
+brief_path = project_dir / 'brief.md'
+ct_key = 'sosyal'
 if brief_path.exists():
-    brief = json.loads(brief_path.read_text())
-    ct_key = brief.get('contentType', 'sosyal')
-else:
-    ct_key = 'sosyal'
+    brief_text = brief_path.read_text()
+    for line in brief_text.split('\\n'):
+        ll = line.lower().strip()
+        if any(m in ll for m in ['içerik türü:', 'icerik turu:', 'content type:', 'tür:']):
+            val = line.split(':', 1)[1].strip().lower()
+            if val in ['sosyal', 'ekran', 'robot']:
+                ct_key = val
 molo_agent._content_type_key = ct_key
 molo_agent._ct = CONTENT_TYPES.get(ct_key, CONTENT_TYPES['sosyal']).copy()
 print(f'Content type: {ct_key}')
@@ -85,34 +89,32 @@ if not video_files:
 print(f'Found {len(video_files)} videos, {len(voice_files)} audio files')
 print(f'Config: {json.dumps(config, indent=2)}')
 
-# Step 1: Compose edit — merge scene videos + audio with user settings
-draft = compose_edit(video_files, voice_files, durations, project_dir, project_name,
-                     crossfade=config.get('crossfade'),
-                     crf=config.get('crf'),
-                     transition=config.get('transition'))
-if not draft:
-    print('Compose failed')
+# Step 1: Per-scene merge (Encode 1)
+merged_scenes = compose_edit(video_files, voice_files, durations, project_dir, project_name,
+                             crf=config.get('crf'))
+if not merged_scenes:
+    print('Compose edit failed')
     sys.exit(1)
-print(f'Draft created: {draft}')
+print(f'Merged scenes: {len(merged_scenes)} files')
 
-# Step 2: Add subtitles (if enabled) with user font/margin settings
+# Step 2: Generate ASS subtitles (no encode)
+ass_path = None
 if config.get('addSubtitles', True):
     lang = 'de'
-    subtitled = add_subtitles(draft, scenes, durations, project_dir, project_name, lang,
-                              font_size=config.get('fontSize'),
-                              margin_v=config.get('marginV'))
-    if subtitled:
-        print(f'Subtitled: {subtitled}')
-        # Step 3: Apply slowdown with user speed
-        final = apply_slowdown(subtitled, project_dir, project_name,
-                               speed=config.get('slowdown'))
-        print(f'Final: {final}')
-else:
-    # No subtitles — apply slowdown directly to draft
-    final = apply_slowdown(draft, project_dir, project_name,
-                           speed=config.get('slowdown'))
-    print(f'Final (no subs): {final}')
+    ass_path = add_subtitles(None, scenes, durations, project_dir, project_name, lang,
+                             font_size=config.get('fontSize'),
+                             margin_v=config.get('marginV'))
+    print(f'ASS subtitles: {ass_path}')
 
+# Step 3: Final compose — crossfade + subtitles + slowdown (Encode 2)
+final = compose_final(merged_scenes, ass_path, project_dir, project_name,
+                      crossfade=config.get('crossfade'),
+                      transition=config.get('transition'),
+                      speed=config.get('slowdown'))
+if not final:
+    print('Final compose failed')
+    sys.exit(1)
+print(f'Final: {final}')
 print('Render complete!')
 `;
 
