@@ -67,7 +67,7 @@ function SceneCard({
   index, scene, project, sceneFiles, onPreview,
 }: {
   index: number;
-  scene: { scene: number; text: string };
+  scene: { scene: number; text_de: string };
   project: Project;
   sceneFiles: SceneFiles;
   onPreview: (src: string, type: "video" | "audio") => void;
@@ -151,7 +151,7 @@ function SceneCard({
         lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis",
         display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const,
       }}>
-        {scene.text}
+        {scene.text_de}
       </div>
     </div>
   );
