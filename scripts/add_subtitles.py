@@ -31,7 +31,8 @@ except ImportError:
 from config import (
     BASE_DIR, FFMPEG, GEMINI_TEXT_MODEL,
     OUTPUT_WIDTH, OUTPUT_HEIGHT,
-    CONTENT_TYPES, DEFAULT_CONTENT_TYPE
+    CONTENT_TYPES, DEFAULT_CONTENT_TYPE,
+    QUALITY_FILTERS
 )
 
 
@@ -161,7 +162,8 @@ def burn_subtitles(video_path, srt_path, output_path, content_type=None):
         FFMPEG, "-y",
         "-i", str(video_path),
         "-vf", f"subtitles={srt_escaped}:force_style='{style}'",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+        "-c:v", "libx264", "-preset", QUALITY_FILTERS["preset"], "-crf", str(QUALITY_FILTERS["crf"]),
+        "-pix_fmt", QUALITY_FILTERS["pix_fmt"], "-profile:v", QUALITY_FILTERS["profile"], "-movflags", QUALITY_FILTERS["movflags"],
         "-c:a", "copy",
         str(output_path)
     ]
