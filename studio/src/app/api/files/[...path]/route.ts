@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { stat } from "fs/promises";
 import { createReadStream } from "fs";
-import { join, extname, resolve } from "path";
+import { join, extname, resolve, basename } from "path";
 import { Readable } from "stream";
 
 const PROJECTS_DIR = resolve(process.cwd(), "..", "projects");
@@ -43,6 +43,13 @@ export async function GET(
     const ext = extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
     const fileSize = s.size;
+    const fileName = basename(filePath);
+
+    // Check if download is requested
+    const wantDownload = req.nextUrl.searchParams.get("download") === "true";
+    const dispositionHeader: Record<string, string> = wantDownload
+      ? { "Content-Disposition": `attachment; filename="${fileName}"` }
+      : {};
 
     // Handle Range requests for video/audio streaming
     const range = req.headers.get("range");
@@ -63,6 +70,7 @@ export async function GET(
           "Accept-Ranges": "bytes",
           "Content-Length": chunkSize.toString(),
           "Cache-Control": "public, max-age=3600",
+          ...dispositionHeader,
         },
       });
     }
@@ -77,6 +85,7 @@ export async function GET(
           "Content-Length": fileSize.toString(),
           "Accept-Ranges": "bytes",
           "Cache-Control": "public, max-age=3600",
+          ...dispositionHeader,
         },
       });
     }
@@ -91,6 +100,7 @@ export async function GET(
         "Content-Length": fileSize.toString(),
         "Accept-Ranges": "bytes",
         "Cache-Control": "public, max-age=3600",
+        ...dispositionHeader,
       },
     });
   } catch {

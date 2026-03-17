@@ -521,7 +521,7 @@ function EditContent() {
               <source src={videoSrc} type="video/mp4" />
             </video>
             <a
-              href={videoSrc}
+              href={`${videoSrc}?download=true`}
               download
               style={{
                 position: "absolute", top: 12, right: 12,
@@ -929,7 +929,7 @@ function EditContent() {
                         <button onClick={() => setPreviewModal({ src: f.url, type: "video" })} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
                           <Eye size={12} /> Oynat
                         </button>
-                        <a href={f.url} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
+                        <a href={`${f.url}?download=true`} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
                           <Download size={12} /> İndir
                         </a>
                       </div>
@@ -963,7 +963,7 @@ function EditContent() {
                         <button onClick={() => setPreviewModal({ src: f.url, type: "video" })} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
                           <Eye size={12} /> Oynat
                         </button>
-                        <a href={f.url} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
+                        <a href={`${f.url}?download=true`} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
                           <Download size={12} /> İndir
                         </a>
                       </div>
@@ -993,7 +993,7 @@ function EditContent() {
                           </div>
                         </div>
                       </div>
-                      <a href={f.url} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
+                      <a href={`${f.url}?download=true`} download className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 10px" }}>
                         <Download size={12} /> İndir
                       </a>
                     </div>
