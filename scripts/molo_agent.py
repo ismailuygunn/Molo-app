@@ -969,7 +969,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     cum = 0.2
     for i, (tr, dur) in enumerate(zip(translations, durations)):
         # Cümle bazlı böl — her sahnenin metni kısa parçalara ayrılır
-        chunks = split_into_subtitle_chunks(tr, max_chars=70)
+        chunks = split_into_subtitle_chunks(tr, max_chars=45)
         chunk_count = len(chunks)
         total_chars = sum(len(c) for c in chunks)
         

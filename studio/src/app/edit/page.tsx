@@ -443,18 +443,15 @@ function EditContent() {
         </div>
       )}
 
-      {/* ═══ VIDEO PLAYER (full width) ═══ */}
-      <div className="glass-card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{
-          width: "100%",
-          background: "#000",
-        }}>
+      {/* ═══ VIDEO PLAYER (compact) ═══ */}
+      <div className="glass-card" style={{ padding: 0, overflow: "hidden", marginBottom: 16, display: "flex", justifyContent: "center", background: "#000" }}>
+        <div style={{ maxHeight: "55vh", width: "100%", display: "flex", justifyContent: "center" }}>
           {videoSrc ? (
-            <video key={videoSrc} controls style={{ width: "100%", display: "block" }}>
+            <video key={videoSrc} controls style={{ maxHeight: "55vh", maxWidth: "100%", display: "block" }}>
               <source src={videoSrc} type="video/mp4" />
             </video>
           ) : (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "var(--text-muted)", fontSize: 14, flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 280, width: "100%", color: "var(--text-muted)", fontSize: 14, flexDirection: "column", gap: 8 }}>
               <Film size={40} style={{ opacity: 0.15 }} />
               Henüz video yok — Draft oluşturun
             </div>
@@ -570,7 +567,7 @@ function EditContent() {
           {/* 💬 Altyazı */}
           {activeTab === "subtitle" && (
             <div>
-              <div style={{ display: "flex", gap: 20, marginBottom: 20, flexWrap: "wrap" as const }}>
+              <div style={{ display: "flex", gap: 20, marginBottom: 16, flexWrap: "wrap" as const, alignItems: "center" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
                   <input type="checkbox" checked={addSubs} onChange={(e) => setAddSubs(e.target.checked)} /> İngilizce altyazı ekle
                 </label>
@@ -588,7 +585,52 @@ function EditContent() {
                 )}
               </div>
 
-              {/* Subtitle Preview */}
+              {/* ═══ CANLI ALTYAZI ÖNİZLEME ═══ */}
+              {addSubs && subtitleEntries.length > 0 && (
+                <div style={{
+                  marginBottom: 16, borderRadius: 10, overflow: "hidden",
+                  border: "1px solid var(--border-subtle)",
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", padding: "6px 12px", letterSpacing: 0.5, background: "rgba(255,255,255,0.02)" }}>
+                    CANLI ÖNİZLEME
+                  </div>
+                  <div style={{
+                    position: "relative",
+                    aspectRatio: isHorizontal ? "16/9" : "9/16",
+                    maxHeight: 220, background: "#000",
+                    display: "flex", alignItems: "flex-end", justifyContent: "center",
+                    overflow: "hidden", margin: "0 auto",
+                  }}>
+                    {/* Mock video frame */}
+                    {sceneFiles.scenes_images[0] && (
+                      <img
+                        src={sceneFiles.scenes_images[0]}
+                        alt="preview"
+                        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.35 }}
+                      />
+                    )}
+                    {/* Subtitle text overlay */}
+                    <div style={{
+                      position: "relative", zIndex: 1,
+                      textAlign: "center",
+                      padding: `0 16px ${Math.max(8, Math.round(marginV / 30))}px`,
+                      width: "100%",
+                    }}>
+                      <span style={{
+                        fontSize: Math.max(10, Math.min(24, Math.round(fontSize / 2.5))),
+                        fontWeight: 700, color: "#fff",
+                        textShadow: "0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)",
+                        lineHeight: 1.4,
+                      }}>
+                        {subtitleEntries[0]?.text.slice(0, 60) || "Sample subtitle text"}
+                        {(subtitleEntries[0]?.text.length || 0) > 60 ? "..." : ""}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Subtitle entries list */}
               {subtitleEntries.length > 0 ? (
                 <div style={{ borderRadius: 10, border: "1px solid var(--border-subtle)", overflow: "hidden" }}>
                   <div style={{
@@ -599,10 +641,10 @@ function EditContent() {
                   }}>
                     ALTYAZI ÖNİZLEME ({subtitleEntries.length} parça)
                   </div>
-                  <div style={{ maxHeight: 260, overflowY: "auto", scrollbarWidth: "thin" as const }}>
+                  <div style={{ maxHeight: 220, overflowY: "auto", scrollbarWidth: "thin" as const }}>
                     {subtitleEntries.map((entry) => (
                       <div key={entry.index} style={{
-                        display: "flex", gap: 10, padding: "8px 12px",
+                        display: "flex", gap: 10, padding: "6px 12px",
                         borderBottom: "1px solid rgba(255,255,255,0.03)",
                         fontSize: 12, alignItems: "flex-start",
                       }}>
