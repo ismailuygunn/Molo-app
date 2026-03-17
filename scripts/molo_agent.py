@@ -934,12 +934,14 @@ def add_subtitles(draft_path, scenes, durations, project_dir, project_name, lang
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
     # Çeviri
+    lang_names = {"de": "German", "tr": "Turkish", "en": "English"}
+    source = lang_names.get(lang, lang)
     texts = [s["text"] for s in scenes]
     translations = []
     for text in texts:
         resp = client.models.generate_content(
             model=GEMINI_TEXT_MODEL,
-            contents=f"Translate this German text to English. Return ONLY the translation:\n\n{text}"
+            contents=f"Translate this {source} text to English. Return ONLY the translation:\n\n{text}"
         )
         tr = resp.text.strip()
         print(f"   🔄 '{text[:35]}...' → '{tr[:35]}...'")
