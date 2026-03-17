@@ -95,7 +95,8 @@ def gemini_with_retry(func, max_retries=3, delay=5):
 _progress_path = None  # main() içinde set edilir
 
 def _write_progress(step: str, progress: int, message: str = "",
-                    is_error: bool = False, is_done: bool = False):
+                    is_error: bool = False, is_done: bool = False,
+                    is_paused: bool = False):
     """Yapılandırılmış progress.json yaz — Studio UI tarafından okunur."""
     if _progress_path is None:
         return
@@ -104,9 +105,10 @@ def _write_progress(step: str, progress: int, message: str = "",
         "step": step,
         "progress": progress,
         "message": message,
-        "isRunning": not is_done and not is_error,
+        "isRunning": not is_done and not is_error and not is_paused,
         "isError": is_error,
         "isDone": is_done,
+        "isPaused": is_paused,
         "updatedAt": datetime.datetime.now().isoformat(),
     }
     try:
@@ -728,6 +730,74 @@ Important composition rules:
             sys.exit(1)
 
     return image_files
+
+
+def regenerate_single_image(scene_index, project_dir):
+    """Tek bir sahne görseli yeniden üret — UI'dan çağrılır (pause sırasında).
+
+    Args:
+        scene_index: 0-based sahne indeksi
+        project_dir: Path — proje dizini
+
+    Returns:
+        str: yeni görsel yolu veya None
+    """
+    project_dir = Path(project_dir)
+    scenes_file = project_dir / "scenes" / "scenes.json"
+    if not scenes_file.exists():
+        print(f"❌ scenes.json bulunamadı: {scenes_file}")
+        return None
+
+    with open(scenes_file) as f:
+        scenes = json.load(f)
+
+    if scene_index < 0 or scene_index >= len(scenes):
+        print(f"❌ Geçersiz sahne indeksi: {scene_index} (toplam: {len(scenes)})")
+        return None
+
+    # Content type belirle
+    ckpt = _load_checkpoint(project_dir)
+    global _content_type_key, _ct
+    if not hasattr(regenerate_single_image, "_initialized"):
+        # Brief'ten content type oku
+        brief_path = project_dir / "brief.md"
+        ct_key = DEFAULT_CONTENT_TYPE
+        if brief_path.exists():
+            brief_text = brief_path.read_text(encoding="utf-8")
+            import unicodedata
+            for line in brief_text.split("\n"):
+                nf = unicodedata.normalize("NFKD", line).casefold().strip()
+                if ("erik t" in nf and ":" in nf) or "content type:" in nf:
+                    val = line.split(":", 1)[1].strip().lower()
+                    if val in CONTENT_TYPES:
+                        ct_key = val
+                        break
+        _content_type_key = ct_key
+        _ct = CONTENT_TYPES[ct_key].copy()
+        regenerate_single_image._initialized = True
+
+    # Tek sahneyi yeniden üret
+    print(f"\n🔄 Sahne {scene_index + 1} görseli yeniden üretiliyor...")
+    result = generate_scene_images([scenes[scene_index]], project_dir)
+
+    if result:
+        new_path = str(result[0])
+        # Checkpoint güncelle
+        if ckpt and ckpt.get("image_files"):
+            img_files = list(ckpt["image_files"])
+            if scene_index < len(img_files):
+                img_files[scene_index] = new_path
+                completed = list(ckpt.get("completed_steps", []))
+                _write_checkpoint(project_dir, "images", completed,
+                                  script=ckpt.get("script"),
+                                  voice_files=ckpt.get("voice_files"),
+                                  durations=ckpt.get("durations"),
+                                  image_files=img_files)
+                print(f"   ✅ Checkpoint güncellendi: sahne {scene_index + 1}")
+        return new_path
+
+    print(f"   ❌ Sahne {scene_index + 1} yeniden üretilemedi")
+    return None
 
 
 # ═══════════════════════════════════════
@@ -1854,6 +1924,52 @@ def main():
                               script=script, voice_files=voice_files, durations=durations,
                               image_files=[str(f) for f in image_files])
         _write_progress("images", 50, f"{len(image_files)} görsel hazır")
+
+        # ── ADIM 4.5: Görsel İnceleme Duraklatması ──
+        # Pipeline burada durur — kullanıcı görselleri inceler, kötüyse yeniden üretir
+        # Studio UI'dan "Devam Et" butonuna basılınca .pipeline.resume dosyası oluşturulur
+        if "videos" not in completed:  # Eğer video checkpoint'i yoksa duraklat
+            import time as _time
+            resume_file = project_dir / ".pipeline.resume"
+            # Önceki resume sinyalini temizle
+            if resume_file.exists():
+                resume_file.unlink()
+
+            _write_progress("review_images", 50,
+                            f"⏸️ {len(image_files)} görsel hazır — inceleme bekleniyor",
+                            is_paused=True)
+            print(f"\n   ⏸️ DURAKLATILDI — Görselleri inceleyin:")
+            for img in image_files:
+                print(f"      📸 {img}")
+            print(f"   Studio UI'dan 'Devam Et' butonuna basın veya:")
+            print(f"   touch {resume_file}")
+            print(f"   komutuyla devam edin.\n")
+
+            while not resume_file.exists():
+                _time.sleep(1)
+                # SIGTERM ile durdurulmuş olabilir
+                if _progress_path:
+                    try:
+                        with open(_progress_path, "r") as _pf:
+                            _pd = json.load(_pf)
+                            if _pd.get("isError"):
+                                print("   🛑 Pipeline durduruldu.")
+                                sys.exit(0)
+                    except Exception:
+                        pass
+
+            # Resume sinyali geldi — devam et
+            resume_file.unlink(missing_ok=True)
+            # image_files checkpoint'tan yeniden yükle (regenerate edilmiş olabilir)
+            ckpt_refresh = _load_checkpoint(project_dir)
+            if ckpt_refresh and ckpt_refresh.get("image_files"):
+                refreshed = _validate_files(ckpt_refresh["image_files"])
+                if len(refreshed) == len(image_files):
+                    image_files = refreshed
+                    print(f"   🔄 Güncel görseller yüklendi (checkpoint)")
+
+            _write_progress("images", 51, "Görsel onaylandı — video üretimine geçiliyor...")
+            print(f"\n   ▶️ Devam ediliyor — ADIM 5: Video Üretimi")
 
         # ── ADIM 5: Videolar ──
         if "videos" in completed and ckpt.get("video_files"):

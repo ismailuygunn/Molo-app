@@ -12,6 +12,7 @@ interface ProgressData {
   isRunning: boolean;
   isError: boolean;
   isDone: boolean;
+  isPaused: boolean;
   updatedAt: string;
 }
 
@@ -43,10 +44,10 @@ export async function GET(req: NextRequest) {
     const raw = await readFile(progressPath, "utf-8");
     const data: ProgressData = JSON.parse(raw);
 
-    // Trust progress.json but cross-check with process status
     const isRunning = processAlive && data.isRunning;
     const isDone = data.isDone;
-    const isError = data.isError || (!processAlive && !isDone && data.isRunning);
+    const isPaused = data.isPaused || false;
+    const isError = data.isError || (!processAlive && !isDone && !isPaused && data.isRunning);
 
     // Read last 1500 chars of log for display
     let logTail = "";
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
     } catch { /* no log yet */ }
 
     return NextResponse.json({
-      status: isDone ? "done" : isError ? "error" : isRunning ? "running" : "idle",
+      status: isDone ? "done" : isError ? "error" : isPaused ? "paused" : isRunning ? "running" : "idle",
       step: isError && !data.isError ? "error" : data.step,
       progress: data.progress,
       message: isError && !data.isError
@@ -67,6 +68,7 @@ export async function GET(req: NextRequest) {
       isRunning,
       isError,
       isDone,
+      isPaused,
       pid,
       updatedAt: data.updatedAt,
     });

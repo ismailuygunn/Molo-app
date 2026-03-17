@@ -23,6 +23,8 @@ import {
   Pause,
   ZoomIn,
   Download,
+  RefreshCw,
+  SkipForward,
 } from "lucide-react";
 import type { Project, Scene } from "@/store/studio";
 import { useToast } from "@/components/toast";
@@ -35,6 +37,7 @@ const STEP_LABELS: Record<string, string> = {
   voice: "🎤 Sesler üretiliyor...",
   approval: "✅ Onaylandı",
   images: "📸 Görseller üretiliyor...",
+  review_images: "⏸️ Görseller inceleniyor",
   videos: "🎬 Videolar üretiliyor (Kling)...",
   edit: "✂️ Kurgu yapılıyor...",
   subtitles: "💬 Altyazı ekleniyor...",
@@ -50,6 +53,7 @@ const STEP_DETAILS: Record<string, { desc: string; eta: string }> = {
   voice: { desc: "ElevenLabs ile ses dosyaları üretiliyor", eta: "~1dk" },
   approval: { desc: "Sahne yapısı otomatik onaylanıyor", eta: "~5sn" },
   images: { desc: "Nano Banana 2 ile referans görselleri üretiliyor", eta: "~2dk" },
+  review_images: { desc: "Görselleri inceleyin — kötü olanları yeniden üretin, sonra devam edin", eta: "" },
   videos: { desc: "Kling API ile sahne videoları oluşturuluyor", eta: "~5-10dk" },
   edit: { desc: "FFmpeg ile sahneler birleştiriliyor, crossfade uygulanıyor", eta: "~1dk" },
   subtitles: { desc: "Gemini çeviri + FFmpeg ile altyazı ekleniyor", eta: "~1dk" },
@@ -76,6 +80,7 @@ interface PipelineStatus {
   isRunning: boolean;
   isError: boolean;
   isDone: boolean;
+  isPaused?: boolean;
 }
 
 interface ProjectFiles {
@@ -172,7 +177,8 @@ function PipelineProgress({ status, elapsed, compact }: { status: PipelineStatus
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {status.isRunning && <Loader2 size={18} className="pulse" style={{ color: "var(--accent-blue)" }} />}
+          {status.isPaused && <Pause size={18} style={{ color: "#f59e0b" }} />}
+          {status.isRunning && !status.isPaused && <Loader2 size={18} className="pulse" style={{ color: "var(--accent-blue)" }} />}
           {status.isDone && <CheckCircle2 size={18} style={{ color: "var(--accent-green)" }} />}
           {status.isError && <XCircle size={18} style={{ color: "var(--accent-red)" }} />}
           <span style={{ fontWeight: 700, fontSize: compact ? 18 : 14 }}>
@@ -300,6 +306,7 @@ function ScenesContent() {
   const [files, setFiles] = useState<ProjectFiles>({ scenes_images: [], scenes_videos: [], audio: [], draft: [], final: [], subtitles: [] });
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [playingAudio, setPlayingAudio] = useState(false);
+  const [regenerating, setRegenerating] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [pipelineStartTime, setPipelineStartTime] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -387,12 +394,57 @@ function ScenesContent() {
     fetchStatus();
   }, [fetchProject, fetchFiles, fetchStatus]);
 
-  // Auto-start polling when pipeline is running on page load
+  // Auto-start polling when pipeline is running or paused on page load
   useEffect(() => {
-    if (pipelineStatus?.isRunning && !pollingRef.current) {
+    if ((pipelineStatus?.isRunning || pipelineStatus?.isPaused) && !pollingRef.current) {
       startPolling();
     }
-  }, [pipelineStatus?.isRunning]);
+  }, [pipelineStatus?.isRunning, pipelineStatus?.isPaused]);
+
+  // Resume handler
+  const handleResume = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const res = await fetch("/api/pipeline", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+      if (res.ok) {
+        toast.success("Pipeline devam ediyor — video üretimi başlıyor...");
+        fetchStatus();
+      } else {
+        const d = await res.json();
+        toast.error(d.error || "Resume başarısız");
+      }
+    } catch {
+      toast.error("Resume hatası");
+    }
+  }, [projectId, fetchStatus, toast]);
+
+  // Regenerate handler
+  const handleRegenerate = useCallback(async (sceneIdx: number) => {
+    if (!projectId) return;
+    setRegenerating(sceneIdx);
+    try {
+      const res = await fetch("/api/pipeline/regenerate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId, sceneIndex: sceneIdx }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        toast.success(`Sahne ${sceneIdx + 1} yeniden üretildi ✅`);
+        fetchFiles();
+      } else {
+        toast.error(d.error || "Yeniden üretim başarısız");
+      }
+    } catch {
+      toast.error("Yeniden üretim hatası");
+    } finally {
+      setRegenerating(null);
+    }
+  }, [projectId, fetchFiles, toast]);
 
   // Start polling
   const startPolling = useCallback(() => {
@@ -509,6 +561,7 @@ function ScenesContent() {
 
   const scene = project.scenes[activeScene];
   const isRunning = pipelineStatus?.isRunning || false;
+  const isPaused = pipelineStatus?.isPaused || false;
   const sceneImage = scene ? getSceneImage(scene.scene) : undefined;
   const sceneVideo = scene ? getSceneVideo(scene.scene) : undefined;
   const sceneAudio = scene ? getSceneAudio(scene.scene) : undefined;
@@ -526,9 +579,14 @@ function ScenesContent() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn btn-primary" onClick={handlePipeline} disabled={isRunning}>
+          {isPaused && (
+            <button className="btn btn-primary" onClick={handleResume} style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}>
+              <SkipForward size={16} /> Video Üretimine Geç
+            </button>
+          )}
+          <button className="btn btn-primary" onClick={handlePipeline} disabled={isRunning || isPaused}>
             {isRunning ? <Loader2 size={16} className="pulse" /> : <Play size={16} />}
-            {isRunning ? "Çalışıyor..." : "Pipeline Başlat"}
+            {isRunning ? "Çalışıyor..." : isPaused ? "Duraklatıldı" : "Pipeline Başlat"}
           </button>
         </div>
       </div>
@@ -540,6 +598,25 @@ function ScenesContent() {
           elapsed={elapsed}
           compact={project.scenes.length === 0}
         />
+      )}
+
+      {/* Paused state — image review banner */}
+      {isPaused && (
+        <div className="glass-card" style={{ padding: 20, marginBottom: 20, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+            <Pause size={24} style={{ color: "#f59e0b" }} />
+            <div>
+              <h3 style={{ color: "#f59e0b", margin: 0, fontSize: 16 }}>Görseller İnceleniyor</h3>
+              <p style={{ color: "var(--text-secondary)", margin: "4px 0 0", fontSize: 13 }}>
+                Görselleri inceleyin. Kötü olanların üzerindeki 🔄 butonuyla yeniden üretin.
+                Hazır olduğunuzda aşağıdaki butonla video üretimine geçin.
+              </p>
+            </div>
+          </div>
+          <button className="btn btn-primary" onClick={handleResume} style={{ width: "100%", background: "linear-gradient(135deg, #10b981, #059669)", padding: "12px 0", fontSize: 15, fontWeight: 700 }}>
+            <SkipForward size={18} /> ✅ Devam Et — Video Üretimine Geç
+          </button>
+        </div>
       )}
 
       {/* Done state — redirect notice */}
@@ -642,6 +719,17 @@ function ScenesContent() {
                       onClick={() => setLightbox(sceneImage)}
                     />
                     <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
+                      {isPaused && (
+                        <button
+                          className="btn btn-ghost btn-icon"
+                          onClick={() => handleRegenerate(activeScene)}
+                          disabled={regenerating !== null}
+                          title="Bu görseli yeniden üret"
+                          style={{ background: "rgba(245,158,11,0.85)", borderRadius: "50%", width: 28, height: 28, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          {regenerating === activeScene ? <Loader2 size={14} className="pulse" style={{ color: "#fff" }} /> : <RefreshCw size={14} style={{ color: "#fff" }} />}
+                        </button>
+                      )}
                       <button className="btn btn-ghost btn-icon" onClick={() => setLightbox(sceneImage)} style={{ background: "rgba(0,0,0,0.5)", borderRadius: "50%", width: 28, height: 28, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <ZoomIn size={14} style={{ color: "#fff" }} />
                       </button>

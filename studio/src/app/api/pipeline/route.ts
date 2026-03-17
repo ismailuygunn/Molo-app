@@ -143,3 +143,24 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "Pipeline durdurulamadı" }, { status: 500 });
   }
 }
+
+// Pipeline devam ettirme (pause sonrası)
+export async function PATCH(req: NextRequest) {
+  try {
+    const { projectId } = await req.json();
+    if (!projectId) {
+      return NextResponse.json({ error: "projectId gerekli" }, { status: 400 });
+    }
+
+    const projectDir = join(PROJECTS_DIR, projectId);
+    const resumeFile = join(projectDir, ".pipeline.resume");
+
+    // Resume sinyali oluştur — pipeline bu dosyayı görünce devam eder
+    await writeFile(resumeFile, new Date().toISOString(), "utf-8");
+
+    return NextResponse.json({ message: "Pipeline devam ettiriliyor", projectId });
+  } catch (error) {
+    console.error("Pipeline resume error:", error);
+    return NextResponse.json({ error: "Pipeline devam ettirilemedi" }, { status: 500 });
+  }
+}
