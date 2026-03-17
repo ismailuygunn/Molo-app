@@ -1086,12 +1086,23 @@ def compose_final(merged_scenes, ass_path, project_dir, project_name,
     else:
         vf_parts.append(f"{xfade_out}setpts={slowdown_pts:.4f}*PTS[outv]")
 
-    # ── Audio filter chain: concat → atempo ──
+    # ── Audio filter chain: acrossfade → atempo ──
     if sc_count == 1:
         af = f"[0:a]atempo={slowdown}[outa]"
+    elif sc_count == 2:
+        af = (f"[0:a][1:a]acrossfade=d={fade}:c1=tri:c2=tri[acat];"
+              f"[acat]atempo={slowdown}[outa]")
     else:
-        audio_labels = "".join(f"[{i}:a]" for i in range(sc_count))
-        af = f"{audio_labels}concat=n={sc_count}:v=0:a=1[acat];[acat]atempo={slowdown}[outa]"
+        # Zincirleme acrossfade: 3+ sahne
+        af_parts = []
+        prev_a = "[0:a]"
+        for i in range(1, sc_count):
+            is_last = (i == sc_count - 1)
+            out_a = "[acat]" if is_last else f"[a{i:02d}]"
+            af_parts.append(f"{prev_a}[{i}:a]acrossfade=d={fade}:c1=tri:c2=tri{out_a}")
+            prev_a = out_a
+        af_parts.append(f"[acat]atempo={slowdown}[outa]")
+        af = ";".join(af_parts)
 
     # ── Birleştirilmiş filter_complex ──
     fg = ";".join(vf_parts) + ";" + af
