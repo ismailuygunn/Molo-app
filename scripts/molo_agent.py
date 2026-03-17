@@ -1376,6 +1376,7 @@ def _mix_bgm(draft_path, total_duration, project_dir, project_name):
         "-filter_complex", bgm_filter,
         "-map", "0:v", "-map", "[aout]",
         "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+        "-movflags", "+faststart",
         "-shortest", bgm_out
     ]
     r = subprocess.run(cmd, capture_output=True, text=True)
