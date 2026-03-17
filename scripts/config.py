@@ -390,7 +390,9 @@ VOICE_PROFILES = {
 }
 
 # ─── Kling Kompakt Prompt Blokları (2500 char limit) ───
-COMPACT_LOCK = """Character identity locked to source image. Same face, eyes, mouth, body, proportions, blue-white colors, materials, silhouette, hologram. No redesign, no reinterpretation, no simplification, no childish or toy-like changes. Hologram shape/scale/placement must stay identical. Premium digital host, not cartoon."""
+COMPACT_LOCK = """Character identity locked to source image. Same face, eyes, mouth, body, proportions, blue-white colors, materials, silhouette, hologram. No redesign, no reinterpretation, no simplification, no childish or toy-like changes. Hologram shape/scale/placement must stay identical. Premium digital host, not cartoon.
+
+Face anatomy lock: diamond-shaped cyan (#00D4FF) eyes on dark visor — same shape, size, spacing, color in every frame. Mouth: thin cyan LED line on visor surface, opens to small oval during speech (max 30% of eye height). No round eyes, no mouth cavity, no teeth, no face morphing, no asymmetric features. Visor proportions constant."""
 
 COMPACT_MOTION = """Movement: minimal, controlled, precise. Small upper-body motion only. Tiny head nods allowed. Front-facing, direct eye contact. No big turns, no bouncing, no elastic/rubbery motion, no wobble. Face stable throughout, no warping, no expression spikes. Lip sync: speech-driven only, moderate openings, no glow, no jitter. Gestures: very small and elegant only."""
 
