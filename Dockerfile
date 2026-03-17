@@ -25,8 +25,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-venv \
     ffmpeg \
-    fonts-montserrat \
+    fonts-liberation \
+    curl unzip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Montserrat font (not in Debian repos)
+RUN mkdir -p /usr/share/fonts/truetype/montserrat \
+    && curl -sL "https://fonts.google.com/download?family=Montserrat" -o /tmp/montserrat.zip \
+    && unzip -q /tmp/montserrat.zip -d /usr/share/fonts/truetype/montserrat/ \
+    && fc-cache -f \
+    && rm /tmp/montserrat.zip
 
 WORKDIR /app
 
