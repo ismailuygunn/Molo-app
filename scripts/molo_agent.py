@@ -616,6 +616,8 @@ Style: Premium photorealistic composite, like a luxury brand campaign shot on lo
         image_rules = _ct.get('image_rules', '')
         prompt = f"""{gs_reminder}{CHARACTER_IDENTITY_LOCK}
 
+{FACE_ANATOMY_LOCK}
+
 {env_block}
 
 Create a {_ct['orientation']} {_ct['aspect']} premium digital-host frame for a clinic screen. MOLO must be directly facing the camera, making clear direct eye contact, positioned in the center of the frame, with a symmetrical, screen-friendly composition.
@@ -629,8 +631,6 @@ The framing should be a {shot} shot. The posture must be upright, open, welcomin
 Expression and mood: {emotion}
 
 {LIPSYNC_READINESS}
-
-{FACE_ANATOMY_LOCK}
 
 {HOLOGRAM_LOCK}
 
