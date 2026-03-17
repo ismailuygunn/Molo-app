@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useRef, useCallback, Suspense, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -26,7 +27,7 @@ import {
 import type { Project, Scene } from "@/store/studio";
 import { useToast } from "@/components/toast";
 
-// Pipeline step labels
+// Pipeline step labels & details
 const STEP_LABELS: Record<string, string> = {
   idle: "Hazır",
   starting: "Başlatılıyor...",
@@ -34,7 +35,7 @@ const STEP_LABELS: Record<string, string> = {
   voice: "🎤 Sesler üretiliyor...",
   approval: "✅ Onaylandı",
   images: "📸 Görseller üretiliyor...",
-  videos: "🎬 Videolar üretiliyor (Kling v3)...",
+  videos: "🎬 Videolar üretiliyor (Kling)...",
   edit: "✂️ Kurgu yapılıyor...",
   subtitles: "💬 Altyazı ekleniyor...",
   slowdown: "🐢 Final slowdown...",
@@ -42,6 +43,29 @@ const STEP_LABELS: Record<string, string> = {
   done: "🎉 Tamamlandı!",
   error: "❌ Hata oluştu",
 };
+
+const STEP_DETAILS: Record<string, { desc: string; eta: string }> = {
+  starting: { desc: "Pipeline başlatılıyor, brief okunuyor...", eta: "~5sn" },
+  script: { desc: "Gemini ile sahne senaryosu oluşturuluyor", eta: "~30sn" },
+  voice: { desc: "ElevenLabs ile ses dosyaları üretiliyor", eta: "~1dk" },
+  approval: { desc: "Sahne yapısı otomatik onaylanıyor", eta: "~5sn" },
+  images: { desc: "Nano Banana 2 ile referans görselleri üretiliyor", eta: "~2dk" },
+  videos: { desc: "Kling API ile sahne videoları oluşturuluyor", eta: "~5-10dk" },
+  edit: { desc: "FFmpeg ile sahneler birleştiriliyor, crossfade uygulanıyor", eta: "~1dk" },
+  subtitles: { desc: "Gemini çeviri + FFmpeg ile altyazı ekleniyor", eta: "~1dk" },
+  slowdown: { desc: "Final video slowdown uygulanıyor", eta: "~30sn" },
+  thumbnail: { desc: "Thumbnail görseli üretiliyor", eta: "~30sn" },
+  done: { desc: "Tüm adımlar tamamlandı!", eta: "" },
+  error: { desc: "Pipeline bir hatayla karşılaştı", eta: "" },
+};
+
+const PIPELINE_STEPS = ["script", "voice", "images", "videos", "edit", "subtitles", "done"];
+
+function formatElapsed(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m > 0 ? `${m}dk ${s}sn` : `${s}sn`;
+}
 
 interface PipelineStatus {
   status: string;
@@ -131,81 +155,132 @@ function SceneCard({
   );
 }
 
-function PipelineProgress({ status }: { status: PipelineStatus }) {
-  const [showLog, setShowLog] = useState(false);
+function PipelineProgress({ status, elapsed, compact }: { status: PipelineStatus; elapsed: number; compact?: boolean }) {
+  const [showLog, setShowLog] = useState(!compact);
+  const logRef = useRef<HTMLPreElement>(null);
+  const stepDetail = STEP_DETAILS[status.step];
+
+  // Auto-scroll log to bottom
+  useEffect(() => {
+    if (showLog && logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [showLog, status.log]);
 
   return (
-    <div className="glass-card" style={{ padding: 16, marginBottom: 20 }}>
+    <div className="glass-card" style={{ padding: compact ? 20 : 16, marginBottom: 20 }}>
+      {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {status.isRunning && <Loader2 size={16} className="pulse" style={{ color: "var(--accent-blue)" }} />}
-          {status.isDone && <CheckCircle2 size={16} style={{ color: "var(--accent-green)" }} />}
-          {status.isError && <XCircle size={16} style={{ color: "var(--accent-red)" }} />}
-          <span style={{ fontWeight: 600, fontSize: 14 }}>
+          {status.isRunning && <Loader2 size={18} className="pulse" style={{ color: "var(--accent-blue)" }} />}
+          {status.isDone && <CheckCircle2 size={18} style={{ color: "var(--accent-green)" }} />}
+          {status.isError && <XCircle size={18} style={{ color: "var(--accent-red)" }} />}
+          <span style={{ fontWeight: 700, fontSize: compact ? 18 : 14 }}>
             {STEP_LABELS[status.step] || status.step}
           </span>
         </div>
-        <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-geist-mono)" }}>
-          {status.progress}%
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {elapsed > 0 && (
+            <span style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}>
+              <Clock size={12} /> {formatElapsed(elapsed)}
+            </span>
+          )}
+          <span style={{ fontSize: 13, color: status.isError ? "var(--accent-red)" : "var(--accent-blue)", fontWeight: 700, fontFamily: "var(--font-geist-mono)" }}>
+            {status.progress}%
+          </span>
+        </div>
       </div>
 
-      <div className="progress-bar" style={{ marginBottom: 8 }}>
+      {/* Step description */}
+      {stepDetail && (
+        <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 10, display: "flex", justifyContent: "space-between" }}>
+          <span>{stepDetail.desc}</span>
+          {stepDetail.eta && status.isRunning && (
+            <span style={{ color: "var(--text-muted)", fontSize: 11 }}>Tahmini: {stepDetail.eta}</span>
+          )}
+        </div>
+      )}
+
+      {/* Progress bar */}
+      <div className="progress-bar" style={{ marginBottom: 12, height: compact ? 8 : 6 }}>
         <div
           className="progress-fill"
           style={{
             width: `${status.progress}%`,
-            background: status.isError ? "var(--accent-red)" : undefined,
+            background: status.isError ? "var(--accent-red)" : status.isDone ? "var(--accent-green)" : undefined,
+            transition: "width 0.5s ease",
           }}
         />
       </div>
 
-      {/* Step indicators */}
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
-        {["script", "voice", "images", "videos", "edit", "subtitles", "done"].map((step) => {
-          const steps = ["script", "voice", "images", "videos", "edit", "subtitles", "done"];
-          const currentIdx = steps.indexOf(status.step);
-          const stepIdx = steps.indexOf(step);
+      {/* Step indicators — pipeline stepper */}
+      <div style={{ display: "flex", gap: 2, marginBottom: 12, flexWrap: "wrap" }}>
+        {PIPELINE_STEPS.map((step) => {
+          const currentIdx = PIPELINE_STEPS.indexOf(status.step);
+          const stepIdx = PIPELINE_STEPS.indexOf(step);
           const isPast = stepIdx < currentIdx;
           const isCurrent = step === status.step;
 
           return (
-            <span
+            <div
               key={step}
               style={{
-                fontSize: 10,
-                padding: "2px 8px",
-                borderRadius: 12,
-                background: isPast ? "rgba(16,185,129,0.15)" : isCurrent ? "rgba(59,130,246,0.15)" : "var(--bg-primary)",
-                color: isPast ? "var(--accent-green)" : isCurrent ? "var(--accent-blue)" : "var(--text-muted)",
-                fontWeight: isCurrent ? 600 : 400,
+                flex: 1,
+                minWidth: 60,
+                textAlign: "center",
+                padding: "6px 4px",
+                borderRadius: 8,
+                background: isPast ? "rgba(16,185,129,0.12)" : isCurrent ? "rgba(59,130,246,0.12)" : "rgba(255,255,255,0.03)",
+                border: isCurrent ? "1px solid rgba(59,130,246,0.3)" : "1px solid transparent",
+                transition: "all 0.3s ease",
               }}
             >
-              {isPast ? "✓ " : ""}{step}
-            </span>
+              <div style={{
+                fontSize: 11,
+                fontWeight: isCurrent ? 700 : isPast ? 500 : 400,
+                color: isPast ? "var(--accent-green)" : isCurrent ? "var(--accent-blue)" : "var(--text-muted)",
+              }}>
+                {isPast ? "✓" : isCurrent && status.isRunning ? "●" : "○"}
+              </div>
+              <div style={{
+                fontSize: 9,
+                marginTop: 2,
+                color: isPast ? "var(--accent-green)" : isCurrent ? "var(--accent-blue)" : "var(--text-muted)",
+                fontWeight: isCurrent ? 600 : 400,
+              }}>
+                {step}
+              </div>
+            </div>
           );
         })}
       </div>
 
-      {/* Last line */}
-      <div style={{ fontSize: 11, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {status.lastLine}
+      {/* Last activity line */}
+      <div style={{
+        fontSize: 12, color: "var(--text-secondary)", padding: "8px 12px",
+        background: "var(--bg-primary)", borderRadius: 8, marginBottom: 8,
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        border: "1px solid var(--border-subtle)",
+        fontFamily: "var(--font-geist-mono)",
+      }}>
+        {status.lastLine || "Bekleniyor..."}
       </div>
 
       {/* Toggle log */}
       <button
         onClick={() => setShowLog(!showLog)}
         className="btn btn-ghost"
-        style={{ fontSize: 11, marginTop: 8, padding: "4px 8px" }}
+        style={{ fontSize: 11, padding: "4px 10px" }}
       >
-        {showLog ? "Log gizle" : "Log göster"}
+        {showLog ? "▲ Log gizle" : "▼ Detaylı log göster"}
       </button>
       {showLog && (
-        <pre style={{
-          marginTop: 8, padding: 12, background: "var(--bg-primary)", borderRadius: 8,
-          fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.5,
-          maxHeight: 300, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word",
-          border: "1px solid var(--border-subtle)",
+        <pre ref={logRef} style={{
+          marginTop: 8, padding: 12, background: "#0a0a0f", borderRadius: 8,
+          fontSize: 11, color: "#a0aec0", lineHeight: 1.6,
+          maxHeight: compact ? 400 : 300, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word",
+          border: "1px solid rgba(255,255,255,0.05)",
+          fontFamily: "var(--font-geist-mono)",
         }}>
           {status.log || "Log henüz boş..."}
         </pre>
@@ -216,6 +291,7 @@ function PipelineProgress({ status }: { status: PipelineStatus }) {
 
 function ScenesContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const projectId = searchParams.get("project");
   const [project, setProject] = useState<Project | null>(null);
   const [activeScene, setActiveScene] = useState(0);
@@ -224,10 +300,14 @@ function ScenesContent() {
   const [files, setFiles] = useState<ProjectFiles>({ scenes_images: [], scenes_videos: [], audio: [], draft: [], final: [], subtitles: [] });
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [playingAudio, setPlayingAudio] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [pipelineStartTime, setPipelineStartTime] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const toast = useToast();
   const notifiedRef = useRef(false);
+  const redirectedRef = useRef(false);
 
   // Fetch project data
   const fetchProject = useCallback(() => {
@@ -257,12 +337,39 @@ function ScenesContent() {
       .then((r) => r.json())
       .then((data: PipelineStatus) => {
         setPipelineStatus(data);
+
+        // Start timer if running and not started yet
+        if (data.isRunning && !elapsedRef.current) {
+          setPipelineStartTime(Date.now());
+          elapsedRef.current = setInterval(() => {
+            setPipelineStartTime(prev => {
+              if (!prev) return prev;
+              setElapsed(Math.floor((Date.now() - prev) / 1000));
+              return prev;
+            });
+          }, 1000);
+        }
+
         if (data.isDone || data.isError) {
           fetchProject();
           fetchFiles();
+          // Stop elapsed timer
+          if (elapsedRef.current) {
+            clearInterval(elapsedRef.current);
+            elapsedRef.current = null;
+          }
           if (!notifiedRef.current) {
             notifiedRef.current = true;
-            if (data.isDone) toast.success("Pipeline tamamlandı! 🎉");
+            if (data.isDone) {
+              toast.success("Pipeline tamamlandı! 🎉 Kurgu sayfasına yönlendiriliyorsunuz...");
+              // Auto-redirect to edit page after 2 seconds
+              if (!redirectedRef.current) {
+                redirectedRef.current = true;
+                setTimeout(() => {
+                  router.push(`/edit?project=${projectId}`);
+                }, 2500);
+              }
+            }
             if (data.isError) toast.error("Pipeline hatası — log'u kontrol edin");
           }
           if (pollingRef.current) {
@@ -272,7 +379,7 @@ function ScenesContent() {
         }
       })
       .catch(console.error);
-  }, [projectId, fetchProject, fetchFiles, toast]);
+  }, [projectId, fetchProject, fetchFiles, toast, router]);
 
   useEffect(() => {
     fetchProject();
@@ -280,19 +387,28 @@ function ScenesContent() {
     fetchStatus();
   }, [fetchProject, fetchFiles, fetchStatus]);
 
+  // Auto-start polling when pipeline is running on page load
+  useEffect(() => {
+    if (pipelineStatus?.isRunning && !pollingRef.current) {
+      startPolling();
+    }
+  }, [pipelineStatus?.isRunning]);
+
   // Start polling
   const startPolling = useCallback(() => {
     if (pollingRef.current) return;
     pollingRef.current = setInterval(() => {
       fetchStatus();
       fetchFiles();
+      fetchProject();
     }, 3000);
-  }, [fetchStatus, fetchFiles]);
+  }, [fetchStatus, fetchFiles, fetchProject]);
 
   // Cleanup
   useEffect(() => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
       if (audioRef.current) audioRef.current.pause();
     };
   }, []);
@@ -417,22 +533,36 @@ function ScenesContent() {
         </div>
       </div>
 
-      {/* Pipeline Progress */}
+      {/* Pipeline Progress — always visible when running/done/error */}
       {pipelineStatus && pipelineStatus.status !== "idle" && (
-        <PipelineProgress status={pipelineStatus} />
+        <PipelineProgress 
+          status={pipelineStatus} 
+          elapsed={elapsed}
+          compact={project.scenes.length === 0}
+        />
+      )}
+
+      {/* Done state — redirect notice */}
+      {pipelineStatus?.isDone && (
+        <div className="glass-card" style={{ padding: 20, marginBottom: 20, textAlign: "center", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
+          <CheckCircle2 size={32} style={{ color: "var(--accent-green)", marginBottom: 8 }} />
+          <h3 style={{ color: "var(--accent-green)", marginBottom: 8 }}>Pipeline Tamamlandı!</h3>
+          <p style={{ color: "var(--text-secondary)", marginBottom: 12 }}>Kurgu sayfasına yönlendiriliyorsunuz...</p>
+          <button className="btn btn-primary" onClick={() => router.push(`/edit?project=${projectId}`)}>
+            <Film size={16} /> Kurgu Sayfasına Git
+          </button>
+        </div>
       )}
 
       {project.scenes.length === 0 ? (
-        <div className="empty-state" style={{ marginTop: 60 }}>
+        <div className="empty-state" style={{ marginTop: 40 }}>
           {isRunning ? (
             <>
-              <Loader2 size={64} className="pulse" style={{ color: "var(--accent-blue)" }} />
-              <h3 style={{ marginBottom: 8, color: "var(--text-secondary)", marginTop: 16 }}>
-                Pipeline çalışıyor...
-              </h3>
-              <p>Senaryo üretiliyor, lütfen bekleyin</p>
+              <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
+                Sahne verileri oluşturuluyor, sayfa otomatik güncellenecek...
+              </p>
             </>
-          ) : (
+          ) : pipelineStatus?.isDone ? null : (
             <>
               <Sparkles size={64} />
               <h3 style={{ marginBottom: 8, color: "var(--text-secondary)" }}>
