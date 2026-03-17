@@ -280,6 +280,14 @@ QUALITY_FILTERS = {
 # 0.88 = %12 yavaşlatma (doğal, rahat konuşma hızı)
 AUDIO_SLOWDOWN = 0.88
 
+# ─── Akıllı Sahne Bazlı Slowdown ───
+# Konuşma hızına göre her sahneye farklı yavaşlatma
+SMART_SLOWDOWN_TARGET_WPS = 2.5   # Hedef: 2.5 kelime/saniye (rahat dinleme)
+SMART_SLOWDOWN_FAST_WPS = 3.0     # Bu üstü → yavaşlatılır
+SMART_SLOWDOWN_SLOW_WPS = 2.0     # Bu altı → dokunulmaz (speed=1.0)
+SMART_SLOWDOWN_MIN = 0.75         # Minimum speed (max %25 yavaşlatma)
+SMART_SLOWDOWN_MAX = 1.0          # Maximum speed (hızlandırma yok)
+
 # ─── Crossfade ───
 CROSSFADE_DURATION = 0.7
 

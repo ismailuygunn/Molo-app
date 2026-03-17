@@ -48,6 +48,8 @@ from config import (
     COMPACT_LOCK, COMPACT_MOTION,
     COMPACT_LOCK_EKRAN, COMPACT_MOTION_EKRAN,
     QUALITY_FILTERS, AUDIO_SLOWDOWN, CROSSFADE_DURATION,
+    SMART_SLOWDOWN_TARGET_WPS, SMART_SLOWDOWN_FAST_WPS, SMART_SLOWDOWN_SLOW_WPS,
+    SMART_SLOWDOWN_MIN, SMART_SLOWDOWN_MAX,
     TRANSITION_TYPES, DEFAULT_TRANSITION,
     BGM_VOLUME_DB, BGM_FADE_IN, BGM_FADE_OUT, BGM_DIR,
     THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT,
@@ -821,10 +823,42 @@ def generate_videos(scenes, image_files, project_dir, durations=None):
 # ADIM 6: KURGU & EFEKT
 # ═══════════════════════════════════════
 
+def calculate_scene_speeds(scenes, durations):
+    """Her sahne için konuşma hızına göre akıllı slowdown hesapla.
+    Döner: [speed_1, speed_2, ...] — her sahne için 0.75-1.0 arası."""
+    print("\n   🧠 Akıllı Slowdown Analizi:")
+    speeds = []
+    for i, s in enumerate(scenes):
+        text = s.get("text", "")
+        word_count = len(text.split())
+        dur = durations[i] if i < len(durations) else 3.0
+
+        if dur <= 0:
+            speeds.append(AUDIO_SLOWDOWN)
+            continue
+
+        wps = word_count / dur
+
+        if wps > SMART_SLOWDOWN_FAST_WPS:
+            speed = SMART_SLOWDOWN_TARGET_WPS / wps
+            speed = max(SMART_SLOWDOWN_MIN, min(SMART_SLOWDOWN_MAX, speed))
+        elif wps < SMART_SLOWDOWN_SLOW_WPS:
+            speed = 1.0
+        else:
+            speed = AUDIO_SLOWDOWN
+
+        speeds.append(round(speed, 3))
+        label = "🐢 yavaşlat" if speed < AUDIO_SLOWDOWN else ("⏩ atla" if speed == 1.0 else "📏 varsayılan")
+        print(f"      Sahne {i+1}: {word_count} kelime / {dur:.1f}s = {wps:.1f} wps → speed={speed:.3f} {label}")
+
+    return speeds
+
+
 def compose_edit(video_files, voice_files, durations, project_dir, project_name,
-                 crf=None):
+                 crf=None, scene_speeds=None):
     """Ses-video eşleştir, kalite filtrele. Merged sahne dosyaları listesi döndürür.
-    Akıllı süre yönetimi: video > ses → trim, video < ses → tek reverse + loop (max 2x)."""
+    Akıllı süre yönetimi: video > ses → trim, video < ses → tek reverse + loop (max 2x).
+    scene_speeds: None (global slowdown) veya [speed_1, speed_2, ...] (per-scene slowdown)."""
     print("\n" + "=" * 60)
     print("🎬 ADIM 6: Per-Scene Merge (Video + Ses)")
     print("=" * 60)
@@ -840,9 +874,20 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name,
 
         # Video süresini ölç
         video_dur = get_audio_duration(video_files[i])
-        pad_dur = dur + SCENE_PADDING
 
-        print(f"   Sahne {n}: video={video_dur:.1f}s, ses={dur:.1f}s, hedef={pad_dur:.1f}s")
+        # Sahne bazlı slowdown
+        speed = scene_speeds[i] if scene_speeds and i < len(scene_speeds) else None
+        if speed and speed < 1.0:
+            pad_dur = (dur / speed) + SCENE_PADDING
+        else:
+            pad_dur = dur + SCENE_PADDING
+
+        spd_info = f", speed={speed:.3f}" if (speed and speed < 1.0) else ""
+        print(f"   Sahne {n}: video={video_dur:.1f}s, ses={dur:.1f}s, hedef={pad_dur:.1f}s{spd_info}")
+
+        # Slowdown filter eklentileri
+        slow_vf = f",setpts={1/speed}*PTS" if (speed and speed < 1.0) else ""
+        af_args = ["-af", f"atempo={speed}"] if (speed and speed < 1.0) else []
 
         success = False
 
@@ -851,23 +896,22 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name,
                 FFMPEG, "-y",
                 "-i", video_files[i],
                 "-i", voice_files[i],
-                "-filter_complex", f"[0:v]{vf}[v]",
+                "-filter_complex", f"[0:v]{vf}{slow_vf}[v]",
                 "-map", "[v]", "-map", "1:a",
                 "-c:v", "libx264", "-preset", "medium",
                 "-crf", str(QUALITY_FILTERS["crf"]),
                 "-c:a", "aac", "-b:a", "192k", "-r", str(OUTPUT_FPS),
                 "-t", str(pad_dur),
-                "-shortest", out
-            ]
+                "-shortest"] + af_args + [out]
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode == 0:
                 actual_dur = get_audio_duration(out)
-                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (video yeterliydi ✂️)")
+                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (video yeterliydi ✂️{spd_info})")
                 merged.append(out)
                 success = True
 
         if not success and video_dur * 2 >= pad_dur:
-            pingpong_vf = f"[0:v]split[fwd][rev];[rev]reverse[r];[fwd][r]concat=n=2:v=1:a=0,{vf}[v]"
+            pingpong_vf = f"[0:v]split[fwd][rev];[rev]reverse[r];[fwd][r]concat=n=2:v=1:a=0,{vf}{slow_vf}[v]"
             cmd = [
                 FFMPEG, "-y",
                 "-i", video_files[i],
@@ -878,12 +922,11 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name,
                 "-crf", str(QUALITY_FILTERS["crf"]),
                 "-c:a", "aac", "-b:a", "192k", "-r", str(OUTPUT_FPS),
                 "-t", str(pad_dur),
-                "-shortest", out
-            ]
+                "-shortest"] + af_args + [out]
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode == 0:
                 actual_dur = get_audio_duration(out)
-                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (tek reverse 🔄)")
+                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (tek reverse 🔄{spd_info})")
                 merged.append(out)
                 success = True
 
@@ -893,18 +936,17 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name,
                 FFMPEG, "-y",
                 "-stream_loop", str(loop_count - 1), "-i", video_files[i],
                 "-i", voice_files[i],
-                "-filter_complex", f"[0:v]{vf}[v]",
+                "-filter_complex", f"[0:v]{vf}{slow_vf}[v]",
                 "-map", "[v]", "-map", "1:a",
                 "-c:v", "libx264", "-preset", "medium",
                 "-crf", str(QUALITY_FILTERS["crf"]),
                 "-c:a", "aac", "-b:a", "192k", "-r", str(OUTPUT_FPS),
                 "-t", str(pad_dur),
-                "-shortest", out
-            ]
+                "-shortest"] + af_args + [out]
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode == 0:
                 actual_dur = get_audio_duration(out)
-                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (stream_loop x{loop_count})")
+                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (stream_loop x{loop_count}{spd_info})")
                 merged.append(out)
             else:
                 print(f"   ❌ Sahne {n}: {r.stderr[-200:]}")
@@ -1350,6 +1392,14 @@ def main():
             except (ValueError, IndexError):
                 pass
 
+    # Akıllı yavaşlatma oku (varsayılan kapalı)
+    smart_slowdown = False
+    for line in brief_text.split("\n"):
+        ll = line.lower().strip()
+        if any(m in ll for m in ["akıllı yavaşlatma:", "smart_slowdown:", "smart slowdown:"]):
+            val = line.split(":", 1)[1].strip().lower()
+            smart_slowdown = val in ["evet", "yes", "true", "1", "on"]
+
     # Progress tracking başlat
     global _progress_path
     _progress_path = str(project_dir / "progress.json")
@@ -1362,7 +1412,7 @@ def main():
     print(f"   📁 Proje: {project_dir}")
     print(f"   🌍 Dil: {lang}")
     print(f"   🎬 İçerik: {_ct['label']} ({_ct['width']}x{_ct['height']})")
-    print(f"   🐢 Slowdown: {AUDIO_SLOWDOWN}x")
+    print(f"   🐢 Slowdown: {'akıllı (per-scene)' if smart_slowdown else f'{AUDIO_SLOWDOWN}x (global)'}")
     print(f"   🎬 Maks sahne: {max_scenes}")
 
     if dry_run:
@@ -1486,6 +1536,11 @@ def main():
         if len(video_files) < len(scenes):
             print(f"\n   ⚠️ {len(video_files)}/{len(scenes)} video hazır — devam ediliyor")
 
+        # Sahne bazlı slowdown hesapla (smart_slowdown aktifse)
+        scene_speeds = None
+        if smart_slowdown:
+            scene_speeds = calculate_scene_speeds(scenes, durations)
+
         # ── ADIM 6: Per-Scene Merge ──
         if "edit" in completed and ckpt.get("merged_scenes"):
             merged_scenes = _validate_files(ckpt["merged_scenes"])
@@ -1495,7 +1550,7 @@ def main():
                 print(f"   ⚠️ {len(ckpt['merged_scenes']) - len(merged_scenes)} merge eksik, yeniden oluşturuluyor...")
                 completed = [s for s in completed if s != "edit"]
                 _write_progress("edit", 72, "Per-scene merge oluşturuluyor...")
-                merged_scenes = compose_edit(video_files, voice_files, durations, project_dir, project_name)
+                merged_scenes = compose_edit(video_files, voice_files, durations, project_dir, project_name, scene_speeds=scene_speeds)
                 if not merged_scenes:
                     raise RuntimeError("Per-scene merge başarısız")
                 completed.append("edit")
@@ -1506,7 +1561,7 @@ def main():
                                   merged_scenes=merged_scenes)
         else:
             _write_progress("edit", 72, "Per-scene merge oluşturuluyor...")
-            merged_scenes = compose_edit(video_files, voice_files, durations, project_dir, project_name)
+            merged_scenes = compose_edit(video_files, voice_files, durations, project_dir, project_name, scene_speeds=scene_speeds)
             if not merged_scenes:
                 raise RuntimeError("Per-scene merge başarısız")
             if "edit" not in completed:
@@ -1540,7 +1595,8 @@ def main():
             print(f"   ⏩ Final compose atlandı (checkpoint)")
         else:
             _write_progress("final", 87, "Final render (crossfade + altyazı + slowdown)...")
-            final = compose_final(merged_scenes, ass_path, project_dir, project_name)
+            final_speed = 1.0 if smart_slowdown else None  # Per-scene slowdown zaten uygulandı
+            final = compose_final(merged_scenes, ass_path, project_dir, project_name, speed=final_speed)
             if not final:
                 raise RuntimeError("Final compose başarısız")
             if "final" not in completed:
