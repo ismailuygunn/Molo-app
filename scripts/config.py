@@ -140,9 +140,27 @@ CONTENT_TYPES = {
         "is_greenscreen": True,
         "subtitle_margin_v": 550,
         "subtitle_fontsize": 42,
-        "scene_direction": "",
-        "video_prompt_boost": "",
-        "image_rules": "",
+        "scene_direction": (
+            "Vertical 9:16 green screen studio shoot. "
+            "CRITICAL: Background must be a perfectly uniform, solid, bright chroma green (#00B140). "
+            "No shadows on the green background. No gradients. No fog. No floor. No props. "
+            "MOLO is the only visible element. Green extends to all edges with zero variation. "
+            "Professional studio lighting on character only — no light spill on green."
+        ),
+        "video_prompt_boost": (
+            "Chroma key ready professional studio shoot. "
+            "Perfectly flat, evenly lit, solid green (#00B140) background filling the ENTIRE frame edge to edge. "
+            "MOLO centered, front-facing. Soft key lighting on character, fill light to eliminate all shadows. "
+            "No floor reflections. No shadow cast on green surface. No ambient particles. "
+            "The green must remain PERFECTLY UNIFORM frame to frame — ready for live chroma key extraction."
+        ),
+        "image_rules": (
+            "MOLO centered on perfectly flat solid chroma green (#00B140) background. "
+            "No shadows on background. No gradient. No floor visible. No reflections. No props. "
+            "Studio key light from front-left, fill light from front-right. "
+            "Character edges must be clean and sharp against the green — no green spill on character. "
+            "The background must be pixel-perfect uniform green for chroma key."
+        ),
         "thumbnail": False,
         "thumbnail_w": 1080,
         "thumbnail_h": 1920,
@@ -157,9 +175,27 @@ CONTENT_TYPES = {
         "is_greenscreen": True,
         "subtitle_margin_v": 80,
         "subtitle_fontsize": 36,
-        "scene_direction": "",
-        "video_prompt_boost": "",
-        "image_rules": "",
+        "scene_direction": (
+            "Horizontal 16:9 green screen studio shoot. "
+            "CRITICAL: Background must be a perfectly uniform, solid, bright chroma green (#00B140). "
+            "No shadows on the green background. No gradients. No fog. No floor. No props. "
+            "MOLO can be positioned slightly off-center or left-third for compositing flexibility. "
+            "Professional studio lighting on character only — no light spill on green."
+        ),
+        "video_prompt_boost": (
+            "Chroma key ready professional horizontal studio shoot. "
+            "Perfectly flat, evenly lit, solid green (#00B140) background filling the ENTIRE frame edge to edge. "
+            "MOLO positioned for compositing flexibility. Soft key lighting on character, fill light to eliminate all shadows. "
+            "No floor reflections. No shadow cast on green surface. No ambient particles. "
+            "The green must remain PERFECTLY UNIFORM frame to frame — ready for live chroma key extraction."
+        ),
+        "image_rules": (
+            "MOLO on perfectly flat solid chroma green (#00B140) background, positioned slightly off-center. "
+            "No shadows on background. No gradient. No floor visible. No reflections. No props. "
+            "Studio key light from front-left, fill light from front-right. Wide horizontal framing. "
+            "Character edges must be clean and sharp against the green — no green spill on character. "
+            "The background must be pixel-perfect uniform green for chroma key."
+        ),
         "thumbnail": False,
         "thumbnail_w": 1920,
         "thumbnail_h": 1080,
@@ -174,9 +210,27 @@ CONTENT_TYPES = {
         "is_greenscreen": True,
         "subtitle_margin_v": 200,
         "subtitle_fontsize": 38,
-        "scene_direction": "",
-        "video_prompt_boost": "",
-        "image_rules": "",
+        "scene_direction": (
+            "Square 1:1 green screen studio shoot. "
+            "CRITICAL: Background must be a perfectly uniform, solid, bright chroma green (#00B140). "
+            "No shadows on the green background. No gradients. No fog. No floor. No props. "
+            "MOLO centered and filling 60-70% of frame. "
+            "Professional studio lighting on character only — no light spill on green."
+        ),
+        "video_prompt_boost": (
+            "Chroma key ready professional square studio shoot. "
+            "Perfectly flat, evenly lit, solid green (#00B140) background filling the ENTIRE frame edge to edge. "
+            "MOLO centered, filling 60-70% of frame. Soft key lighting on character, fill light to eliminate all shadows. "
+            "No floor reflections. No shadow cast on green surface. No ambient particles. "
+            "The green must remain PERFECTLY UNIFORM frame to frame — ready for live chroma key extraction."
+        ),
+        "image_rules": (
+            "MOLO centered on perfectly flat solid chroma green (#00B140) background, filling 60-70% of square frame. "
+            "No shadows on background. No gradient. No floor visible. No reflections. No props. "
+            "Studio key light from front-left, fill light from front-right. "
+            "Character edges must be clean and sharp against the green — no green spill on character. "
+            "The background must be pixel-perfect uniform green for chroma key."
+        ),
         "thumbnail": False,
         "thumbnail_w": 1080,
         "thumbnail_h": 1080,
@@ -348,6 +402,11 @@ Face rules: no face morphing, no cheek distortion, no eye warping, no sudden exp
 Mouth rules: if silent keep mouth naturally closed and stable. If speech added mouth moves only with dialogue. No mouth glow, no oversized openings, no distorted jaw, no weird inner-mouth artifacts.
 Camera: horizontal composition, balanced premium framing, elegant negative space, no dramatic camera motion, no shaky movement, no chaotic zoom.
 Lighting: soft premium studio lighting, warm off-white luxury tone, subtle sculptural shadows, polished material definition, no harsh contrast, no cheap plastic shine."""
+
+# ─── Green Screen Kompakt Prompt Blokları ───
+COMPACT_LOCK_GS = """Character: MOLO — compact dental mascot robot. Dark navy-blue metallic body. Cyan glowing diamond-shaped eyes. Open hologram cone on top glowing cyan. Short, rounded, not more than 60cm tall. NOT a real person. Not a cartoon. Premium 3D-rendered robot with clean, studio-quality appearance. BACKGROUND: MUST be perfectly flat solid chroma green (#00B140). No exceptions."""
+
+COMPACT_MOTION_GS = """Motion: Minimal, controlled, robotic. Small 2-5cm movements only. No bouncing, no elastic motion, no exaggerated gestures. Subtle head tilt, gentle hand wave, slight body lean — all micro-movements. Character stays in place — no walking, no jumping, no large position changes. BACKGROUND: Must remain perfectly static uniform green throughout entire duration."""
 
 # ─── FFmpeg Kalite Filtreleri ───
 QUALITY_FILTERS = {
