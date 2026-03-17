@@ -2040,7 +2040,7 @@ def render_from_config(config_path: str):
             nf = unicodedata.normalize("NFKD", line).casefold().strip()
             if ("erik t" in nf and ":" in nf) or "content type:" in nf:
                 val = line.split(":", 1)[1].strip().lower()
-                if val in ["sosyal", "ekran", "robot"]:
+                if val in CONTENT_TYPES:
                     ct_key = val
                     print(f"   Brief content type: {val}")
 
