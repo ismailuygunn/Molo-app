@@ -808,7 +808,7 @@ Avoid: side angle, 3/4 view, oversized mascot, cartoon wobble, arm flailing, fac
     if scene_env != "clinic" and scene_env != "studio" and bg_desc:
         scene_block += f"\n\nEnvironment continuity: {bg_desc}. Background must stay stable throughout animation. No background morphing or drift."
 
-    full = f"{lock}\n\n{COMPACT_FACE_LOCK}\n\n{motion}\n\n{scene_block}"
+    full = f"{lock}\n\n{motion}\n\n{scene_block}"
 
     if len(full) > KLING_MAX_PROMPT_CHARS:
         original_len = len(full)
