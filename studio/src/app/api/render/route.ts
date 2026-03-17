@@ -50,9 +50,10 @@ export async function POST(req: NextRequest) {
     const { createWriteStream } = await import("fs");
     const logStream = createWriteStream(logPath, { flags: "a" });
     child.stdout?.on("data", (data: Buffer) => logStream.write(data.toString()));
-    child.stderr?.on("data", (data: Buffer) => logStream.write(`[ERR] ${data.toString()}`));
+    child.stderr?.on("data", (data: Buffer) => logStream.write(`[STDERR] ${data.toString()}`));
     child.on("close", (code: number | null) => {
-      logStream.write(`\n[${new Date().toISOString()}] Render tamamlandı (exit: ${code})\n`);
+      const marker = code === 0 ? "RENDER_SUCCESS" : "RENDER_FAILED";
+      logStream.write(`\n${marker}\n[${new Date().toISOString()}] Render tamamlandı (exit: ${code})\n`);
       logStream.end();
     });
     child.unref();

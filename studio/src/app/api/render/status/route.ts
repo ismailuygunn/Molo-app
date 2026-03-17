@@ -28,10 +28,9 @@ export async function GET(req: NextRequest) {
       const lines = logContent.trim().split("\n").filter(l => l.trim());
       lastLine = lines[lines.length - 1] || "";
 
-      // Detect state from log
-      completed = logContent.includes("Render complete!");
-      error = logContent.includes("sys.exit(1)") || logContent.includes("[ERR]") ||
-              lastLine.includes("exit: 1");
+      // Detect state from log — use explicit markers
+      completed = logContent.includes("RENDER_SUCCESS");
+      error = logContent.includes("RENDER_FAILED");
 
       // Check if render process is still running (log modified recently)
       try {
@@ -41,9 +40,9 @@ export async function GET(req: NextRequest) {
       } catch { /* */ }
 
       // Estimate progress from log content
-      if (logContent.includes("Merged scenes:")) progress = 40;
+      if (logContent.includes("sahne birle")) progress = 40;
       if (logContent.includes("ADIM 6:") || logContent.includes("Per-Scene Merge")) progress = 20;
-      if (logContent.includes("ASS subtitles:")) progress = 60;
+      if (logContent.includes("ASS") && logContent.includes("altyaz")) progress = 60;
       if (logContent.includes("ADIM 8:") || logContent.includes("Final Compose")) progress = 70;
       if (completed) progress = 100;
       if (error) progress = -1;
@@ -64,7 +63,7 @@ export async function GET(req: NextRequest) {
       completed,
       error,
       progress,
-      lastLine: lastLine.replace(/\[ERR\]\s*/g, "").trim(),
+      lastLine: lastLine.replace(/\[STDERR\]\s*/g, "").trim(),
       log: meaningful,
     });
   } catch (err) {
