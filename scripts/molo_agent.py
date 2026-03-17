@@ -396,11 +396,22 @@ def generate_voices(scenes, lang, project_name, project_dir=None):
             }
         }
 
-        resp = requests.post(
-            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
-            headers={"xi-api-key": api_key, "Content-Type": "application/json"},
-            json=payload, timeout=30
-        )
+        for retry in range(3):
+            resp = requests.post(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+                headers={"xi-api-key": api_key, "Content-Type": "application/json"},
+                json=payload, timeout=60
+            )
+            if resp.status_code == 200:
+                break
+            elif resp.status_code in (429, 500, 502, 503, 504) and retry < 2:
+                wait = 10 * (retry + 1)
+                print(f"   ⚠️ Sahne {n}: HTTP {resp.status_code}, {wait}s sonra tekrar deneniyor...")
+                time.sleep(wait)
+                continue
+            else:
+                print(f"   ❌ Sahne {n}: HTTP {resp.status_code} — {resp.text[:200]}")
+                sys.exit(1)
 
         if resp.status_code == 200:
             with open(output_file, "wb") as f:
