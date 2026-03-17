@@ -374,6 +374,7 @@ def generate_voices(scenes, lang, project_name, project_dir=None):
                 "stability": preset["stability"],
                 "similarity_boost": preset.get("similarity_boost", 0.80),
                 "style": preset["style"],
+                "speed": preset.get("speed", 1.0),
                 "use_speaker_boost": True,
             }
         }

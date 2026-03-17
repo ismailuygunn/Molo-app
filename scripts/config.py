@@ -146,13 +146,13 @@ ELEVENLABS_MODEL = "eleven_multilingual_v2"
 
 # ─── ElevenLabs Ses Yönlendirme Preset'leri ───
 VOICE_PRESETS = {
-    "energetic":   {"stability": 0.30, "similarity_boost": 0.80, "style": 0.70},
-    "warm":        {"stability": 0.45, "similarity_boost": 0.80, "style": 0.55},
-    "informative": {"stability": 0.55, "similarity_boost": 0.75, "style": 0.35},
-    "excited":     {"stability": 0.25, "similarity_boost": 0.85, "style": 0.80},
-    "calm":        {"stability": 0.65, "similarity_boost": 0.75, "style": 0.25},
-    "playful":     {"stability": 0.35, "similarity_boost": 0.80, "style": 0.60},
-    "mischievous": {"stability": 0.35, "similarity_boost": 0.85, "style": 0.65},
+    "energetic":   {"stability": 0.30, "similarity_boost": 0.80, "style": 0.70, "speed": 1.05},
+    "warm":        {"stability": 0.45, "similarity_boost": 0.80, "style": 0.55, "speed": 0.95},
+    "informative": {"stability": 0.55, "similarity_boost": 0.75, "style": 0.35, "speed": 1.00},
+    "excited":     {"stability": 0.25, "similarity_boost": 0.85, "style": 0.80, "speed": 1.10},
+    "calm":        {"stability": 0.65, "similarity_boost": 0.75, "style": 0.25, "speed": 0.90},
+    "playful":     {"stability": 0.35, "similarity_boost": 0.80, "style": 0.60, "speed": 1.00},
+    "mischievous": {"stability": 0.35, "similarity_boost": 0.85, "style": 0.65, "speed": 1.00},
 }
 
 # ElevenLabs varsayılan ayarlar
@@ -160,6 +160,7 @@ VOICE_DEFAULT = {
     "stability": 0.50,
     "similarity_boost": 0.75,
     "style": 0.45,
+    "speed": 1.00,
 }
 
 # ─── Molo Karakter Kişiliği (İçerik/senaryo üretiminde kullanılır) ───
