@@ -15,6 +15,7 @@ from datetime import datetime
 from config import (
     BASE_DIR, PROJECTS_DIR, FFMPEG,
     OUTPUT_WIDTH, OUTPUT_HEIGHT, OUTPUT_FPS,
+    QUALITY_FILTERS,
     get_normalize_filter
 )
 
@@ -125,7 +126,7 @@ def concat_videos(video_files, output_path, transition="fade", transition_durati
         
         # Her videoyu normalize et (aynı boyut + fps)
         for i in range(n):
-            filter_parts.append(f"[{i}:v]scale={OUTPUT_WIDTH}:{OUTPUT_HEIGHT},fps=30,format=yuv420p[v{i}];")
+            filter_parts.append(f"[{i}:v]scale={OUTPUT_WIDTH}:{OUTPUT_HEIGHT},fps={OUTPUT_FPS},format=yuv420p[v{i}];")
         
         # Geçişler (xfade)
         if n == 2:
@@ -156,7 +157,7 @@ def concat_videos(video_files, output_path, transition="fade", transition_durati
         cmd = [FFMPEG, "-y"] + inputs + [
             "-filter_complex", filter_graph,
             "-map", "[outv]", "-map", "[outa]",
-            "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+            "-c:v", "libx264", "-preset", "medium", "-crf", str(QUALITY_FILTERS["crf"]),
             "-c:a", "aac", "-b:a", "192k",
             str(output_path)
         ]
@@ -247,7 +248,7 @@ def add_logo_overlay(video_path, logo_path, output_path,
         "-filter_complex",
         f"[1:v]scale={size}:-1,format=rgba,colorchannelmixer=aa={opacity}[logo];[0:v][logo]{overlay_pos}[outv]",
         "-map", "[outv]", "-map", "0:a?",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+        "-c:v", "libx264", "-preset", "fast", "-crf", str(QUALITY_FILTERS["crf"]),
         "-c:a", "copy",
         str(output_path)
     ]
