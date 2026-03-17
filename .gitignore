@@ -12,10 +12,11 @@ __pycache__/
 
 # Node.js
 node_modules/
+.next/
 studio/.next/
 
 # OS
-.DS_Store
+**/.DS_Store
 Thumbs.db
 
 # IDE
