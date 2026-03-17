@@ -552,10 +552,18 @@ def generate_scene_images(scenes, project_dir):
             mime_type="image/jpeg"
         )]
 
-        # Klinik arka planı varsa ekle
+        # Klinik arka planı — green screen modunda EKLEME (yeşil BG olmalı)
         env_ref = ENVIRONMENT_IMAGES.get(env)
         env_block = ""
-        if env_ref and env_ref.exists():
+        gs_reminder = ""
+        if _ct.get("is_greenscreen", False):
+            gs_reminder = (
+                "\n\nCRITICAL: This is a GREEN SCREEN shoot. "
+                "The ENTIRE background must be perfectly flat solid chroma green (#00B140). "
+                "NO other background elements. NO shadows on the green. "
+                "Only the MOLO character visible against uniform green.\n\n"
+            )
+        elif env_ref and env_ref.exists():
             images_to_send.insert(0, gtypes.Part.from_bytes(
                 data=open(env_ref, "rb").read(),
                 mime_type="image/jpeg"
@@ -565,7 +573,7 @@ def generate_scene_images(scenes, project_dir):
         # Premium prompt oluştur
         orient_text = "horizontal wide" if _ct['orientation'] == 'horizontal' else "vertical"
         image_rules = _ct.get('image_rules', '')
-        prompt = f"""{CHARACTER_IDENTITY_LOCK}
+        prompt = f"""{gs_reminder}{CHARACTER_IDENTITY_LOCK}
 
 {env_block}
 
@@ -803,9 +811,17 @@ def _submit_kling_task(scene, ref_path, scene_duration="5", total_scenes=1):
     img_b64 = base64.b64encode(open(ref_path, "rb").read()).decode()
     token = get_kling_token()
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
+
+    # Green screen ek negatif prompt
+    neg = KLING_NEGATIVE_PROMPT
+    if _ct.get("is_greenscreen", False):
+        neg += (", background color change, background gradient, shadow on green, "
+                "floor reflection, any non-green background, particles, fog, smoke, "
+                "environmental props, furniture, walls, floor texture, ambient light on background")
+
     payload = {
         "model_name": KLING_MODEL, "image": img_b64,
-        "prompt": prompt, "negative_prompt": KLING_NEGATIVE_PROMPT,
+        "prompt": prompt, "negative_prompt": neg,
         "duration": scene_duration, "aspect_ratio": _ct['kling_aspect'],
         "cfg_scale": cfg,
     }
