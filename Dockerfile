@@ -26,15 +26,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     ffmpeg \
     fonts-liberation \
-    curl unzip \
+    fonts-dejavu-core \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Montserrat font (not in Debian repos)
+# Install Montserrat font from GitHub
 RUN mkdir -p /usr/share/fonts/truetype/montserrat \
-    && curl -sL "https://fonts.google.com/download?family=Montserrat" -o /tmp/montserrat.zip \
-    && unzip -q /tmp/montserrat.zip -d /usr/share/fonts/truetype/montserrat/ \
-    && fc-cache -f \
-    && rm /tmp/montserrat.zip
+    && curl -sL "https://raw.githubusercontent.com/JulietaUla/Montserrat/master/fonts/ttf/Montserrat-Bold.ttf" \
+       -o /usr/share/fonts/truetype/montserrat/Montserrat-Bold.ttf \
+    && curl -sL "https://raw.githubusercontent.com/JulietaUla/Montserrat/master/fonts/ttf/Montserrat-SemiBold.ttf" \
+       -o /usr/share/fonts/truetype/montserrat/Montserrat-SemiBold.ttf \
+    && curl -sL "https://raw.githubusercontent.com/JulietaUla/Montserrat/master/fonts/ttf/Montserrat-Regular.ttf" \
+       -o /usr/share/fonts/truetype/montserrat/Montserrat-Regular.ttf \
+    && fc-cache -f
 
 WORKDIR /app
 
