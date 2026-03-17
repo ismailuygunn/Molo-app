@@ -285,7 +285,21 @@ CRITICAL RULES FOR SCRIPT WRITING:
 - MOLO is NOT a doctor — relay info simply, warmly, accessibly
 - Keep scenes balanced in length — no scene should be 3x longer than another
 
-AVAILABLE ENVIRONMENTS: clinic (with clinic photo background), studio (soft blurred background)
+ENVIRONMENT SELECTION RULES:
+You must choose the most appropriate environment for EACH scene based on its content.
+TYPES:
+1. "clinic" — ONLY when scene takes place inside the dental clinic (welcoming patients,
+   clinic tour, dental procedures). Uses real clinic reference photo.
+2. "studio" — For abstract/brand scenes with no specific location (general dental tips,
+   brand intro, meditation). Dark atmospheric studio.
+3. Any specific real-world location — When content implies a place. Write a descriptive
+   location name. Examples:
+   - Istanbul topic → "istanbul_bosphorus" or "istanbul_sultanahmet"
+   - School topic → "school_classroom"
+   - Park/nature → "city_park" or "garden"
+   - Morning routine → "modern_bathroom" or "family_kitchen"
+When environment is NOT "clinic" and NOT "studio", you MUST include a "background_description"
+field with 2-3 sentences describing the visual background (lighting, colors, details).
 AVAILABLE POSES: front (neutral speaking), front-wave (greeting/farewell)
 AVAILABLE VOICE DIRECTIONS: energetic, warm, informative, playful, mischievous, calm, excited
 AVAILABLE SHOT TYPES: medium (full body, environment visible), medium-close (upper body, face prominent), close-medium (face focus, lip-sync priority)
