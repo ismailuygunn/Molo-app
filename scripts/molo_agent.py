@@ -1132,11 +1132,11 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name,
             else:
                 print(f"   ❌ Sahne {n}: {r.stderr[-200:]}")
 
-    if len(merged) < 2:
-        print("   ❌ Yetersiz sahne!")
+    if len(merged) < 1:
+        print("   ❌ Hiç sahne birleştirilemedi!")
         return None
 
-    print(f"\n   ✅ {len(merged)} sahne birleştirildi (per-scene encode tamamlandı)")
+    print(f"\n   ✅ {len(merged)} sahne birleştirildi")
     return merged
 
 
