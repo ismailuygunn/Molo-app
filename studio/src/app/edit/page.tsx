@@ -323,51 +323,33 @@ function EditContent() {
       setLastRenderConfig({ crossfade, slowdown, crf, transition, addSubs, fontSize, marginV });
       setSettingsChanged(false);
 
-      // Poll for progress via render log
-      const startDraftCount = sceneFiles.draft.length;
-      const startFinalCount = sceneFiles.final.length;
-
+      // Poll render status via log-based API
       const pollInterval = setInterval(async () => {
         try {
-          const logRes = await fetch(`/api/projects/${encodeURIComponent(projectId)}/files`);
-          const logData = await logRes.json();
-          const newDrafts = logData.draft || [];
-          const newFinals = logData.final || [];
+          const statusRes = await fetch(`/api/render/status?project=${encodeURIComponent(projectId)}`);
+          const status = await statusRes.json();
 
-          // Check for new per-scene drafts (s01_final.mp4 etc)
-          const sceneDrafts = newDrafts.filter((f: string) => /s\d+_final\.mp4/.test(f));
-          if (sceneDrafts.length > 0 && project) {
-            setRenderProgress(`Sahneler birleştiriliyor... (${sceneDrafts.length}/${project.scenes.length})`);
+          if (status.lastLine) {
+            setRenderProgress(status.lastLine);
           }
 
-          const hasDraft = newDrafts.length > startDraftCount;
-          const hasFinal = newFinals.length > startFinalCount;
-
-          if (hasDraft || hasFinal) {
+          if (status.completed) {
             clearInterval(pollInterval);
-            const toFileInfo = (arr: unknown[]): FileInfo[] =>
-              arr.map((item: unknown) =>
-                typeof item === 'string'
-                  ? { url: item, size: 0, name: item.split('/').pop() || '' }
-                  : item as FileInfo
-              );
-            setSceneFiles({
-              scenes_images: logData.scenes_images || [],
-              scenes_videos: logData.scenes_videos || [],
-              audio: logData.audio || [],
-              draft: toFileInfo(logData.draft || []),
-              final: toFileInfo(logData.final || []),
-              subtitles: toFileInfo(logData.subtitles || []),
-            });
-            setRenderKey(k => k + 1);
-            toast.success(`${type === "final" ? "Final" : "Draft"} render tamamlandı!`);
             setRendering(false);
             setRenderProgress("");
+            fetchFiles();
+            setRenderKey(k => k + 1);
+            toast.success(`${type === "final" ? "Final" : "Draft"} render tamamlandı!`);
+          } else if (status.error) {
+            clearInterval(pollInterval);
+            setRendering(false);
+            setRenderProgress("");
+            toast.error("Render başarısız — logları kontrol edin");
           }
         } catch {
           // ignore poll errors
         }
-      }, 3000);
+      }, 2000);
 
       setTimeout(() => {
         clearInterval(pollInterval);
@@ -500,14 +482,34 @@ function EditContent() {
         marginBottom: 16, display: "flex", justifyContent: "center", alignItems: "center",
         minHeight: videoSrc ? 0 : 120,
       }}>
-        {videoSrc ? (
-          <video key={`${videoSrc}_${renderKey}`} controls style={{
-            maxHeight: "45vh", maxWidth: "100%", width: "auto",
-            display: "block", borderRadius: 12,
-            boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
-          }}>
-            <source src={videoSrc} type="video/mp4" />
-          </video>
+      {videoSrc ? (
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <video key={`${videoSrc}_${renderKey}`} controls style={{
+              maxHeight: "45vh", maxWidth: "100%", width: "auto",
+              display: "block", borderRadius: 12,
+              boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+            }}>
+              <source src={videoSrc} type="video/mp4" />
+            </video>
+            <a
+              href={videoSrc}
+              download
+              style={{
+                position: "absolute", top: 12, right: 12,
+                background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                borderRadius: 10, padding: "8px 14px",
+                color: "#fff", fontSize: 12, fontWeight: 600,
+                display: "flex", alignItems: "center", gap: 6,
+                textDecoration: "none", cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(59,130,246,0.8)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,0,0,0.7)"; }}
+            >
+              <Download size={14} /> MP4 İndir
+            </a>
+          </div>
         ) : (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "center",

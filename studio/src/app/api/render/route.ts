@@ -83,7 +83,7 @@ if not video_files:
     print('No video files found')
     sys.exit(1)
 
-# Auto-detect orientation from first source video
+# Log source video dimensions (debug)
 try:
     probe = subprocess.run(
         ['ffprobe', '-v', 'quiet', '-select_streams', 'v:0',
@@ -93,18 +93,9 @@ try:
     streams = vinfo.get('streams', [{}])
     src_w = streams[0].get('width', 0)
     src_h = streams[0].get('height', 0)
-    if src_w > 0 and src_h > 0:
-        is_portrait = src_h > src_w
-        ct_is_portrait = CONTENT_TYPES.get(ct_key, {}).get('orientation') == 'vertical'
-        if is_portrait and not ct_is_portrait:
-            print(f'⚠️ Kaynak video dikey ({src_w}x{src_h}) ama brief yatay diyor → sosyal moduna geçiliyor')
-            ct_key = 'sosyal'
-        elif not is_portrait and ct_is_portrait:
-            print(f'⚠️ Kaynak video yatay ({src_w}x{src_h}) ama brief dikey diyor → ekran moduna geçiliyor')
-            ct_key = 'ekran'
-        print(f'Kaynak video: {src_w}x{src_h}')
+    print(f'Kaynak video: {src_w}x{src_h}')
 except Exception as e:
-    print(f'Video boyut algılama hatası: {e}')
+    print(f'Video boyut okunamadı: {e}')
 
 molo_agent._content_type_key = ct_key
 molo_agent._ct = CONTENT_TYPES.get(ct_key, CONTENT_TYPES['sosyal']).copy()
