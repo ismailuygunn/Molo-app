@@ -408,6 +408,64 @@ COMPACT_LOCK_GS = """Character: MOLO — compact dental mascot robot. Dark navy-
 
 COMPACT_MOTION_GS = """Motion: Minimal, controlled, robotic. Small 2-5cm movements only. No bouncing, no elastic motion, no exaggerated gestures. Subtle head tilt, gentle hand wave, slight body lean — all micro-movements. Character stays in place — no walking, no jumping, no large position changes. BACKGROUND: Must remain perfectly static uniform green throughout entire duration."""
 
+# ─── Yüz Anatomisi Kilidi (göz/ağız/vizör tutarlılığı) ───
+FACE_ANATOMY_LOCK = """MOLO FACE ANATOMY — ABSOLUTE LOCK (must match reference exactly):
+
+EYE DESIGN:
+- Shape: two horizontally-oriented diamond/rhombus shapes, slightly rounded at corners
+- Color: bright cyan-teal (#00D4FF) with soft inner glow
+- Size: each eye occupies approximately 15% of the visor width
+- Position: horizontally centered on the visor, vertically positioned in the upper 40% of the visor area
+- Spacing: the gap between the two eyes is approximately equal to the width of one eye
+- Expression: default is calm, alert, slightly warm — achieved by keeping the diamond shape symmetrical with very subtle upward tilt at outer corners
+- The eyes must NEVER change shape, size, color, spacing, or position between frames or scenes
+- No round eyes, no oval eyes, no anime eyes, no human eyes, no dot eyes
+- No eye glow spikes, no eye color shifts, no eye size changes during animation
+
+MOUTH DESIGN:
+- Shape: a gentle curved line forming a subtle smile, positioned in the lower 30% of the visor
+- Style: thin LED-like illuminated line, NOT a 3D mouth cavity
+- Color: same cyan-teal as eyes (#00D4FF) or very slightly lighter
+- Width: approximately 60% of the distance between both eyes' outer edges
+- The mouth is a SURFACE ELEMENT on the visor, not a hole or opening in the character's face
+- During speech: the mouth line opens to a small oval, maximum opening height is 30% of eye height
+- The mouth must NEVER become a full open circle, must NEVER show teeth, must NEVER show tongue
+- Must NEVER have a 3D mouth cavity, internal glow, or biological mouth features
+- No exaggerated smile stretch, no frown deeper than reference neutral, no asymmetric mouth
+
+VISOR (FACE PANEL):
+- Shape: wide, rounded-rectangle dark translucent panel on the front of the head
+- Color: very dark blue-black (#0A1628) with subtle transparency
+- The visor contains ONLY the eyes and mouth — no other elements
+- Visor proportions relative to head must remain constant
+- The visor must NEVER become smaller, larger, rounder, or more square than reference"""
+
+
+# ─── Video Yüz Animasyon Kilidi (kare-kare tutarlılık) ───
+FACE_CONSISTENCY_VIDEO_LOCK = """FACE CONSISTENCY DURING ANIMATION — ABSOLUTE RULES:
+
+Frame-to-frame face stability:
+- The eye shape must remain IDENTICAL in every single frame of the video
+- The eye spacing must remain IDENTICAL in every single frame
+- The eye color (#00D4FF cyan) must remain constant — no color shifting
+- The mouth baseline shape must return to the same neutral position between words
+- The visor size, shape, and darkness must not change at any point
+- The face must not morph, stretch, compress, or warp during any movement
+
+Prohibited face artifacts:
+- No frame where eyes become round, oval, or dot-shaped
+- No frame where mouth becomes a full circle or shows internal glow
+- No frame where visor changes size or transparency
+- No frame where eye spacing changes
+- No flickering of facial elements
+- No asymmetric eye sizing (one eye larger than the other)
+- No ghost/duplicate facial features
+- No face elements sliding or drifting position on the visor"""
+
+
+# ─── Kompakt Yüz Kilidi (Kling 2500 char limiti için kısa versiyon) ───
+COMPACT_FACE_LOCK = """Face lock: diamond-shaped cyan (#00D4FF) eyes on dark visor, exactly matching reference. Eyes stay identical shape/size/spacing/color in every frame. Mouth: thin cyan LED smile line on visor surface, max 30% of eye height when open. No round eyes, no mouth cavity, no teeth, no tongue, no face morphing, no eye warping, no glow spikes, no asymmetric features. Visor proportions constant throughout."""
+
 # ─── FFmpeg Kalite Filtreleri ───
 QUALITY_FILTERS = {
     "unsharp": "3:3:0.5",        # keskinlik

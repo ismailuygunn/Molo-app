@@ -45,7 +45,8 @@ from config import (
     VOICE_PRESETS, VOICE_DEFAULT, VOICE_PROFILES,
     CHARACTER_PERSONALITY, CHARACTER_IDENTITY_LOCK,
     HOLOGRAM_LOCK, LIPSYNC_READINESS, LIGHTING_RULES, AVOID_LIST,
-    COMPACT_LOCK, COMPACT_MOTION,
+    COMPACT_LOCK, COMPACT_MOTION, COMPACT_FACE_LOCK,
+    FACE_ANATOMY_LOCK,
     COMPACT_LOCK_EKRAN, COMPACT_MOTION_EKRAN,
     QUALITY_FILTERS, AUDIO_SLOWDOWN, CROSSFADE_DURATION,
     SMART_SLOWDOWN_TARGET_WPS, SMART_SLOWDOWN_FAST_WPS, SMART_SLOWDOWN_SLOW_WPS,
@@ -589,6 +590,8 @@ Expression and mood: {emotion}
 
 {LIPSYNC_READINESS}
 
+{FACE_ANATOMY_LOCK}
+
 {HOLOGRAM_LOCK}
 
 {LIGHTING_RULES}
@@ -747,7 +750,7 @@ Acting: warm, precise, premium, slightly robotic, controlled, direct. Not childi
 
 Avoid: side angle, 3/4 view, oversized mascot, cartoon wobble, arm flailing, face morphing, exaggerated smile, toy rendering, asymmetric framing, bouncing, elastic motion."""
 
-    full = f"{lock}\n\n{motion}\n\n{scene_block}"
+    full = f"{lock}\n\n{COMPACT_FACE_LOCK}\n\n{motion}\n\n{scene_block}"
 
     if len(full) > KLING_MAX_PROMPT_CHARS:
         original_len = len(full)
