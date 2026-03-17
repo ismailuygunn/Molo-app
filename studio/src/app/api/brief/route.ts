@@ -7,39 +7,36 @@ const PROJECTS_DIR = join(process.cwd(), "..", "projects");
 
 export async function POST(req: NextRequest) {
   try {
-    const { konu, contentType, lang, tone, concept, maxScenes } = await req.json();
+    const { konu, contentType, lang, tone, concept, maxScenes, gsSize } = await req.json();
 
     if (!konu) {
       return NextResponse.json({ error: "Konu gerekli" }, { status: 400 });
     }
 
-    // Create project directory
-    const today = new Date().toISOString().split("T")[0];
+    // Generate project ID
+    const date = new Date().toISOString().slice(0, 10);
     const slug = konu
       .toLowerCase()
-      .replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u")
-      .replace(/ş/g, "s").replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "-")
       .slice(0, 40);
-    const projectId = `${today}_${slug}`;
+    const projectId = `${date}_${slug}`;
     const projectDir = join(PROJECTS_DIR, projectId);
 
-    // Create directories
+    // Create project directories
     for (const dir of ["scenes", "audio", "draft", "final", "subtitles"]) {
       await mkdir(join(projectDir, dir), { recursive: true });
     }
 
     // Write brief.md
-    const contentTypeLabel =
-      contentType === "ekran" ? "ekran" : contentType === "robot" ? "robot" : "sosyal";
+    const contentTypeLabel = contentType || "sosyal";
 
-    const brief = `# ${konu}
+    let brief = `# ${konu}
 
 Konu: ${konu}
 Dil: ${lang}
 İçerik türü: ${contentTypeLabel}
-Ton: ${tone}
+${contentType === "greenscreen" ? `Boyut: ${gsSize || "dikey"}\n` : ""}Ton: ${tone}
 Maksimum sahne: ${maxScenes || 4}
 ${concept ? `\nKonsept:\n${concept}` : ""}
 `;

@@ -30,6 +30,13 @@ const CONTENT_TYPES = [
   { value: "sosyal", label: "Sosyal Medya", icon: Smartphone, desc: "1080×1920 dikey, enerjik", platform: "TikTok / Reels" },
   { value: "ekran", label: "Klinik Ekranı", icon: Monitor, desc: "1920×1080 yatay, sinematik", platform: "Bekleme Ekranı" },
   { value: "robot", label: "Robot Ekranı", icon: Bot, desc: "1080×1920 dikey, sıcak", platform: "Robot Ekranı" },
+  { value: "greenscreen", label: "Green Screen", icon: Film, desc: "Chroma key arka plan", platform: "Compositing" },
+];
+
+const GS_SIZES = [
+  { value: "dikey", label: "Dikey (9:16)", desc: "1080×1920" },
+  { value: "yatay", label: "Yatay (16:9)", desc: "1920×1080" },
+  { value: "kare", label: "Kare (1:1)", desc: "1080×1080" },
 ];
 
 const LANGUAGES = [
@@ -69,6 +76,7 @@ export default function BriefPage() {
   const [tone, setTone] = useState("Eğlenceli");
   const [maxScenes, setMaxScenes] = useState(4);
   const [concept, setConcept] = useState("");
+  const [gsSize, setGsSize] = useState("dikey");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -145,7 +153,7 @@ export default function BriefPage() {
       const res = await fetch("/api/brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ konu, contentType, lang, tone, concept, maxScenes }),
+        body: JSON.stringify({ konu, contentType, lang, tone, concept, maxScenes, gsSize }),
       });
       const data = await res.json();
 
@@ -189,7 +197,7 @@ export default function BriefPage() {
       const res = await fetch("/api/brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ konu, contentType, lang, tone, concept, maxScenes }),
+        body: JSON.stringify({ konu, contentType, lang, tone, concept, maxScenes, gsSize }),
       });
       const data = await res.json();
 
@@ -261,7 +269,7 @@ export default function BriefPage() {
             <Palette size={14} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} />
             İçerik Türü
           </label>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {CONTENT_TYPES.map((ct) => {
               const Icon = ct.icon;
               const isActive = contentType === ct.value;
@@ -285,6 +293,36 @@ export default function BriefPage() {
               );
             })}
           </div>
+
+          {contentType === "greenscreen" && (
+            <div style={{ marginTop: "1rem" }}>
+              <label style={{ fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.5)", marginBottom: "0.5rem", display: "block" }}>
+                🟢 Green Screen Boyutu
+              </label>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                {GS_SIZES.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setGsSize(s.value)}
+                    style={{
+                      flex: 1,
+                      padding: "0.75rem",
+                      borderRadius: "0.75rem",
+                      border: gsSize === s.value ? "2px solid #22c55e" : "1px solid rgba(255,255,255,0.1)",
+                      background: gsSize === s.value ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.03)",
+                      color: "#fff",
+                      cursor: "pointer",
+                      textAlign: "center" as const,
+                    }}
+                  >
+                    <div style={{ fontWeight: 600 }}>{s.label}</div>
+                    <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)" }}>{s.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Dil + Ton */}
