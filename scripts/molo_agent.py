@@ -569,8 +569,8 @@ def generate_scene_images(scenes, project_dir):
             mime_type="image/jpeg"
         )]
 
-        # Klinik arka planı — green screen modunda EKLEME (yeşil BG olmalı)
-        env_ref = ENVIRONMENT_IMAGES.get(env)
+        # Ortam yönlendirme (clinic / studio / dış mekân)
+        bg_desc = s.get("background_description", "")
         env_block = ""
         gs_reminder = ""
         if _ct.get("is_greenscreen", False):
@@ -580,12 +580,36 @@ def generate_scene_images(scenes, project_dir):
                 "NO other background elements. NO shadows on the green. "
                 "Only the MOLO character visible against uniform green.\n\n"
             )
-        elif env_ref and env_ref.exists():
-            images_to_send.insert(0, gtypes.Part.from_bytes(
-                data=open(env_ref, "rb").read(),
-                mime_type="image/jpeg"
-            ))
-            env_block = CLINIC_ENV_BLOCK
+        elif env == "clinic":
+            env_ref = ENVIRONMENT_IMAGES.get("clinic")
+            if env_ref and env_ref.exists():
+                images_to_send.insert(0, gtypes.Part.from_bytes(
+                    data=open(env_ref, "rb").read(),
+                    mime_type="image/jpeg"
+                ))
+                print(f"      🏥 Klinik referansı eklendi: {env_ref.name}")
+            env_block = """Also use the provided clinic background reference as the environmental base for this composition. The final image must clearly place MOLO inside that premium dental clinic environment. The clinic interior should remain visible, readable, and recognizable behind and around MOLO.
+MOLO should appear naturally present in the clinic — standing on the clinic floor with correct perspective, matching the clinic's lighting direction and color temperature. The composite must feel photorealistic, as if MOLO physically exists in this space.
+Do not let MOLO fill the entire frame. Do not crop MOLO too close. Do not make MOLO oversized relative to the clinic furniture."""
+        elif env == "studio":
+            env_block = """Dark atmospheric premium studio environment.
+Background: deep dark blue gradient (#0D2847 to #1A3A5C) with subtle volumetric fog.
+Floor: highly reflective mirror-like dark surface creating a soft reflection of MOLO.
+Lighting: dramatic rim lighting from behind creating blue edge highlights, main soft key light from front-left, cyan glow from hologram cone.
+Atmosphere: subtle particle effects and soft volumetric haze. No clinic elements, no outdoor elements, no props."""
+        else:
+            if not bg_desc:
+                bg_desc = f"A photorealistic {env.replace('_', ' ')} setting with natural lighting and pleasant atmosphere"
+            env_block = f"""Place MOLO in this specific real-world environment:
+LOCATION: {env.replace('_', ' ').title()}
+VISUAL DESCRIPTION: {bg_desc}
+Generate the background ENTIRELY from this description — no reference photo is used.
+MOLO's lighting must match the environment's natural lighting direction and color temperature.
+MOLO should be proportionally sized (approximately 1 meter tall) relative to the surroundings.
+The perspective must be consistent between MOLO and the background.
+The environment must feel photorealistic and immediately recognizable as the described location.
+Style: Premium photorealistic composite, like a luxury brand campaign shot on location."""
+            print(f"      🌍 Dış mekân: {env} → prompt tabanlı arka plan")
 
         # Premium prompt oluştur
         orient_text = "horizontal wide" if _ct['orientation'] == 'horizontal' else "vertical"
