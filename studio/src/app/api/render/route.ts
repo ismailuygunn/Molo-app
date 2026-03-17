@@ -39,12 +39,12 @@ export async function POST(req: NextRequest) {
 
     // Python render script — re-composes from existing scene videos + audio
     const renderScript = `
-import sys, json, os
+import sys, json, os, subprocess
 from pathlib import Path
 sys.path.insert(0, '${SCRIPTS_DIR}')
 from dotenv import load_dotenv
 load_dotenv(Path('${ROOT_DIR}') / '.env')
-from molo_agent import compose_edit, add_subtitles, compose_final
+from molo_agent import compose_edit, add_subtitles, compose_final, get_audio_duration
 import molo_agent
 from config import *
 
@@ -73,9 +73,6 @@ if brief_path.exists():
             val = line.split(':', 1)[1].strip().lower()
             if val in ['sosyal', 'ekran', 'robot']:
                 ct_key = val
-molo_agent._content_type_key = ct_key
-molo_agent._ct = CONTENT_TYPES.get(ct_key, CONTENT_TYPES['sosyal']).copy()
-print(f'Content type: {ct_key}')
 
 # Collect existing scene videos and audio files
 from glob import glob
@@ -85,6 +82,33 @@ voice_files = sorted(glob(str(project_dir / 'audio' / '*.mp3')))
 if not video_files:
     print('No video files found')
     sys.exit(1)
+
+# Auto-detect orientation from first source video
+try:
+    probe = subprocess.run(
+        ['ffprobe', '-v', 'quiet', '-select_streams', 'v:0',
+         '-show_entries', 'stream=width,height', '-of', 'json', video_files[0]],
+        capture_output=True, text=True, timeout=5)
+    vinfo = json.loads(probe.stdout)
+    streams = vinfo.get('streams', [{}])
+    src_w = streams[0].get('width', 0)
+    src_h = streams[0].get('height', 0)
+    if src_w > 0 and src_h > 0:
+        is_portrait = src_h > src_w
+        ct_is_portrait = CONTENT_TYPES.get(ct_key, {}).get('orientation') == 'vertical'
+        if is_portrait and not ct_is_portrait:
+            print(f'⚠️ Kaynak video dikey ({src_w}x{src_h}) ama brief yatay diyor → sosyal moduna geçiliyor')
+            ct_key = 'sosyal'
+        elif not is_portrait and ct_is_portrait:
+            print(f'⚠️ Kaynak video yatay ({src_w}x{src_h}) ama brief dikey diyor → ekran moduna geçiliyor')
+            ct_key = 'ekran'
+        print(f'Kaynak video: {src_w}x{src_h}')
+except Exception as e:
+    print(f'Video boyut algılama hatası: {e}')
+
+molo_agent._content_type_key = ct_key
+molo_agent._ct = CONTENT_TYPES.get(ct_key, CONTENT_TYPES['sosyal']).copy()
+print(f'Content type: {ct_key} ({molo_agent._ct["width"]}x{molo_agent._ct["height"]})')
 
 print(f'Found {len(video_files)} videos, {len(voice_files)} audio files')
 print(f'Config: {json.dumps(config, indent=2)}')
@@ -100,11 +124,19 @@ print(f'Merged scenes: {len(merged_scenes)} files')
 # Step 2: Generate ASS subtitles (no encode)
 ass_path = None
 if config.get('addSubtitles', True):
-    lang = 'de'
-    ass_path = add_subtitles(None, scenes, durations, project_dir, project_name, lang,
-                             font_size=config.get('fontSize'),
-                             margin_v=config.get('marginV'))
-    print(f'ASS subtitles: {ass_path}')
+    try:
+        lang = 'de'
+        ass_path = add_subtitles(None, scenes, durations, project_dir, project_name, lang,
+                                 font_size=config.get('fontSize'),
+                                 margin_v=config.get('marginV'))
+        if ass_path and os.path.exists(ass_path):
+            print(f'ASS subtitles: {ass_path}')
+        else:
+            print('⚠️ Altyazı oluşturulamadı, altyazısız devam ediliyor')
+            ass_path = None
+    except Exception as e:
+        print(f'⚠️ Altyazı hatası: {e} — altyazısız devam ediliyor')
+        ass_path = None
 
 # Step 3: Final compose — crossfade + subtitles + slowdown (Encode 2)
 final = compose_final(merged_scenes, ass_path, project_dir, project_name,
