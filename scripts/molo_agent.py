@@ -515,8 +515,11 @@ def _score_image_quality(image_path, molo_ref_path, client):
         ]
 
         prompt = ('Compare the generated image (second) with the MOLO mascot reference (first). '
-                  'Score 1-10 for each criterion. Return ONLY valid JSON, no explanation:\n'
-                  '{"face_accuracy": <int>, "symmetry": <int>, "hologram_presence": <int>, "overall_quality": <int>}')
+                  'Score 1-10 for each criterion with strict attention to facial consistency. '
+                  'Return ONLY valid JSON, no explanation:\n'
+                  '{"eye_shape_match": <int>, "eye_color_match": <int>, "eye_spacing_match": <int>, '
+                  '"mouth_design_match": <int>, "visor_shape_match": <int>, '
+                  '"hologram_presence": <int>, "body_proportions": <int>, "overall_quality": <int>}')
 
         resp = gemini_with_retry(lambda: client.models.generate_content(
             model=GEMINI_TEXT_MODEL,
@@ -532,6 +535,13 @@ def _score_image_quality(image_path, molo_ref_path, client):
 
         scores = json.loads(text)
         overall = scores.get("overall_quality", 0)
+        # Yüz skoru düşükse genel skoru da düşür
+        face_scores = [scores.get("eye_shape_match", 0), scores.get("eye_color_match", 0),
+                       scores.get("eye_spacing_match", 0), scores.get("mouth_design_match", 0),
+                       scores.get("visor_shape_match", 0)]
+        face_avg = sum(face_scores) / len(face_scores) if face_scores else 0
+        if face_avg < 6:
+            overall = min(overall, int(face_avg))
         return overall, scores
     except Exception as e:
         print(f"      ⚠️ QC skor hesaplanamadı: {e}")
