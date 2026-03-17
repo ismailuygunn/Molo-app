@@ -10,7 +10,11 @@ const PROJECTS_DIR = join(ROOT_DIR, "projects");
 
 export async function POST(req: NextRequest) {
   try {
-    const { projectId, type, crossfade, slowdown, crf, transition } = await req.json();
+    const {
+      projectId, type, crossfade, slowdown, crf, transition,
+      addSubtitles, fontSize, marginV,
+    } = await req.json();
+
     if (!projectId) {
       return NextResponse.json({ error: "projectId gerekli" }, { status: 400 });
     }
@@ -18,22 +22,24 @@ export async function POST(req: NextRequest) {
     const projectDir = join(PROJECTS_DIR, projectId);
     const logPath = join(projectDir, ".render.log");
 
-    // Build render config
+    // Build render config with all user parameters
     const config = {
-      crossfade: crossfade || 0.7,
-      slowdown: slowdown || 0.88,
-      crf: crf || 16,
-      transition: transition || "fade",
-      type: type || "draft",
+      crossfade: crossfade ?? 0.7,
+      slowdown: slowdown ?? 0.88,
+      crf: crf ?? 16,
+      transition: transition ?? "fade",
+      type: type ?? "draft",
+      addSubtitles: addSubtitles !== false,
+      fontSize: fontSize ?? 42,
+      marginV: marginV ?? 200,
     };
 
-    // Write config for the script to read
     const configPath = join(projectDir, ".render_config.json");
     await writeFile(configPath, JSON.stringify(config, null, 2), "utf-8");
 
-    // Call a Python render script (reuses compose_edit from molo_agent)
+    // Python render script — re-composes from existing scene videos + audio
     const renderScript = `
-import sys, json
+import sys, json, os
 from pathlib import Path
 sys.path.insert(0, '${SCRIPTS_DIR}')
 from dotenv import load_dotenv
@@ -55,7 +61,7 @@ scenes = data['scenes'] if isinstance(data, dict) else data
 durations = data.get('durations', []) if isinstance(data, dict) else []
 config = json.loads(Path('${configPath}').read_text())
 
-# Collect files
+# Collect existing scene videos and audio files
 from glob import glob
 video_files = sorted(glob(str(project_dir / 'scenes' / '*.mp4')))
 voice_files = sorted(glob(str(project_dir / 'audio' / '*.mp3')))
@@ -65,29 +71,35 @@ if not video_files:
     sys.exit(1)
 
 print(f'Found {len(video_files)} videos, {len(voice_files)} audio files')
-print(f'Config: {config}')
+print(f'Config: {json.dumps(config, indent=2)}')
 
-# Run compose
+# Step 1: Compose edit — merge scene videos + audio with crossfade
 draft = compose_edit(video_files, voice_files, durations, project_dir, project_name)
-if draft:
-    print(f'Draft created: {draft}')
-    # Add subtitles
+if not draft:
+    print('Compose failed')
+    sys.exit(1)
+print(f'Draft created: {draft}')
+
+# Step 2: Add subtitles (if enabled)
+if config.get('addSubtitles', True):
     lang = 'de'
     subtitled = add_subtitles(draft, scenes, durations, project_dir, project_name, lang)
     if subtitled:
         print(f'Subtitled: {subtitled}')
+        # Step 3: Apply slowdown
         final = apply_slowdown(subtitled, project_dir, project_name)
         print(f'Final: {final}')
-    print('✅ Render complete!')
 else:
-    print('❌ Compose failed')
-    sys.exit(1)
+    # No subtitles — apply slowdown directly to draft
+    final = apply_slowdown(draft, project_dir, project_name)
+    print(f'Final (no subs): {final}')
+
+print('Render complete!')
 `;
 
     const scriptPath = join(projectDir, ".render_script.py");
     await writeFile(scriptPath, renderScript, "utf-8");
-
-    await writeFile(logPath, `[${new Date().toISOString()}] Render başlatılıyor...\n`, "utf-8");
+    await writeFile(logPath, `[${new Date().toISOString()}] Render başlatılıyor...\nConfig: ${JSON.stringify(config)}\n`, "utf-8");
 
     const child = spawn("python3", [scriptPath], {
       cwd: ROOT_DIR,
@@ -106,7 +118,7 @@ else:
     });
     child.unref();
 
-    return NextResponse.json({ message: "Render başlatıldı", pid: child.pid });
+    return NextResponse.json({ message: "Render başlatıldı", pid: child.pid, config });
   } catch (error) {
     console.error("Render error:", error);
     return NextResponse.json({ error: `Render başlatılamadı: ${error}` }, { status: 500 });
