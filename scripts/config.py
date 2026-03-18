@@ -311,7 +311,10 @@ Role: welcomes visitors, eases first-moment tension, makes the experience warmer
 # ─── Molo Karakter Kimlik Kilidi (Prompt'lara otomatik eklenir) ───
 
 # Görsel promptlara eklenen karakter kilidi
-CHARACTER_IDENTITY_LOCK = """Use the referenced MOLO mascot exactly as the fixed and locked character identity. Preserve the exact same face design, exact same eye shape, exact same mouth design, exact same body proportions, exact same blue-and-white color palette, exact same materials, exact same silhouette, and especially the exact same hologram unit on top of the head. Do not redesign the character, do not reinterpret the character, do not simplify the character, and do not make the character more childish, more toy-like, or more cartoonish."""
+CHARACTER_IDENTITY_LOCK = """Use the referenced MOLO mascot exactly as the fixed and locked character identity. COPY THE FACE FROM THE REFERENCE IMAGE EXACTLY:
+- Eyes: ROUND 3D SPHERICAL ORBS (light blue-white balls with dark navy pupils) — NOT diamonds, NOT flat LEDs, NOT glowing shapes
+- Mouth: WIDE CURVED CYAN SMILE with visible thickness — NOT a thin LED line
+Preserve the exact same face design, exact same eye shape (round spherical orbs), exact same mouth design (wide curved smile), exact same body proportions, exact same blue-and-white color palette, exact same materials, exact same silhouette, and especially the exact same hologram unit on top of the head. Do not redesign, reinterpret, or simplify the character. Do not make diamond eyes, flat LED eyes, or any eye shape other than round 3D spheres as shown in the reference."""
 
 # Video promptlara eklenen hareket kuralları
 CHARACTER_MOVEMENT_RULES = """Movement rules:
@@ -352,7 +355,7 @@ HOLOGRAM_LOCK = """The hologram on top of MOLO's head must remain exactly identi
 AVOID_LIST = """Avoid: oversized mascot filling the frame, side angle, 3/4 angle, profile angle, extreme close-up, cropped face, hidden mouth, exaggerated smile, extra props, extra people, random floating UI, new accessories, redesigned hologram, childish proportions, toy-like rendering, overly glossy plastic surfaces, asymmetrical framing, clutter, visual chaos, or anything that reduces premium realism."""
 
 # Lip-sync hazırlık bloğu (görsel promptlarda)
-LIPSYNC_READINESS = """MOLO's facial area must be extremely clear and readable for later talking animation. The mouth area must be unobstructed, centered, and easy to animate. The eyes must be clearly visible and expressive, but not exaggerated. The expression should feel warm, intelligent, slightly playful, slightly robotic, premium, and welcoming. The character should feel like a sophisticated brand mascot, not a children's cartoon and not a cheap toy."""
+LIPSYNC_READINESS = """MOLO's facial area must be extremely clear and readable for later talking animation. The round 3D spherical eyes (light blue-white orbs with dark navy pupils) must be clearly visible, prominent, and expressive — NOT diamond shaped, NOT flat. The wide curved cyan smile mouth must be unobstructed, centered, and easy to animate. The expression should feel warm, intelligent, slightly playful, slightly robotic, premium, and welcoming. The character should feel like a sophisticated brand mascot, not a children's cartoon and not a cheap toy."""
 
 # Aydınlatma ve malzeme (tüm promptlarda)
 LIGHTING_RULES = """The lighting should feel high-end, cinematic, soft, and premium, but realistic. The character should integrate naturally into the space. Avoid flat toy lighting, overexposed glow, or over-stylized cartoon shading. The materials should feel polished but not overly glossy or plastic."""

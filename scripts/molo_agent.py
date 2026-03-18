@@ -647,13 +647,16 @@ Style: Premium photorealistic composite, like a luxury brand campaign shot on lo
         # Premium prompt oluştur
         orient_text = "horizontal wide" if _ct['orientation'] == 'horizontal' else "vertical"
         image_rules = _ct.get('image_rules', '')
-        prompt = f"""{gs_reminder}{CHARACTER_IDENTITY_LOCK}
+        prompt = f"""{gs_reminder}CRITICAL FACE RULE — READ FIRST:
+MOLO's eyes are ROUND 3D SPHERICAL BALLS (light blue-white with dark navy pupils). They are NOT diamonds, NOT flat shapes, NOT LED dots. Look at the reference image — copy those exact round ball-shaped eyes. Any diamond or flat eye shape is WRONG.
+
+{CHARACTER_IDENTITY_LOCK}
 
 {FACE_ANATOMY_LOCK}
 
 {env_block}
 
-Create a {_ct['orientation']} {_ct['aspect']} premium digital-host frame for a clinic screen. MOLO must be directly facing the camera, making clear direct eye contact, positioned in the center of the frame, with a symmetrical, screen-friendly composition.
+Create a {_ct['orientation']} {_ct['aspect']} premium digital-host frame. MOLO must be directly facing the camera, making clear direct eye contact, positioned in the center of the frame, with a symmetrical, screen-friendly composition.
 
 {_ct['scene_direction']}
 
@@ -674,12 +677,14 @@ Important composition rules:
 - MOLO must not fill the entire frame
 - the environment must remain visible in the background
 - the mouth area must be clean and readable for lip-sync
-- the face must remain symmetrical and stable
+- the face must remain symmetrical and stable — ROUND 3D SPHERICAL EYES, not diamonds
 - the image must feel designed for a {orient_text} digital display host
 
 {IMAGE_QUALITY_LOCK}
 
-{AVOID_LIST}"""
+{AVOID_LIST}
+
+FINAL REMINDER: Eyes = ROUND 3D SPHERES with dark navy pupils. NOT diamonds. Match the reference exactly."""
 
         # ── Kalite kontrollü üretim (max QC_MAX_RETRIES + 1 deneme) ──
         best_score = 0
@@ -1156,7 +1161,9 @@ def check_video_consistency(video_files, scenes, project_dir):
 
             prompt = ('Image 1 is the MOLO mascot reference. Images 2-3 are video frames. '
                       'Compare the character in the frames to the reference. '
-                      'Score 1-10. Return ONLY valid JSON:\n'
+                      'IMPORTANT: MOLO\'s eyes in the reference are ROUND 3D SPHERICAL ORBS (light blue-white with dark navy pupils). '
+                      'If the video shows diamond-shaped, flat, or LED-dot eyes, eye_design score MUST be 1-3. '
+                      'Score each category 1-10. Return ONLY valid JSON:\n'
                       '{"face_shape": <int>, "eye_design": <int>, "hologram": <int>, '
                       '"body_proportions": <int>, "color_palette": <int>, "consistency": <int>}')
 
