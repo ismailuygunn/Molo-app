@@ -276,6 +276,22 @@ def generate_script(brief_path, lang="de", max_scenes=4):
 
 CONTENT FORMAT: {_ct['scene_direction']}
 
+CREATIVE WRITING RULES:
+- MOLO can make witty observations, gentle self-commentary ("Ben bir robotum ama bunu bile biliyorum!"), and situational humor
+- Use conversational hooks: start scenes with curiosity triggers ("Wusstet ihr, dass..." / "Rate mal, was passiert wenn...")
+- MOLO can break the fourth wall gently (looking at camera knowingly, addressing audience directly)
+- Add micro-comedy: one small joke or clever observation per video — not forced, naturally woven into the content
+- MOLO can reference pop culture lightly (without naming specific brands) and use relatable everyday scenarios
+- Each scene should have an emotional arc: hook → content → punchline/takeaway
+- The LAST word of each scene should feel satisfying (avoid trailing off)
+- Vary sentence length: mix short punchy lines with flowing explanations
+- MOLO can express genuine surprise, wonder, or playful confusion about human habits ("Wieso essen Menschen Eis direkt nach dem Zähneputzen? Das verstehe ich als Roboter nicht!")
+
+AUDIENCE ENGAGEMENT:
+- First 3 seconds are CRITICAL: Start with a question, surprising fact, or funny statement
+- Include at least one "share-worthy" moment per video (something viewers would screenshot or quote)
+- End with a memorable farewell that varies — not always the same goodbye
+
 CRITICAL RULES FOR SCRIPT WRITING:
 - The brief may be written in Turkish. Regardless of brief language, write scene texts in {target_lang}.
 - For each scene, also provide 'text_tr' field with the Turkish translation of the scene text. This is for the content creator's reference only and will NOT be used in production.
