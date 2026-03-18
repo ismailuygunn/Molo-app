@@ -53,6 +53,9 @@ interface Suggestion {
   title: string;
   concept: string;
   why: string;
+  hook?: string;
+  category?: string;
+  molo_attitude?: string;
 }
 
 interface ScenePreview {
@@ -86,6 +89,29 @@ export default function BriefPage() {
   const [suggestError, setSuggestError] = useState("");
   const [suggestConfigured, setSuggestConfigured] = useState<boolean | null>(null);
   const [suggestMessage, setSuggestMessage] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Category chip config
+  const CATEGORY_CHIPS = [
+    { key: null, label: "Hepsi" },
+    { key: "trending", label: "🔥 Trend" },
+    { key: "educational", label: "📚 Eğitici" },
+    { key: "humor", label: "😂 Komedi" },
+    { key: "campaign", label: "🎯 Kampanya" },
+    { key: "storytelling", label: "📖 Hikaye" },
+    { key: "seasonal", label: "🗓️ Mevsimsel" },
+    { key: "interactive", label: "🎮 Etkileşimli" },
+  ] as const;
+
+  const CATEGORY_GRADIENTS: Record<string, string> = {
+    trending: "linear-gradient(135deg, #f97316, #ef4444)",
+    humor: "linear-gradient(135deg, #a855f7, #ec4899)",
+    educational: "linear-gradient(135deg, #3b82f6, #10b981)",
+    campaign: "linear-gradient(135deg, #f59e0b, #eab308)",
+    storytelling: "linear-gradient(135deg, #8b5cf6, #6366f1)",
+    seasonal: "linear-gradient(135deg, #14b8a6, #06b6d4)",
+    interactive: "linear-gradient(135deg, #f43f5e, #e11d48)",
+  };
 
   // Preview state
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
@@ -96,6 +122,7 @@ export default function BriefPage() {
   useEffect(() => {
     setSuggestions([]);
     setSuggestError("");
+    setSelectedCategory(null);
   }, [contentType, tone]);
 
   const fetchSuggestions = async () => {
@@ -110,6 +137,7 @@ export default function BriefPage() {
           lang,
           tone,
           existingTopics: konu ? [konu] : [],
+          category: selectedCategory,
         }),
       });
       const data = await res.json();
@@ -137,11 +165,11 @@ export default function BriefPage() {
   };
 
   const applySuggestion = (s: Suggestion) => {
-    // Strip leading emojis from title for the konu field
     const cleanTitle = s.title.replace(/^[\p{Emoji}\p{Emoji_Presentation}\p{Emoji_Modifier_Base}\s]+/u, "").trim();
     setKonu(cleanTitle || s.title);
-    setConcept(s.concept);
-    toast.success("Öneri uygulandı — konu ve konsept güncellendi!");
+    const hookText = s.hook ? `\n\nHook: ${s.hook}` : "";
+    setConcept(s.concept + hookText);
+    toast.success("Öneri uygulandı — konu, konsept ve hook güncellendi!");
   };
 
   const handleSave = async (startPipeline: boolean) => {
@@ -448,43 +476,95 @@ export default function BriefPage() {
             </div>
           )}
 
-          {/* Suggestion Cards */}
-          {suggestions.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {suggestions.map((s, i) => (
-                <div
-                  key={i}
-                  onClick={() => applySuggestion(s)}
-                  className="glass-card"
+          {/* Category Filter Chips */}
+          {suggestConfigured !== false && (
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 12, scrollbarWidth: "none" }}>
+              {CATEGORY_CHIPS.map((chip) => (
+                <button
+                  key={chip.key ?? "all"}
+                  onClick={() => { setSelectedCategory(chip.key); if (suggestions.length > 0) fetchSuggestions(); }}
                   style={{
-                    padding: 14,
+                    padding: "5px 12px",
+                    borderRadius: 16,
+                    fontSize: 12,
+                    fontWeight: selectedCategory === chip.key ? 700 : 500,
+                    whiteSpace: "nowrap",
+                    border: selectedCategory === chip.key ? "1.5px solid rgba(139,92,246,0.6)" : "1px solid rgba(255,255,255,0.08)",
+                    background: selectedCategory === chip.key ? "rgba(139,92,246,0.12)" : "rgba(255,255,255,0.03)",
+                    color: selectedCategory === chip.key ? "var(--accent-purple, #a78bfa)" : "var(--text-secondary)",
                     cursor: "pointer",
                     transition: "all 0.2s",
-                    borderColor: "transparent",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "rgba(139,92,246,0.4)";
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "transparent";
-                    e.currentTarget.style.transform = "translateY(0)";
                   }}
                 >
-                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, lineHeight: 1.4 }}>
-                    {s.title}
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 8 }}>
-                    {s.concept}
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: "italic" }}>
-                      💡 {s.why}
-                    </span>
-                    <ArrowRight size={12} style={{ color: "var(--accent-purple, #a78bfa)", opacity: 0.6 }} />
-                  </div>
-                </div>
+                  {chip.label}
+                </button>
               ))}
+            </div>
+          )}
+
+          {/* Suggestion Cards */}
+          {suggestions.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+              {suggestions.map((s, i) => {
+                const gradient = CATEGORY_GRADIENTS[s.category || ""] || "linear-gradient(135deg, #8b5cf6, #a78bfa)";
+                const chipLabel = CATEGORY_CHIPS.find(c => c.key === s.category)?.label || s.category || "";
+                return (
+                  <div
+                    key={i}
+                    onClick={() => applySuggestion(s)}
+                    style={{
+                      padding: 1.5,
+                      borderRadius: 12,
+                      background: gradient,
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.3)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+                  >
+                    <div className="glass-card" style={{ padding: 14, borderRadius: 11, border: "none", height: "100%" }}>
+                      {/* Category badge */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: "rgba(139,92,246,0.1)", color: "var(--text-muted)", fontWeight: 600 }}>
+                          {chipLabel}
+                        </span>
+                        <ArrowRight size={12} style={{ color: "var(--accent-purple, #a78bfa)", opacity: 0.5 }} />
+                      </div>
+
+                      {/* Title */}
+                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, lineHeight: 1.4 }}>
+                        {s.title}
+                      </div>
+
+                      {/* Concept */}
+                      <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 6 }}>
+                        {s.concept}
+                      </div>
+
+                      {/* Hook */}
+                      {s.hook && (
+                        <div style={{ fontSize: 11, color: "var(--accent-purple, #a78bfa)", fontStyle: "italic", marginBottom: 8, lineHeight: 1.4, padding: "4px 8px", background: "rgba(139,92,246,0.06)", borderRadius: 6 }}>
+                          🎣 Hook: &ldquo;{s.hook}&rdquo;
+                        </div>
+                      )}
+
+                      {/* Why */}
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", lineHeight: 1.4, marginBottom: 8 }}>
+                        💡 {s.why}
+                      </div>
+
+                      {/* Molo attitude badge */}
+                      {s.molo_attitude && (
+                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                          <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: "rgba(16,185,129,0.08)", color: "var(--accent-green)", fontWeight: 500 }}>
+                            🤖 {s.molo_attitude}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 
