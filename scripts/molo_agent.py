@@ -277,7 +277,8 @@ def generate_script(brief_path, lang="de", max_scenes=4):
 CONTENT FORMAT: {_ct['scene_direction']}
 
 CRITICAL RULES FOR SCRIPT WRITING:
-- Write the script in {target_lang}
+- The brief may be written in Turkish. Regardless of brief language, write scene texts in {target_lang}.
+- For each scene, also provide 'text_tr' field with the Turkish translation of the scene text. This is for the content creator's reference only and will NOT be used in production.
 - Generate EXACTLY {max_scenes} scenes. No more, no less.
 - Each scene should be max ~80 words / ~8-12 seconds of speech
 - First scene: energetic greeting (MOLO introduces topic)
@@ -314,6 +315,7 @@ OUTPUT FORMAT — Return ONLY valid JSON, no markdown:
     {{
       "scene": 1,
       "text": "what MOLO says in {target_lang}",
+      "text_tr": "Aynı metnin Türkçe çevirisi (referans için)",
       "environment": "clinic",
       "background_description": "",
       "molo_pose": "front-wave",
@@ -357,7 +359,9 @@ OUTPUT FORMAT — Return ONLY valid JSON, no markdown:
 
     print(f"   ✅ {len(scenes)} sahne üretildi: {script.get('title', '?')}")
     for s in scenes:
-        print(f"      Sahne {s['scene']}: [{s['voice_direction']}] {s['text'][:60]}...")
+        print(f"      Sahne {s['scene']}: [{s['voice_direction']}] 🇩🇪 {s['text'][:60]}...")
+        if s.get('text_tr'):
+            print(f"                         🇹🇷 {s['text_tr'][:60]}...")
 
     return script
 
