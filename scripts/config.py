@@ -243,7 +243,7 @@ KLING_MODEL = "kling-v3"                     # ⚠️ En son model — asla dü�
 KLING_API_BASE = "https://api.klingai.com"
 KLING_DURATION = "5"
 KLING_CFG_SCALE = 0.7                         # Prompt'a bağlılık (0-1, 0.5 default, 0.7 sıkı)
-KLING_NEGATIVE_PROMPT = "face morphing, face distortion, asymmetric face, oversized eyes, enlarged eyes, bulging eyes, protruding eyes, eye size change, eye spacing change, mouth cavity, teeth visible, tongue visible, 3D mouth opening, biological mouth, asymmetric mouth, visor size change, visor shape change, extra limbs, blurry, low quality, watermark, text overlay, childish cartoon, toy-like, plastic glow, oversized mouth, inner mouth glow, elastic body, rubbery motion, bouncing, jittery, flickering, artifacts, ghost face features, duplicate eyes, face element drift, eye shape change between frames, face element position drift, visor proportion change, inconsistent eye size, one eye larger than other, feature enlargement, exaggerated facial features"
+KLING_NEGATIVE_PROMPT = "face morphing, face distortion, asymmetric face, oversized eyes, enlarged eyes, bulging eyes, protruding eyes, triangular eyes, angular eyes, pointed eyes, sharp-cornered eyes, geometric eyes, diamond eyes, pentagon eyes, eye shape change, eye size change, eye spacing change, mouth cavity, teeth visible, tongue visible, 3D mouth opening, biological mouth, asymmetric mouth, visor size change, visor shape change, extra limbs, blurry, low quality, watermark, text overlay, childish cartoon, toy-like, plastic glow, oversized mouth, inner mouth glow, elastic body, rubbery motion, bouncing, jittery, flickering, artifacts, ghost face features, duplicate eyes, face element drift, eye shape change between frames, face element position drift, visor proportion change, inconsistent eye size, one eye larger than other, feature enlargement, exaggerated facial features"
 KLING_CFG_FIRST_LAST = 0.8                    # İlk ve son sahne — karakter tutarlılığı
 KLING_CFG_MIDDLE = 0.7                        # Orta sahneler — biraz yaratıcılık
 KLING_MAX_PROMPT_CHARS = 2500  # ⚠️ API hard limit
@@ -417,7 +417,7 @@ Camera: horizontal composition, balanced premium framing, elegant negative space
 Lighting: soft premium studio lighting, warm off-white luxury tone, subtle sculptural shadows, polished material definition, no harsh contrast, no cheap plastic shine."""
 
 # ─── Green Screen Kompakt Prompt Blokları ───
-COMPACT_LOCK_GS = """Character: MOLO — compact dental mascot robot. Dark navy-blue metallic body. Face exactly as reference image — same eye size, same mouth shape. Do NOT enlarge any facial feature. Open hologram cone on top glowing cyan. Short, rounded, not more than 60cm tall. NOT a real person. Not a cartoon. Premium 3D-rendered robot with clean, studio-quality appearance. BACKGROUND: MUST be perfectly flat solid chroma green (#00B140). No exceptions."""
+COMPACT_LOCK_GS = """Character: MOLO — compact dental mascot robot. Dark navy-blue metallic body. Face exactly as reference image — same eye SIZE and SHAPE, same mouth shape. Eyes must remain ROUND throughout — never triangular, angular, or pointed. Do NOT enlarge or reshape any facial feature. Open hologram cone on top glowing cyan. Short, rounded, not more than 60cm tall. NOT a real person. Not a cartoon. Premium 3D-rendered robot with clean, studio-quality appearance. BACKGROUND: MUST be perfectly flat solid chroma green (#00B140). No exceptions."""
 
 COMPACT_MOTION_GS = """Motion: Minimal, controlled, robotic. Small 2-5cm movements only. No bouncing, no elastic motion, no exaggerated gestures. Subtle head tilt, gentle hand wave, slight body lean — all micro-movements. Character stays in place — no walking, no jumping, no large position changes. BACKGROUND: Must remain perfectly static uniform green throughout entire duration."""
 
@@ -446,8 +446,9 @@ The #1 error is making eyes too big/prominent — avoid this at all costs."""
 # ─── Video Yüz Animasyon Kilidi (kare-kare tutarlılık) ───
 FACE_CONSISTENCY_VIDEO_LOCK = """FACE CONSISTENCY DURING ANIMATION:
 - Face must match reference in EVERY frame — no reinterpretation
-- Eye size, shape, spacing must stay IDENTICAL frame-to-frame
-- Eye proportions must not change — do not enlarge mid-animation
+- Eye SIZE and SHAPE must stay IDENTICAL frame-to-frame — eyes are ROUND, never triangular or angular
+- Eye proportions must not change — do not enlarge or reshape mid-animation
+- If eyes start round in frame 1, they MUST remain round in every subsequent frame
 - Mouth shape must return to same neutral position between words
 - Visor size/shape/darkness must not change
 - No face morphing, stretching, warping during movement
@@ -456,7 +457,7 @@ FACE_CONSISTENCY_VIDEO_LOCK = """FACE CONSISTENCY DURING ANIMATION:
 
 
 # ─── Kompakt Yüz Kilidi (Kling 2500 char limiti için kısa versiyon) ───
-COMPACT_FACE_LOCK = """Face: EXACT copy of reference image. Same eye size, same mouth shape, same visor proportions. Do NOT enlarge eyes — the #1 error is oversized eyes. Do NOT exaggerate any feature. Match reference scale precisely. No face morphing, no warping, no asymmetry. Visor proportions constant throughout."""
+COMPACT_FACE_LOCK = """Face: EXACT copy of reference image. Same eye SIZE and SHAPE — eyes are ROUND, never triangular or angular. Same mouth shape, same visor proportions. Do NOT enlarge eyes. Do NOT reshape eyes into triangles or sharp corners. Do NOT exaggerate any feature. Match reference scale precisely. No face morphing, no warping, no asymmetry. Visor proportions constant throughout."""
 
 # ─── Sahne Ortam Prompt Blokları ───
 CLINIC_ENV_BLOCK = """Also use the provided clinic background reference as the environmental base for this composition. The final image must clearly place MOLO inside that premium dental clinic environment. The clinic interior should remain visible, readable, and recognizable behind and around MOLO.
