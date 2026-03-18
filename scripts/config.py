@@ -243,7 +243,7 @@ KLING_MODEL = "kling-v3"                     # ⚠️ En son model — asla dü�
 KLING_API_BASE = "https://api.klingai.com"
 KLING_DURATION = "5"
 KLING_CFG_SCALE = 0.7                         # Prompt'a bağlılık (0-1, 0.5 default, 0.7 sıkı)
-KLING_NEGATIVE_PROMPT = "face morphing, face distortion, asymmetric face, round eyes, oval eyes, human eyes, dot eyes, eye color change, eye size change, eye spacing change, mouth cavity, teeth visible, tongue visible, 3D mouth opening, biological mouth, asymmetric mouth, visor size change, visor shape change, extra limbs, blurry, low quality, watermark, text overlay, childish cartoon, toy-like, plastic glow, oversized mouth, inner mouth glow, elastic body, rubbery motion, bouncing, jittery, flickering, artifacts, ghost face features, duplicate eyes, face element drift"
+KLING_NEGATIVE_PROMPT = "face morphing, face distortion, asymmetric face, round eyes, oval eyes, human eyes, dot eyes, eye color change, eye size change, eye spacing change, mouth cavity, teeth visible, tongue visible, 3D mouth opening, biological mouth, asymmetric mouth, visor size change, visor shape change, extra limbs, blurry, low quality, watermark, text overlay, childish cartoon, toy-like, plastic glow, oversized mouth, inner mouth glow, elastic body, rubbery motion, bouncing, jittery, flickering, artifacts, ghost face features, duplicate eyes, face element drift, eye shape change between frames, face element position drift, visor proportion change, inconsistent eye size, one eye larger than other, eyeball flattening, diamond shaped eyes, flat LED eyes, eye depth loss"
 KLING_CFG_FIRST_LAST = 0.8                    # İlk ve son sahne — karakter tutarlılığı
 KLING_CFG_MIDDLE = 0.7                        # Orta sahneler — biraz yaratıcılık
 KLING_MAX_PROMPT_CHARS = 2500  # ⚠️ API hard limit
@@ -314,7 +314,8 @@ Role: welcomes visitors, eases first-moment tension, makes the experience warmer
 CHARACTER_IDENTITY_LOCK = """Use the referenced MOLO mascot exactly as the fixed and locked character identity. COPY THE FACE FROM THE REFERENCE IMAGE EXACTLY:
 - Eyes: ROUND 3D SPHERICAL ORBS (light blue-white balls with dark navy pupils) — NOT diamonds, NOT flat LEDs, NOT glowing shapes
 - Mouth: WIDE CURVED CYAN SMILE with visible thickness — NOT a thin LED line
-Preserve the exact same face design, exact same eye shape (round spherical orbs), exact same mouth design (wide curved smile), exact same body proportions, exact same blue-and-white color palette, exact same materials, exact same silhouette, and especially the exact same hologram unit on top of the head. Do not redesign, reinterpret, or simplify the character. Do not make diamond eyes, flat LED eyes, or any eye shape other than round 3D spheres as shown in the reference."""
+Preserve the exact same face design, exact same eye shape (round spherical orbs), exact same mouth design (wide curved smile), exact same body proportions, exact same blue-and-white color palette, exact same materials, exact same silhouette, and especially the exact same hologram unit on top of the head. Do not redesign, reinterpret, or simplify the character. Do not make diamond eyes, flat LED eyes, or any eye shape other than round 3D spheres as shown in the reference.
+The eyes must have visible 3D DEPTH — a spherical highlight/reflection on each eyeball surface proving they are round balls, not flat shapes."""
 
 # Video promptlara eklenen hareket kuralları
 CHARACTER_MOVEMENT_RULES = """Movement rules:
@@ -472,7 +473,7 @@ Prohibited face artifacts:
 
 
 # ─── Kompakt Yüz Kilidi (Kling 2500 char limiti için kısa versiyon) ───
-COMPACT_FACE_LOCK = """Face lock: must EXACTLY match reference image. Round 3D spherical light blue-white eyeball orbs with dark navy pupils — large (~20-25% visor width). Pupils shift for gaze. Happy = half-circle eyes. Thin eyebrow arcs above. Mouth: wide curved cyan smile with visible thickness, ~70-80% of eye span. No diamond eyes, no flat LEDs, no thin LED line mouth, no teeth, no tongue, no face morphing, no eye warping, no asymmetric features. Visor proportions constant throughout."""
+COMPACT_FACE_LOCK = """Face lock: must EXACTLY match reference image. Round 3D spherical light blue-white eyeball orbs with dark navy pupils — large (~20-25% visor width). Pupils shift for gaze. Happy = half-circle eyes. Thin eyebrow arcs above. Mouth: wide curved cyan smile with visible thickness, ~70-80% of eye span. No diamond eyes, no flat LEDs, no thin LED line mouth, no teeth, no tongue, no face morphing, no eye warping, no asymmetric features. Visor proportions constant throughout. Eyeball 3D depth must be visible in every frame — light catches the spherical surface creating a subtle highlight/reflection."""
 
 # ─── Sahne Ortam Prompt Blokları ───
 CLINIC_ENV_BLOCK = """Also use the provided clinic background reference as the environmental base for this composition. The final image must clearly place MOLO inside that premium dental clinic environment. The clinic interior should remain visible, readable, and recognizable behind and around MOLO.
@@ -550,6 +551,16 @@ CROSSFADE_DURATION = 0.7
 # ─── Sahne Arası Nefes Boşluğu ───
 # Her sahne sonuna eklenen sessiz uzatma (son kare dondurulur)
 SCENE_PADDING = 0.4    # saniye — sahne sonunda nefes alanı
+
+# ─── Freeze-Frame (Son Kare Dondurma) ───
+# Video kısa kaldığında son kareyi dondurarak uzatır (tpad filtresi)
+# Pingpong/loop'a göre çok daha doğal — karakter "dinliyormuş" gibi görünür
+FREEZE_FRAME_MAX = 3.0      # Max freeze süresi (saniye) — bundan sonra pingpong/loop kullan
+FREEZE_FRAME_FADE = 0.3     # Freeze'e geçişte "stillness" fade süresi
+
+# ─── Per-Scene Nefes Boşluğu ───
+# Ses sonundaki yumuşak fade-out — sahneler arası keskin kesilme hissini azaltır
+SCENE_BREATH_FADE = 0.2     # saniye
 
 # ─── Sahne Geçiş Tipleri ───
 # FFmpeg xfade desteklenen geçişler

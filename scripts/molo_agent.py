@@ -53,6 +53,7 @@ from config import (
     QUALITY_FILTERS, AUDIO_SLOWDOWN, CROSSFADE_DURATION,
     SMART_SLOWDOWN_TARGET_WPS, SMART_SLOWDOWN_FAST_WPS, SMART_SLOWDOWN_SLOW_WPS,
     SMART_SLOWDOWN_MIN, SMART_SLOWDOWN_MAX,
+    FREEZE_FRAME_MAX, FREEZE_FRAME_FADE, SCENE_BREATH_FADE,
     SUBTITLE_STYLES, DEFAULT_SUBTITLE_STYLE,
     TRANSITION_TYPES, DEFAULT_TRANSITION,
     BGM_VOLUME_DB, BGM_FADE_IN, BGM_FADE_OUT, BGM_DIR,
@@ -648,7 +649,7 @@ Style: Premium photorealistic composite, like a luxury brand campaign shot on lo
         orient_text = "horizontal wide" if _ct['orientation'] == 'horizontal' else "vertical"
         image_rules = _ct.get('image_rules', '')
         prompt = f"""{gs_reminder}CRITICAL FACE RULE — READ FIRST:
-MOLO's eyes are ROUND 3D SPHERICAL BALLS (light blue-white with dark navy pupils). They are NOT diamonds, NOT flat shapes, NOT LED dots. Look at the reference image — copy those exact round ball-shaped eyes. Any diamond or flat eye shape is WRONG.
+MOLO's eyes are ROUND 3D SPHERICAL BALLS (light blue-white with dark navy pupils). They are NOT diamonds, NOT flat shapes, NOT LED dots. Look at the reference image — copy those exact round ball-shaped eyes. Each eye must show a visible SPHERICAL HIGHLIGHT (a small light reflection on the curved surface) proving they are 3D round balls, not flat shapes. Any diamond or flat eye shape is WRONG.
 
 {CHARACTER_IDENTITY_LOCK}
 
@@ -1015,10 +1016,13 @@ def _wait_kling_task(tid, scene_num, out_path, max_attempts=40, poll_interval=10
 
 def _choose_kling_duration(audio_duration):
     """Ses süresine göre Kling video süresi seç.
-    - Ses ≤ 5s → 5s Kling (tam karşılama)
-    - Ses > 5s → 10s Kling (loop minimizasyonu)
+    Slowdown ve padding sonrası gerçek hedef süreyi hesaplar.
+    - Hedef ≤ 5.5s → 5s Kling
+    - Hedef > 5.5s → 10s Kling
     """
-    if audio_duration <= 5.5:
+    # Gerçek hedef: ses + padding, slowdown uygulanmış
+    effective = (audio_duration + SCENE_PADDING) / AUDIO_SLOWDOWN
+    if effective <= 5.5:
         return "5"
     return "10"
 
@@ -1257,13 +1261,23 @@ def calculate_scene_speeds(scenes, durations):
 def compose_edit(video_files, voice_files, durations, project_dir, project_name,
                  crf=None, scene_speeds=None):
     """Ses-video eşleştir, kalite filtrele. Merged sahne dosyaları listesi döndürür.
-    Akıllı süre yönetimi: video > ses → trim, video < ses → tek reverse + loop (max 2x).
+    4 kademeli akıllı senkronizasyon:
+      1. Video ≥ hedef → trim
+      2. Video < hedef, fark ≤ FREEZE_FRAME_MAX → tpad (son kare dondur)
+      3. Video × 2 ≥ hedef → pingpong reverse
+      4. Fallback → stream_loop
     scene_speeds: None (global slowdown) veya [speed_1, speed_2, ...] (per-scene slowdown)."""
     print("\n" + "=" * 60)
     print("🎬 ADIM 6: Per-Scene Merge (Video + Ses)")
     print("=" * 60)
 
     num = min(len(video_files), len(voice_files))
+    encode_args = [
+        "-c:v", "libx264", "-preset", "slow",
+        "-crf", str(crf or QUALITY_FILTERS["crf"]),
+        "-pix_fmt", "yuv420p", "-profile:v", "high", "-movflags", "+faststart",
+        "-c:a", "aac", "-b:a", "192k", "-r", str(OUTPUT_FPS),
+    ]
 
     merged = []
     for i in range(num):
@@ -1282,70 +1296,84 @@ def compose_edit(video_files, voice_files, durations, project_dir, project_name,
         else:
             pad_dur = dur + SCENE_PADDING
 
+        # Freeze-frame farkı
+        freeze_gap = pad_dur - video_dur
+
         spd_info = f", speed={speed:.3f}" if (speed and speed < 1.0) else ""
-        print(f"   Sahne {n}: video={video_dur:.1f}s, ses={dur:.1f}s, hedef={pad_dur:.1f}s{spd_info}")
+        print(f"   Sahne {n}: video={video_dur:.1f}s, ses={dur:.1f}s, hedef={pad_dur:.1f}s, fark={freeze_gap:+.1f}s{spd_info}")
 
         # Slowdown filter eklentileri
         slow_vf = f",setpts={1/speed}*PTS" if (speed and speed < 1.0) else ""
-        af_args = ["-af", f"atempo={speed}"] if (speed and speed < 1.0) else []
+        slow_af = f"atempo={speed}," if (speed and speed < 1.0) else ""
+
+        # Per-scene nefes fade-out (ses sonuna yumuşak fade)
+        breath_af = f"afade=t=out:st={max(0, dur - SCENE_BREATH_FADE):.2f}:d={SCENE_BREATH_FADE}"
+        audio_filter = f"[1:a]{slow_af}{breath_af}[a]"
 
         success = False
 
+        # ── Kademe 1: Video yeterli → trim ──
         if video_dur >= pad_dur:
             cmd = [
                 FFMPEG, "-y",
                 "-i", video_files[i],
                 "-i", voice_files[i],
-                "-filter_complex", f"[0:v]{vf}{slow_vf}[v]",
-                "-map", "[v]", "-map", "1:a",
-                "-c:v", "libx264", "-preset", "slow",
-                "-crf", str(QUALITY_FILTERS["crf"]),
-                "-pix_fmt", "yuv420p", "-profile:v", "high", "-movflags", "+faststart",
-                "-c:a", "aac", "-b:a", "192k", "-r", str(OUTPUT_FPS),
-                "-t", str(pad_dur),
-                "-shortest"] + af_args + [out]
+                "-filter_complex", f"[0:v]{vf}{slow_vf}[v];{audio_filter}",
+                "-map", "[v]", "-map", "[a]",
+            ] + encode_args + ["-t", str(pad_dur), out]
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode == 0:
                 actual_dur = get_audio_duration(out)
-                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (video yeterliydi ✂️{spd_info})")
+                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (trim ✂️{spd_info})")
                 merged.append(out)
                 success = True
 
+        # ── Kademe 2: Freeze-frame (tpad) — fark ≤ FREEZE_FRAME_MAX ──
+        if not success and 0 < freeze_gap <= FREEZE_FRAME_MAX:
+            freeze_vf = f"[0:v]{vf}{slow_vf},tpad=stop=-1:stop_duration={freeze_gap:.2f}[v]"
+            cmd = [
+                FFMPEG, "-y",
+                "-i", video_files[i],
+                "-i", voice_files[i],
+                "-filter_complex", f"{freeze_vf};{audio_filter}",
+                "-map", "[v]", "-map", "[a]",
+            ] + encode_args + ["-t", str(pad_dur), out]
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            if r.returncode == 0:
+                actual_dur = get_audio_duration(out)
+                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (freeze-frame ❄️ +{freeze_gap:.1f}s{spd_info})")
+                merged.append(out)
+                success = True
+            else:
+                print(f"   ⚠️ Sahne {n}: tpad başarısız, sonraki kademeye geçiliyor...")
+
+        # ── Kademe 3: Pingpong reverse ──
         if not success and video_dur * 2 >= pad_dur:
             pingpong_vf = f"[0:v]split[fwd][rev];[rev]reverse[r];[fwd][r]concat=n=2:v=1:a=0,{vf}{slow_vf}[v]"
             cmd = [
                 FFMPEG, "-y",
                 "-i", video_files[i],
                 "-i", voice_files[i],
-                "-filter_complex", pingpong_vf,
-                "-map", "[v]", "-map", "1:a",
-                "-c:v", "libx264", "-preset", "slow",
-                "-crf", str(QUALITY_FILTERS["crf"]),
-                "-pix_fmt", "yuv420p", "-profile:v", "high", "-movflags", "+faststart",
-                "-c:a", "aac", "-b:a", "192k", "-r", str(OUTPUT_FPS),
-                "-t", str(pad_dur),
-                "-shortest"] + af_args + [out]
+                "-filter_complex", f"{pingpong_vf};{audio_filter}",
+                "-map", "[v]", "-map", "[a]",
+            ] + encode_args + ["-t", str(pad_dur), out]
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode == 0:
                 actual_dur = get_audio_duration(out)
-                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (tek reverse 🔄{spd_info})")
+                print(f"   ✅ Sahne {n}: {actual_dur:.1f}s (pingpong 🔄{spd_info})")
                 merged.append(out)
                 success = True
 
+        # ── Kademe 4: Stream loop (son çare) ──
         if not success:
             loop_count = min(2, max(1, int(pad_dur / max(video_dur, 1)) + 1))
             cmd = [
                 FFMPEG, "-y",
                 "-stream_loop", str(loop_count - 1), "-i", video_files[i],
                 "-i", voice_files[i],
-                "-filter_complex", f"[0:v]{vf}{slow_vf}[v]",
-                "-map", "[v]", "-map", "1:a",
-                "-c:v", "libx264", "-preset", "slow",
-                "-crf", str(QUALITY_FILTERS["crf"]),
-                "-pix_fmt", "yuv420p", "-profile:v", "high", "-movflags", "+faststart",
-                "-c:a", "aac", "-b:a", "192k", "-r", str(OUTPUT_FPS),
-                "-t", str(pad_dur),
-                "-shortest"] + af_args + [out]
+                "-filter_complex", f"[0:v]{vf}{slow_vf}[v];{audio_filter}",
+                "-map", "[v]", "-map", "[a]",
+            ] + encode_args + ["-t", str(pad_dur), out]
             r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode == 0:
                 actual_dur = get_audio_duration(out)

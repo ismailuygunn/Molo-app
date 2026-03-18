@@ -67,7 +67,7 @@ MOLO's speech is **bright, fluid, clean, and slightly playful**.
 ### Physical Design (LOCKED — never changes)
 - **Body:** Tooth-shaped (molar), royal blue (#2B5EA7) and white
 - **Chest:** White panel with "ISTADENTAL" text
-- **Face:** Dark translucent visor, glowing cyan-blue eyes, gentle LED smile
+- **Face:** Dark translucent visor (#0A1628), round 3D spherical light blue-white eyes with dark navy pupils, wide curved cyan smile with visible thickness
 - **Head:** Holographic inverted-cone projector on top (cyan-blue glow)
 - **Arms:** Short, blue, robotic, 3-fingered hands
 - **Legs:** Two tooth-root shaped legs
