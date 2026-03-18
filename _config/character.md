@@ -95,9 +95,12 @@ MOLO's speech is **bright, fluid, clean, and slightly playful**.
 
 | File | Pose | When to use |
 |------|------|-------------|
-| `front.jpeg` | Front-facing, neutral | Speaking, information |
-| `front-wave.jpg` | Front, subtle wave | Greeting, farewell |
+| `ref-front-studio.png` | Front, studio blue bg | **Primary reference** — canonical front view |
+| `ref-front-dark.png` | Front, dark bg | **Primary reference** — canonical dark studio |
+| `ref-front-3q.png` | Front 3/4, dark bg | **Primary reference** — 3/4 angle reference |
 | `front-vertical.png` | Front, vertical crop | Social media formats |
+| `front-close.png` | Front, close-up | Detail reference |
+| `front-wave.jpg` | Front, subtle wave | Greeting, farewell |
 | `front-fiverr.png` | Front, clean render | Clean backgrounds |
 | `side-run-1.jpg` | Side, walking | Entrances (rare) |
 | `clinic-photo.JPG` | Clinic interior | Clinic background scenes |

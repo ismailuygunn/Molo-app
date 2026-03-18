@@ -243,7 +243,7 @@ KLING_MODEL = "kling-v3"                     # ⚠️ En son model — asla dü�
 KLING_API_BASE = "https://api.klingai.com"
 KLING_DURATION = "5"
 KLING_CFG_SCALE = 0.7                         # Prompt'a bağlılık (0-1, 0.5 default, 0.7 sıkı)
-KLING_NEGATIVE_PROMPT = "face morphing, face distortion, asymmetric face, round eyes, oval eyes, human eyes, dot eyes, eye color change, eye size change, eye spacing change, mouth cavity, teeth visible, tongue visible, 3D mouth opening, biological mouth, asymmetric mouth, visor size change, visor shape change, extra limbs, blurry, low quality, watermark, text overlay, childish cartoon, toy-like, plastic glow, oversized mouth, inner mouth glow, elastic body, rubbery motion, bouncing, jittery, flickering, artifacts, ghost face features, duplicate eyes, face element drift, eye shape change between frames, face element position drift, visor proportion change, inconsistent eye size, one eye larger than other, eyeball flattening, diamond shaped eyes, flat LED eyes, eye depth loss"
+KLING_NEGATIVE_PROMPT = "face morphing, face distortion, asymmetric face, oversized eyes, enlarged eyes, bulging eyes, protruding eyes, eye size change, eye spacing change, mouth cavity, teeth visible, tongue visible, 3D mouth opening, biological mouth, asymmetric mouth, visor size change, visor shape change, extra limbs, blurry, low quality, watermark, text overlay, childish cartoon, toy-like, plastic glow, oversized mouth, inner mouth glow, elastic body, rubbery motion, bouncing, jittery, flickering, artifacts, ghost face features, duplicate eyes, face element drift, eye shape change between frames, face element position drift, visor proportion change, inconsistent eye size, one eye larger than other, feature enlargement, exaggerated facial features"
 KLING_CFG_FIRST_LAST = 0.8                    # İlk ve son sahne — karakter tutarlılığı
 KLING_CFG_MIDDLE = 0.7                        # Orta sahneler — biraz yaratıcılık
 KLING_MAX_PROMPT_CHARS = 2500  # ⚠️ API hard limit
@@ -311,11 +311,13 @@ Role: welcomes visitors, eases first-moment tension, makes the experience warmer
 # ─── Molo Karakter Kimlik Kilidi (Prompt'lara otomatik eklenir) ───
 
 # Görsel promptlara eklenen karakter kilidi
-CHARACTER_IDENTITY_LOCK = """Use the referenced MOLO mascot exactly as the fixed and locked character identity. COPY THE FACE FROM THE REFERENCE IMAGE EXACTLY:
-- Eyes: ROUND 3D SPHERICAL ORBS (light blue-white balls with dark navy pupils) — NOT diamonds, NOT flat LEDs, NOT glowing shapes
-- Mouth: WIDE CURVED CYAN SMILE with visible thickness — NOT a thin LED line
-Preserve the exact same face design, exact same eye shape (round spherical orbs), exact same mouth design (wide curved smile), exact same body proportions, exact same blue-and-white color palette, exact same materials, exact same silhouette, and especially the exact same hologram unit on top of the head. Do not redesign, reinterpret, or simplify the character. Do not make diamond eyes, flat LED eyes, or any eye shape other than round 3D spheres as shown in the reference.
-The eyes must have visible 3D DEPTH — a spherical highlight/reflection on each eyeball surface proving they are round balls, not flat shapes."""
+CHARACTER_IDENTITY_LOCK = """MOLO character is LOCKED to the reference image(s). COPY the character EXACTLY as shown.
+Do NOT enlarge, distort, exaggerate, or reinterpret ANY facial feature.
+The eyes, mouth, and visor must be the EXACT same size and shape as reference — not bigger, not smaller.
+Do not make eyes more prominent than reference. Do not make mouth wider than reference.
+Do not add features not in reference. Do not simplify features from reference.
+Preserve: same face, same proportions, same blue-and-white colors, same materials, same silhouette, same hologram cone on top.
+If in doubt about any feature size, make it SMALLER rather than larger."""
 
 # Video promptlara eklenen hareket kuralları
 CHARACTER_MOVEMENT_RULES = """Movement rules:
@@ -331,7 +333,7 @@ CHARACTER_MOVEMENT_RULES = """Movement rules:
 
 Facial animation rules:
 - natural blinking — eyes close to half-circle shape as seen in reference
-- expressive round 3D eyes with movable pupils, exactly as reference
+- expressive eyes with movable pupils, exactly as seen in reference
 - slight robotic timing
 - stable face structure throughout
 - no sudden expression spikes, no exaggerated smile stretching
@@ -356,7 +358,7 @@ HOLOGRAM_LOCK = """The hologram on top of MOLO's head must remain exactly identi
 AVOID_LIST = """Avoid: oversized mascot filling the frame, side angle, 3/4 angle, profile angle, extreme close-up, cropped face, hidden mouth, exaggerated smile, extra props, extra people, random floating UI, new accessories, redesigned hologram, childish proportions, toy-like rendering, overly glossy plastic surfaces, asymmetrical framing, clutter, visual chaos, or anything that reduces premium realism."""
 
 # Lip-sync hazırlık bloğu (görsel promptlarda)
-LIPSYNC_READINESS = """MOLO's facial area must be extremely clear and readable for later talking animation. The round 3D spherical eyes (light blue-white orbs with dark navy pupils) must be clearly visible, prominent, and expressive — NOT diamond shaped, NOT flat. The wide curved cyan smile mouth must be unobstructed, centered, and easy to animate. The expression should feel warm, intelligent, slightly playful, slightly robotic, premium, and welcoming. The character should feel like a sophisticated brand mascot, not a children's cartoon and not a cheap toy."""
+LIPSYNC_READINESS = """MOLO's facial area must be clear and readable for talking animation. Eyes and mouth must match reference image exactly — same size, same position, same proportions. Do NOT enlarge or exaggerate any facial feature. The mouth must be unobstructed and easy to animate. Expression: warm, intelligent, slightly playful, slightly robotic, premium. Sophisticated brand mascot, not cartoon or toy."""
 
 # Aydınlatma ve malzeme (tüm promptlarda)
 LIGHTING_RULES = """The lighting should feel high-end, cinematic, soft, and premium, but realistic. The character should integrate naturally into the space. Avoid flat toy lighting, overexposed glow, or over-stylized cartoon shading. The materials should feel polished but not overly glossy or plastic."""
@@ -377,6 +379,9 @@ MOLO_POSES = {
     "front-wave":     REFERENCE_DIR / "front-wave.jpg",
     "front-vertical": REFERENCE_DIR / "front-vertical.png",
     "front-fiverr":   REFERENCE_DIR / "front-fiverr.png",
+    "ref-studio":     REFERENCE_DIR / "ref-front-studio.png",
+    "ref-dark":       REFERENCE_DIR / "ref-front-dark.png",
+    "ref-3q":         REFERENCE_DIR / "ref-front-3q.png",
     "side-run-1":     REFERENCE_DIR / "side-run-1.jpg",
     "side-run-2":     REFERENCE_DIR / "side-run-2.jpg",
 }
@@ -396,14 +401,14 @@ VOICE_PROFILES = {
 # ─── Kling Kompakt Prompt Blokları (2500 char limit) ───
 COMPACT_LOCK = """Character identity locked to source image. Same face, eyes, mouth, body, proportions, blue-white colors, materials, silhouette, hologram. No redesign, no reinterpretation, no simplification, no childish or toy-like changes. Hologram shape/scale/placement must stay identical. Premium digital host, not cartoon.
 
-Face anatomy lock: Face must EXACTLY match the reference image. Round 3D spherical light blue-white eyeball orbs with dark navy pupils — large (~20-25% visor width), NOT diamonds, NOT flat LEDs. Pupils shift for gaze. Happy = half-circle eyes. Thin eyebrow arcs above eyes. Mouth: wide curved cyan smile with visible thickness (NOT thin LED line), ~70-80% of eye span. No reinterpretation of facial features from reference allowed."""
+Face lock: COPY face from reference EXACTLY. Same eye size, same mouth shape, same visor proportions. Do NOT enlarge eyes. Do NOT exaggerate any feature. Eyes and mouth must be same scale as reference — if in doubt, make SMALLER. No face morphing, no feature resizing, no reinterpretation."""
 
 COMPACT_MOTION = """Movement: minimal, controlled, precise. Small upper-body motion only. Tiny head nods allowed. Front-facing, direct eye contact. No big turns, no bouncing, no elastic/rubbery motion, no wobble. Face stable throughout, no warping, no expression spikes. Lip sync: speech-driven only, moderate openings, no glow, no jitter. Gestures: very small and elegant only."""
 
 # ─── Ekran (Yatay 16:9) Premium Prompt Blokları ───
 COMPACT_LOCK_EKRAN = """Animate the referenced MOLO mascot in a premium horizontal commercial scene. Keep the character fully locked to the reference: same face, same eyes, same mouth design, same body proportions, same blue-white colors, same materials, same silhouette, and the exact same hologram unit on top of the head. Do not redesign or alter MOLO in any way.
 
-Face anatomy lock: Face must EXACTLY match the reference image. Round 3D spherical light blue-white eyeball orbs with dark navy pupils — large (~20-25% visor width), NOT diamonds, NOT flat LEDs. Pupils shift for gaze. Happy = half-circle eyes. Thin eyebrow arcs above eyes. Mouth: wide curved cyan smile with visible thickness (NOT thin LED line), ~70-80% of eye span. No reinterpretation of facial features from reference allowed."""
+Face lock: COPY face from reference EXACTLY. Same eye size, same mouth shape, same visor proportions. Do NOT enlarge eyes. Do NOT exaggerate any feature. Match reference scale precisely. No face morphing, no feature resizing."""
 
 COMPACT_MOTION_EKRAN = """Motion rules: very small, precise, premium movement. Slightly robotic timing. No elastic body motion, no cartoon wobble, no exaggerated rocking, no big gestures, no panic flailing, no drifting, no unstable physics.
 Face rules: no face morphing, no cheek distortion, no eye warping, no sudden expression spikes, no random facial glow, no lighting flicker on mouth or eyes.
@@ -412,68 +417,46 @@ Camera: horizontal composition, balanced premium framing, elegant negative space
 Lighting: soft premium studio lighting, warm off-white luxury tone, subtle sculptural shadows, polished material definition, no harsh contrast, no cheap plastic shine."""
 
 # ─── Green Screen Kompakt Prompt Blokları ───
-COMPACT_LOCK_GS = """Character: MOLO — compact dental mascot robot. Dark navy-blue metallic body. Round 3D spherical light blue-white eyes with dark navy pupils and wide curved cyan smile — exactly as reference image. Open hologram cone on top glowing cyan. Short, rounded, not more than 60cm tall. NOT a real person. Not a cartoon. Premium 3D-rendered robot with clean, studio-quality appearance. BACKGROUND: MUST be perfectly flat solid chroma green (#00B140). No exceptions."""
+COMPACT_LOCK_GS = """Character: MOLO — compact dental mascot robot. Dark navy-blue metallic body. Face exactly as reference image — same eye size, same mouth shape. Do NOT enlarge any facial feature. Open hologram cone on top glowing cyan. Short, rounded, not more than 60cm tall. NOT a real person. Not a cartoon. Premium 3D-rendered robot with clean, studio-quality appearance. BACKGROUND: MUST be perfectly flat solid chroma green (#00B140). No exceptions."""
 
 COMPACT_MOTION_GS = """Motion: Minimal, controlled, robotic. Small 2-5cm movements only. No bouncing, no elastic motion, no exaggerated gestures. Subtle head tilt, gentle hand wave, slight body lean — all micro-movements. Character stays in place — no walking, no jumping, no large position changes. BACKGROUND: Must remain perfectly static uniform green throughout entire duration."""
 
 # ─── Yüz Anatomisi Kilidi (göz/ağız/vizör tutarlılığı) ───
-FACE_ANATOMY_LOCK = """MOLO FACE ANATOMY — ABSOLUTE LOCK (must match reference image exactly):
+FACE_ANATOMY_LOCK = """MOLO FACE — MATCH REFERENCE IMAGE EXACTLY. Do not reinterpret.
 
-The reference image is the SINGLE SOURCE OF TRUTH for MOLO's face. Copy the face design from the reference exactly. Do not reinterpret, redesign, simplify, or stylize the facial features in any way.
+The reference image is the SINGLE SOURCE OF TRUTH for MOLO's face.
+Every facial feature must be the EXACT SAME SIZE and shape as shown in the reference.
 
-EYE DESIGN (as seen in reference):
-- Shape: two ROUND 3D SPHERICAL ORBS protruding slightly from the visor surface
-- Each eye is a solid 3D ball/sphere — NOT flat, NOT diamond, NOT LED dots
-- Eyeball color: light blue-white, opaque, solid matte finish
-- Pupil/Iris: each eye has a dark navy blue (#1a2744) circular pupil/iris centered in the eyeball
-- Pupils can shift to indicate gaze direction (up, left, right)
-- Size: LARGE — each eye ~20-25% of visor width. Prominent and expressive.
-- Happy/squint: eyes become half-circles with flat bottom edge
-- Eyebrows: thin curved lines above each eye, subtle light blue arc
-- PROHIBITIONS: No diamond eyes. No tiny dot eyes. No flat 2D eyes. No glowing LED eyes. No cyan-colored eyeballs. Eyes are ROUND 3D SPHERES with dark blue pupils — match the reference.
+EYES: Copy exactly from reference — same size, same position, same proportions.
+- Do NOT enlarge. Do NOT make more prominent. Do NOT exaggerate.
+- Pupils can shift for gaze direction. Happy = half-circle eyes.
+- If reference shows small subtle eyes, generate small subtle eyes.
 
-MOUTH DESIGN (as seen in reference):
-- Shape: a wide curved smile — thick, 3D-feeling arc/crescent
-- NOT a thin LED line — has visible thickness and dimensionality
-- Color: cyan-light blue with subtle glow
-- Width: wide — ~70-80% of the distance between eyes' outermost points
-- Warm, friendly curve — wider and more expressive than a subtle line
-- During speech: opens moderately, maintaining curved shape
-- PROHIBITIONS: No thin LED line. No teeth. No tongue. No inner cavity. Match the reference.
+MOUTH: Copy exactly from reference — same curved smile shape and width.
+- Do NOT widen. Do NOT exaggerate.
+- No teeth, no tongue, no inner cavity.
 
-VISOR (as seen in reference):
-- Wide rounded-rectangle, very dark blue-black (#0A1628), glass-like reflections
-- Contains ONLY eyes, eyebrows, mouth — nothing else
-- Proportions must remain exactly as reference"""
+VISOR: Dark panel (#0A1628), same proportions as reference.
+- Contains ONLY eyes and mouth — nothing else.
+
+CRITICAL: If in doubt about any feature size, make it SMALLER rather than larger.
+The #1 error is making eyes too big/prominent — avoid this at all costs."""
 
 
 # ─── Video Yüz Animasyon Kilidi (kare-kare tutarlılık) ───
-FACE_CONSISTENCY_VIDEO_LOCK = """FACE CONSISTENCY DURING ANIMATION — ABSOLUTE RULES:
-- The face must match the reference image in EVERY frame — no reinterpretation allowed
-
-Frame-to-frame face stability:
-- The eye shape must remain IDENTICAL in every single frame of the video
-- The eye spacing must remain IDENTICAL in every single frame
-- The eye color (light blue-white eyeballs with dark navy pupils) must remain constant — no color shifting
-- The 3D spherical quality of the eyes must be preserved — eyes must never flatten into 2D shapes
-- Pupil gaze direction must stay consistent within each scene
-- The mouth baseline shape must return to the same neutral position between words
-- The visor size, shape, and darkness must not change at any point
-- The face must not morph, stretch, compress, or warp during any movement
-
-Prohibited face artifacts:
-- No frame where eyes become flat or diamond-shaped
-- No frame where mouth becomes a full circle or shows internal glow
-- No frame where visor changes size or transparency
-- No frame where eye spacing changes
-- No flickering of facial elements
-- No asymmetric eye sizing (one eye larger than the other)
-- No ghost/duplicate facial features
-- No face elements sliding or drifting position on the visor"""
+FACE_CONSISTENCY_VIDEO_LOCK = """FACE CONSISTENCY DURING ANIMATION:
+- Face must match reference in EVERY frame — no reinterpretation
+- Eye size, shape, spacing must stay IDENTICAL frame-to-frame
+- Eye proportions must not change — do not enlarge mid-animation
+- Mouth shape must return to same neutral position between words
+- Visor size/shape/darkness must not change
+- No face morphing, stretching, warping during movement
+- No flickering, no asymmetric sizing, no ghost features
+- No face elements drifting position on visor"""
 
 
 # ─── Kompakt Yüz Kilidi (Kling 2500 char limiti için kısa versiyon) ───
-COMPACT_FACE_LOCK = """Face lock: must EXACTLY match reference image. Round 3D spherical light blue-white eyeball orbs with dark navy pupils — large (~20-25% visor width). Pupils shift for gaze. Happy = half-circle eyes. Thin eyebrow arcs above. Mouth: wide curved cyan smile with visible thickness, ~70-80% of eye span. No diamond eyes, no flat LEDs, no thin LED line mouth, no teeth, no tongue, no face morphing, no eye warping, no asymmetric features. Visor proportions constant throughout. Eyeball 3D depth must be visible in every frame — light catches the spherical surface creating a subtle highlight/reflection."""
+COMPACT_FACE_LOCK = """Face: EXACT copy of reference image. Same eye size, same mouth shape, same visor proportions. Do NOT enlarge eyes — the #1 error is oversized eyes. Do NOT exaggerate any feature. Match reference scale precisely. No face morphing, no warping, no asymmetry. Visor proportions constant throughout."""
 
 # ─── Sahne Ortam Prompt Blokları ───
 CLINIC_ENV_BLOCK = """Also use the provided clinic background reference as the environmental base for this composition. The final image must clearly place MOLO inside that premium dental clinic environment. The clinic interior should remain visible, readable, and recognizable behind and around MOLO.
