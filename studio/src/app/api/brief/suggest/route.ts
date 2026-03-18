@@ -1,46 +1,44 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 
-// ─── Kategori Tanımları ───
-const CATEGORIES: Record<string, { label: string; desc: string; examples: string }> = {
+const CATEGORIES: Record<string, { label: string; emoji: string; desc: string; examples: string }> = {
   trending: {
-    label: "🔥 Güncel & Trend",
+    label: "Güncel & Trend", emoji: "🔥",
     desc: "Sosyal medya trendleri, viral akımlar, mevsimsel içerikler",
-    examples: "TikTok trendleri, sezonsal kampanyalar, viral challenge'lar, gündem yorumları",
+    examples: "TikTok trendleri, sezonsal kampanyalar, viral challenge adaptasyonları, gündem yorumları, POV videoları",
   },
   educational: {
-    label: "📚 Eğitici",
+    label: "Eğitici", emoji: "📚",
     desc: "Diş sağlığı bilgilendirme, bakım ipuçları",
-    examples: "Diş fırçalama teknikleri, çocuklara özel bakım, yanlış bilinen doğrular, FAQ",
+    examples: "Diş fırçalama teknikleri, çocuklara özel bakım, yanlış bilinen doğrular, FAQ videoları, bilgi hapları",
   },
   humor: {
-    label: "😂 Komedi & Şaka",
-    desc: "Esprili, mizahi içerikler",
-    examples: "Dişçi korkusu şakaları, Molo'nun günlük maceraları, komik durumlar, self-ironi",
+    label: "Komedi & Şaka", emoji: "😂",
+    desc: "Esprili, mizahi, scroll-durdurucu içerikler",
+    examples: "Dişçi korkusu şakaları, Molo'nun günlük maceraları, komik durumlar, self-ironi, POV videoları, absürt karşılaştırmalar",
   },
   campaign: {
-    label: "🎯 Kampanya & Tanıtım",
-    desc: "Klinik tanıtım, tedavi tanıtımı",
-    examples: "İmplant, diş beyazlatma, ortodonti tanıtımı, fiyat kampanyaları, yeni hizmetler",
+    label: "Kampanya & Tanıtım", emoji: "🎯",
+    desc: "Klinik ve tedavi tanıtımı",
+    examples: "İmplant, diş beyazlatma, ortodonti tanıtımı, yeni hizmetler, fiyat kampanyaları, before/after",
   },
   storytelling: {
-    label: "📖 Hikaye & Seri",
+    label: "Hikaye & Seri", emoji: "📖",
     desc: "Devam eden hikayeler, karakter gelişimi",
-    examples: "Molo'nun günlüğü, hasta hikayeleri, klinik arkası, bir günüm serisi",
+    examples: "Molo'nun günlüğü, hasta hikayeleri, klinik arkası, bir günüm serisi, beklenmedik olaylar",
   },
   seasonal: {
-    label: "🗓️ Mevsimsel & Özel Gün",
+    label: "Mevsimsel & Özel Gün", emoji: "🗓️",
     desc: "Tatil, bayram, özel gün içerikleri",
-    examples: "Ramazan, bayram, yılbaşı, okul başlangıcı, yaz tatili, dünya diş sağlığı günü",
+    examples: "Ramazan, bayram, yılbaşı, okul başlangıcı, yaz tatili, dünya diş sağlığı günü, sevgililer günü, anneler günü",
   },
   interactive: {
-    label: "🎮 Etkileşimli",
+    label: "Etkileşimli", emoji: "🎮",
     desc: "Anket, soru-cevap, quiz formatları",
-    examples: "Doğru/yanlış quiz, bunu biliyor muydun, iki resim arasındaki fark, tahmin oyunu",
+    examples: "Doğru/yanlış quiz, bunu biliyor muydun, tahmin oyunu, yorum bırak formatı, this or that, tepki videoları",
   },
 };
 
-// ─── Platform Bağlamları ───
 const PLATFORM_CONTEXT: Record<string, string> = {
   sosyal: `Sosyal Medya (TikTok, Instagram Reels, YouTube Shorts) - 9:16 dikey format.
     Hedef: Scroll durdurucu, dikkat çekici, kısa ve vurucu.
@@ -54,6 +52,9 @@ const PLATFORM_CONTEXT: Record<string, string> = {
     Hedef: Hastaları karşılayan, etkileşimli, sıcak.
     Tarzlar: Hoş geldin mesajı, yönlendirme, çocuklara özel, günlük selamlama.
     Süre: 10-20 saniye.`,
+  greenscreen: `Green Screen formatı — compositing için arka plan ayrıca eklenecek.
+    Hedef: Esnek kullanım, farklı arka planlarla birleştirilebilir.
+    Süre: İçeriğe göre değişken.`,
 };
 
 export async function POST(req: NextRequest) {
@@ -65,75 +66,65 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         configured: false,
         suggestions: [],
-        categories: CATEGORIES,
         message: "GOOGLE_API_KEY henüz yapılandırılmamış. Ayarlar sayfasından kontrol edin.",
       });
     }
 
     const platform = PLATFORM_CONTEXT[contentType] || PLATFORM_CONTEXT.sosyal;
-    const langLabel = lang === "de" ? "Almanca (Almanya'daki Türk diş kliniği)" : lang === "en" ? "İngilizce" : "Türkçe";
-    const todayStr = new Date().toLocaleDateString("tr-TR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
-
+    const langLabel = lang === "de" ? "Almanca (Almanya'daki Türk diş kliniği)" : "Türkçe";
+    const today = new Date().toLocaleDateString("tr-TR", {
+      weekday: "long", year: "numeric", month: "long", day: "numeric",
+    });
     const existingText = existingTopics?.length
-      ? `\n\nDaha önce üretilmiş konular (BUNLARI TEKRAR ÖNERME):\n${existingTopics.map((t: string) => `- ${t}`).join("\n")}`
+      ? `\nDaha önce üretilmiş konular (BUNLARI TEKRAR ÖNERME):\n${existingTopics.map((t: string) => `- ${t}`).join("\n")}`
       : "";
 
-    // Kategori seçimine göre talimat
-    let categoryInstruction: string;
-    let suggestionCount: number;
-    if (category && CATEGORIES[category]) {
-      const cat = CATEGORIES[category];
-      categoryInstruction = `SADECE "${cat.label}" kategorisinden 6 öneri üret.
-Kategori açıklaması: ${cat.desc}
-Örnek konular: ${cat.examples}
-Tüm önerilerin "category" alanı "${category}" olmalı.`;
-      suggestionCount = 6;
-    } else {
-      const allCats = Object.entries(CATEGORIES)
-        .map(([key, val]) => `- ${key}: ${val.label} — ${val.desc}. Örnekler: ${val.examples}`)
-        .join("\n");
-      categoryInstruction = `TÜM kategorilerden 1-2'şer öneri üret (toplam 8 öneri).
-Kategoriler:\n${allCats}\n
-Her önerinin "category" alanına uygun kategori key'ini yaz.`;
-      suggestionCount = 8;
-    }
+    // Kategori filtresi
+    const catInfo = category && CATEGORIES[category]
+      ? `\nSADECE "${CATEGORIES[category].label}" kategorisinden 6 öneri üret.\nKategori açıklaması: ${CATEGORIES[category].desc}\nÖrnek konular: ${CATEGORIES[category].examples}`
+      : `\nTÜM kategorilerden karışık 8 öneri üret. Her önerinin hangi kategoriye ait olduğunu belirt.\nKategoriler: ${Object.entries(CATEGORIES).map(([k, v]) => `${v.emoji} ${v.label} (key: ${k})`).join(", ")}`;
 
-    const prompt = `Sen İSTADENTAL diş kliniğinin maskotu MOLO için yaratıcı içerik önerileri üreten bir asistansın.
-
-BUGÜNÜN TARİHİ: ${todayStr}
-Güncel sosyal medya trendlerini ve viral formatları göz önünde bulundur. Mevsimsel ve güncel öneriler yap.
+    const prompt = `Sen İSTADENTAL diş kliniğinin maskotu MOLO için yaratıcı, viral potansiyelli içerik önerileri üreten bir yaratıcı direktörsün.
 
 MOLO KARAKTERİ:
-- Mavi-beyaz sevimli 3D robot maskot (60cm boyunda, kompakt)
-- Başında hologram konisi, koyu lacivert metalik gövde
-- Yuvarlak 3D küre gözler (açık mavi-beyaz), geniş siyanimit gülümseme
+- Mavi-beyaz sevimli robot maskot, başında hologram konisi
 - Çocuklar ve yetişkinler tarafından sevilen
+- Komik, pozitif, sevecen ama premium kişilik
+- Self-ironi yapabilir ("Ben bir robotum ama bunu bile biliyorum!"), hafif şakalar atabilir, güncel trendlere espirili yorum yapabilir
+- İnsanları dışarıdan gözlemleyen bir robot bakış açısı — şaşırabilir, kendi robotluğuyla dalga geçebilir
 - ISTADENTAL logolu tişört giyer
-- Molo komik yorumlar yapabilir, self-ironi yapabilir, hafif şakalar atabilir
-- Ama asla kaba, ofansif veya marka imajını zedeleyici olmamalı
+- Almanya'daki Türk diş kliniğinin maskotu
+
+BUGÜNÜN TARİHİ: ${today}
+(Güncel trendleri, mevsimsel olayları ve yaklaşan özel günleri göz önünde bulundur. Mevsime uygun öneriler yap.)
 
 PLATFORM: ${platform}
+
 DİL: ${langLabel}
-TON: ${tone || "Eğlenceli ve Yaratıcı"}
+TON: ${tone || "Eğlenceli"}
+${catInfo}
 ${existingText}
 
-${categoryInstruction}
+YARATICILIK KURALLARI:
+- Güncel sosyal medya trendlerini ve viral formatları göz önünde bulundur (POV, storytime, "nobody:", "bunu biliyor muydun" vb.)
+- Molo komik yorumlar yapabilir, self-ironi yapabilir, hafif şakalar atabilir
+- Molo insanları "dışarıdan gözlemleyen sevimli robot" perspektifiyle yaklaşabilir
+- Her öneri BENZERSİZ olmalı — birbirine benzeyen fikirler YASAK
+- Hook'lar merak uyandırıcı, şok edici veya güldürücü olmalı — ilk 3 saniye scroll durdurmalı
+- Diş kliniği bağlamını asla unutma — her içerik İstadental'e değer katmalı
+- Klişe "diş fırçala" içerikleri yerine yaratıcı ve beklenmedik açılar bul
+- Molo'nun robotluğunu avantaj olarak kullan
+- Konsept açıklamaları SOMUT olmalı — ne olacağını net anlat, soyut kalma
 
-KURALLAR:
-- Her öneri benzersiz olmalı — birbirine benzeyen öneriler YASAK.
-- Hook'lar merak uyandırıcı, şok edici veya güldürücü olmalı — ilk 3 saniyede scroll'u durdurmalı.
-- Diş kliniği bağlamını asla unutma — her içerik İstadental'e değer katmalı.
-- Molo'nun kişiliğini yansıt — sevecen, zeki, hafif şakacı, premium.
-
-Yanıtını SADECE şu JSON formatında ver, başka hiçbir şey yazma (${suggestionCount} öneri):
+Yanıtını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
 [
   {
-    "title": "emoji + akılda kalıcı başlık",
-    "concept": "1-2 cümle konsept açıklaması",
-    "hook": "Videonun ilk 3 saniyesinde söylenecek/gösterilecek cümle (scroll durdurucu)",
-    "why": "Neden işe yarar — hangi kitleye hitap eder, viral potansiyeli nedir (detaylı)",
-    "category": "kategori_key",
-    "molo_attitude": "Molo bu konuda nasıl davranacak (şakacı/ciddi/heyecanlı/meraklı/vs.)"
+    "title": "emoji + akılda kalıcı kısa başlık",
+    "concept": "2-3 cümle yaratıcı ve SOMUT konsept açıklaması — ne olacak, neden ilginç",
+    "hook": "Videonun ilk 3 saniyesinde söylenecek scroll-durdurucu cümle (Almanca ise Almanca yaz)",
+    "why": "Neden viral olabilir, hangi kitleye hitap eder, hangi duyguyu tetikler (detaylı, 1-2 cümle)",
+    "category": "trending|educational|humor|campaign|storytelling|seasonal|interactive",
+    "molo_attitude": "Molo'nun bu konudaki tavrı (2-3 kelime: şakacı, meraklı, şaşkın, bilgiç, heyecanlı, vs.)"
   }
 ]`;
 
@@ -167,26 +158,17 @@ Yanıtını SADECE şu JSON formatında ver, başka hiçbir şey yazma (${sugges
     // Parse JSON array
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      return NextResponse.json({ error: "AI yanıtı parse edilemedi", raw: text.slice(0, 300) }, { status: 500 });
+      return NextResponse.json({ error: "AI yanıtı parse edilemedi", raw: text.slice(0, 200) }, { status: 500 });
     }
 
     try {
       const suggestions = JSON.parse(jsonMatch[0]);
-      return NextResponse.json({
-        suggestions,
-        categories: CATEGORIES,
-        selectedCategory: category || null,
-      });
+      return NextResponse.json({ suggestions, categories: CATEGORIES });
     } catch {
-      return NextResponse.json({ error: "JSON parse hatası", raw: text.slice(0, 300) }, { status: 500 });
+      return NextResponse.json({ error: "JSON parse hatası", raw: text.slice(0, 200) }, { status: 500 });
     }
   } catch (error) {
     console.error("Suggest error:", error);
     return NextResponse.json({ error: "Öneri üretilemedi" }, { status: 500 });
   }
-}
-
-// Kategori listesini frontend'e sun
-export async function GET() {
-  return NextResponse.json({ categories: CATEGORIES });
 }

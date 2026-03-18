@@ -58,6 +58,12 @@ interface Suggestion {
   molo_attitude?: string;
 }
 
+interface CategoryInfo {
+  label: string;
+  emoji: string;
+  desc: string;
+}
+
 interface ScenePreview {
   scene: number;
   text: string;
@@ -90,28 +96,7 @@ export default function BriefPage() {
   const [suggestConfigured, setSuggestConfigured] = useState<boolean | null>(null);
   const [suggestMessage, setSuggestMessage] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-
-  // Category chip config
-  const CATEGORY_CHIPS = [
-    { key: null, label: "Hepsi" },
-    { key: "trending", label: "🔥 Trend" },
-    { key: "educational", label: "📚 Eğitici" },
-    { key: "humor", label: "😂 Komedi" },
-    { key: "campaign", label: "🎯 Kampanya" },
-    { key: "storytelling", label: "📖 Hikaye" },
-    { key: "seasonal", label: "🗓️ Mevsimsel" },
-    { key: "interactive", label: "🎮 Etkileşimli" },
-  ] as const;
-
-  const CATEGORY_GRADIENTS: Record<string, string> = {
-    trending: "linear-gradient(135deg, #f97316, #ef4444)",
-    humor: "linear-gradient(135deg, #a855f7, #ec4899)",
-    educational: "linear-gradient(135deg, #3b82f6, #10b981)",
-    campaign: "linear-gradient(135deg, #f59e0b, #eab308)",
-    storytelling: "linear-gradient(135deg, #8b5cf6, #6366f1)",
-    seasonal: "linear-gradient(135deg, #14b8a6, #06b6d4)",
-    interactive: "linear-gradient(135deg, #f43f5e, #e11d48)",
-  };
+  const [categories, setCategories] = useState<Record<string, CategoryInfo>>({});
 
   // Preview state
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
@@ -157,6 +142,7 @@ export default function BriefPage() {
         return;
       }
       setSuggestions(data.suggestions || []);
+      if (data.categories) setCategories(data.categories);
     } catch {
       setSuggestError("Bağlantı hatası");
     } finally {
@@ -167,9 +153,28 @@ export default function BriefPage() {
   const applySuggestion = (s: Suggestion) => {
     const cleanTitle = s.title.replace(/^[\p{Emoji}\p{Emoji_Presentation}\p{Emoji_Modifier_Base}\s]+/u, "").trim();
     setKonu(cleanTitle || s.title);
-    const hookText = s.hook ? `\n\nHook: ${s.hook}` : "";
-    setConcept(s.concept + hookText);
-    toast.success("Öneri uygulandı — konu, konsept ve hook güncellendi!");
+    const fullConcept = s.hook ? `${s.concept}\n\nHook: "${s.hook}"` : s.concept;
+    setConcept(fullConcept);
+    toast.success("Öneri uygulandı!");
+  };
+
+  const DEFAULT_CATS: [string, string][] = [
+    ["trending", "🔥 Trend"], ["educational", "📚 Eğitici"], ["humor", "😂 Komedi"],
+    ["campaign", "🎯 Kampanya"], ["storytelling", "📖 Hikaye"], ["seasonal", "🗓️ Mevsimsel"],
+    ["interactive", "🎮 Etkileşimli"],
+  ];
+
+  const CATEGORY_COLORS: Record<string, string> = {
+    trending: "rgba(249,115,22,0.15)", humor: "rgba(168,85,247,0.15)",
+    educational: "rgba(34,197,94,0.15)", campaign: "rgba(234,179,8,0.15)",
+    storytelling: "rgba(59,130,246,0.15)", seasonal: "rgba(236,72,153,0.15)",
+    interactive: "rgba(6,182,212,0.15)",
+  };
+  const CATEGORY_BORDERS: Record<string, string> = {
+    trending: "rgba(249,115,22,0.5)", humor: "rgba(168,85,247,0.5)",
+    educational: "rgba(34,197,94,0.5)", campaign: "rgba(234,179,8,0.5)",
+    storytelling: "rgba(59,130,246,0.5)", seasonal: "rgba(236,72,153,0.5)",
+    interactive: "rgba(6,182,212,0.5)",
   };
 
   const handleSave = async (startPipeline: boolean) => {
@@ -453,6 +458,40 @@ export default function BriefPage() {
             </div>
           </div>
 
+          {/* Kategori Chip Bar */}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+            <button
+              onClick={() => setSelectedCategory(null)}
+              style={{
+                padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid",
+                borderColor: !selectedCategory ? "var(--accent-purple, #a78bfa)" : "rgba(255,255,255,0.1)",
+                background: !selectedCategory ? "rgba(139,92,246,0.15)" : "rgba(255,255,255,0.03)",
+                color: !selectedCategory ? "var(--accent-purple, #a78bfa)" : "var(--text-muted)",
+                transition: "all 0.2s",
+              }}
+            >
+              ✨ Hepsi
+            </button>
+            {(Object.keys(categories).length > 0
+              ? Object.entries(categories).map(([key, cat]) => [key, `${cat.emoji} ${cat.label}`] as [string, string])
+              : DEFAULT_CATS
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setSelectedCategory(selectedCategory === key ? null : key)}
+                style={{
+                  padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid",
+                  borderColor: selectedCategory === key ? (CATEGORY_BORDERS[key] || "var(--accent-purple, #a78bfa)") : "rgba(255,255,255,0.1)",
+                  background: selectedCategory === key ? (CATEGORY_COLORS[key] || "rgba(139,92,246,0.15)") : "rgba(255,255,255,0.03)",
+                  color: selectedCategory === key ? "#fff" : "var(--text-muted)",
+                  transition: "all 0.2s",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           {/* API not configured info */}
           {suggestConfigured === false && (
             <div style={{
@@ -475,103 +514,93 @@ export default function BriefPage() {
               {suggestError}
             </div>
           )}
-
-          {/* Category Filter Chips */}
-          {suggestConfigured !== false && (
-            <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, marginBottom: 12, scrollbarWidth: "none" }}>
-              {CATEGORY_CHIPS.map((chip) => (
-                <button
-                  key={chip.key ?? "all"}
-                  onClick={() => { setSelectedCategory(chip.key); if (suggestions.length > 0) fetchSuggestions(); }}
-                  style={{
-                    padding: "5px 12px",
-                    borderRadius: 16,
-                    fontSize: 12,
-                    fontWeight: selectedCategory === chip.key ? 700 : 500,
-                    whiteSpace: "nowrap",
-                    border: selectedCategory === chip.key ? "1.5px solid rgba(139,92,246,0.6)" : "1px solid rgba(255,255,255,0.08)",
-                    background: selectedCategory === chip.key ? "rgba(139,92,246,0.12)" : "rgba(255,255,255,0.03)",
-                    color: selectedCategory === chip.key ? "var(--accent-purple, #a78bfa)" : "var(--text-secondary)",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {chip.label}
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* Suggestion Cards */}
           {suggestions.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-              {suggestions.map((s, i) => {
-                const gradient = CATEGORY_GRADIENTS[s.category || ""] || "linear-gradient(135deg, #8b5cf6, #a78bfa)";
-                const chipLabel = CATEGORY_CHIPS.find(c => c.key === s.category)?.label || s.category || "";
-                return (
-                  <div
-                    key={i}
-                    onClick={() => applySuggestion(s)}
-                    style={{
-                      padding: 1.5,
-                      borderRadius: 12,
-                      background: gradient,
-                      cursor: "pointer",
-                      transition: "all 0.2s",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.3)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
-                  >
-                    <div className="glass-card" style={{ padding: 14, borderRadius: 11, border: "none", height: "100%" }}>
-                      {/* Category badge */}
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                        <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: "rgba(139,92,246,0.1)", color: "var(--text-muted)", fontWeight: 600 }}>
-                          {chipLabel}
-                        </span>
-                        <ArrowRight size={12} style={{ color: "var(--accent-purple, #a78bfa)", opacity: 0.5 }} />
-                      </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 10 }}>
+              {suggestions.map((s, i) => (
+                <div
+                  key={i}
+                  onClick={() => applySuggestion(s)}
+                  className="glass-card"
+                  style={{
+                    padding: 16,
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    borderColor: "transparent",
+                    borderLeft: s.category ? `3px solid ${CATEGORY_BORDERS[s.category] || "rgba(139,92,246,0.5)"}` : undefined,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = CATEGORY_BORDERS[s.category || ""] || "rgba(139,92,246,0.4)";
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "transparent";
+                    e.currentTarget.style.borderLeft = s.category ? `3px solid ${CATEGORY_BORDERS[s.category] || "rgba(139,92,246,0.5)"}` : "";
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  {/* Title + Category Badge */}
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.4, flex: 1 }}>
+                      {s.title}
+                    </div>
+                    {s.category && (
+                      <span style={{
+                        fontSize: 10, padding: "2px 8px", borderRadius: 10, whiteSpace: "nowrap" as const,
+                        background: CATEGORY_COLORS[s.category] || "rgba(139,92,246,0.1)",
+                        color: "rgba(255,255,255,0.8)", fontWeight: 600, flexShrink: 0,
+                      }}>
+                        {categories[s.category]?.emoji || ""} {categories[s.category]?.label || s.category}
+                      </span>
+                    )}
+                  </div>
 
-                      {/* Title */}
-                      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, lineHeight: 1.4 }}>
-                        {s.title}
-                      </div>
+                  {/* Concept */}
+                  <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 8 }}>
+                    {s.concept}
+                  </div>
 
-                      {/* Concept */}
-                      <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 6 }}>
-                        {s.concept}
-                      </div>
+                  {/* Hook */}
+                  {s.hook && (
+                    <div style={{
+                      fontSize: 12, color: "var(--accent-blue)", fontStyle: "italic", marginBottom: 10,
+                      padding: "8px 10px", background: "rgba(59,130,246,0.06)", borderRadius: 6,
+                      borderLeft: "2px solid var(--accent-blue)", lineHeight: 1.5,
+                    }}>
+                      🎣 &quot;{s.hook}&quot;
+                    </div>
+                  )}
 
-                      {/* Hook */}
-                      {s.hook && (
-                        <div style={{ fontSize: 11, color: "var(--accent-purple, #a78bfa)", fontStyle: "italic", marginBottom: 8, lineHeight: 1.4, padding: "4px 8px", background: "rgba(139,92,246,0.06)", borderRadius: 6 }}>
-                          🎣 Hook: &ldquo;{s.hook}&rdquo;
-                        </div>
-                      )}
+                  {/* Why */}
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 8 }}>
+                    💡 {s.why}
+                  </div>
 
-                      {/* Why */}
-                      <div style={{ fontSize: 10, color: "var(--text-muted)", lineHeight: 1.4, marginBottom: 8 }}>
-                        💡 {s.why}
-                      </div>
-
-                      {/* Molo attitude badge */}
+                  {/* Footer: Molo Attitude + Arrow */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       {s.molo_attitude && (
-                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                          <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: "rgba(16,185,129,0.08)", color: "var(--accent-green)", fontWeight: 500 }}>
-                            🤖 {s.molo_attitude}
-                          </span>
-                        </div>
+                        <span style={{
+                          fontSize: 10, padding: "2px 8px", borderRadius: 10,
+                          background: "rgba(59,130,246,0.08)", color: "var(--accent-blue)",
+                        }}>
+                          🤖 {s.molo_attitude}
+                        </span>
                       )}
                     </div>
+                    <ArrowRight size={12} style={{ color: "var(--accent-purple, #a78bfa)", opacity: 0.6 }} />
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
 
           {/* Empty state */}
           {suggestions.length === 0 && !suggestLoading && suggestConfigured !== false && (
-            <div style={{ textAlign: "center", padding: "12px 0", color: "var(--text-muted)", fontSize: 13 }}>
-              İçerik türü ve ton seçin, ardından &quot;İçerik Önerisi Al&quot; butonuna tıklayın.
+            <div style={{ textAlign: "center", padding: "16px 0", color: "var(--text-muted)", fontSize: 13 }}>
+              Kategori seçin veya doğrudan &quot;İçerik Önerisi Al&quot; butonuna tıklayın.
             </div>
           )}
         </div>
