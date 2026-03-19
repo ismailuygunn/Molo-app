@@ -51,7 +51,7 @@ else:
     sys.exit(1)
 `;
 
-    return new Promise((resolveResp) => {
+    return new Promise<NextResponse>((resolveResp) => {
       const child = spawn("python3", ["-c", script], {
         cwd: ROOT_DIR,
         env: { ...process.env, PYTHONUNBUFFERED: "1" },

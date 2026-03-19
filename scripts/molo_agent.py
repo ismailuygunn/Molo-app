@@ -649,7 +649,8 @@ Style: Premium photorealistic composite, like a luxury brand campaign shot on lo
         orient_text = "horizontal wide" if _ct['orientation'] == 'horizontal' else "vertical"
         image_rules = _ct.get('image_rules', '')
         prompt = f"""{gs_reminder}CRITICAL: Copy MOLO's face from the reference image EXACTLY.
-Do not enlarge eyes. Do not exaggerate mouth. Every facial feature must be the SAME SIZE AND SHAPE as the reference. The #1 error is making eyes too big/prominent — avoid this.
+Do not enlarge eyes. Do not reshape eyes. Eyes must remain ROUND — never triangular, angular, or pointed.
+Every facial feature must be the SAME SIZE AND SHAPE as the reference.
 
 {CHARACTER_IDENTITY_LOCK}
 
@@ -678,14 +679,14 @@ Important composition rules:
 - MOLO must not fill the entire frame
 - the environment must remain visible in the background
 - the mouth area must be clean and readable for lip-sync
-- the face must remain symmetrical and stable — eyes same size as reference, not enlarged
+- the face must remain symmetrical and stable — eyes ROUND and same size as reference, not enlarged or triangular
 - the image must feel designed for a {orient_text} digital display host
 
 {IMAGE_QUALITY_LOCK}
 
 {AVOID_LIST}
 
-FINAL REMINDER: Match the reference face EXACTLY. Do NOT make eyes bigger than reference. If in doubt, make features smaller."""
+FINAL REMINDER: Match the reference face EXACTLY. Eyes must be ROUND — never triangular or angular. Do NOT make eyes bigger than reference. If in doubt, make features smaller."""
 
         # ── Kalite kontrollü üretim (max QC_MAX_RETRIES + 1 deneme) ──
         best_score = 0

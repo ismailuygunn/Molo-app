@@ -355,7 +355,7 @@ Gesture rules:
 HOLOGRAM_LOCK = """The hologram on top of MOLO's head must remain exactly identical to the reference design in shape, placement, material logic, scale, geometry, and visual language. No variation is allowed. The hologram must not become a different device, must not be enlarged, and must not be simplified."""
 
 # Genel yasaklar (hem görsel hem video)
-AVOID_LIST = """Avoid: oversized mascot filling the frame, side angle, 3/4 angle, profile angle, extreme close-up, cropped face, hidden mouth, exaggerated smile, extra props, extra people, random floating UI, new accessories, redesigned hologram, childish proportions, toy-like rendering, overly glossy plastic surfaces, asymmetrical framing, clutter, visual chaos, or anything that reduces premium realism."""
+AVOID_LIST = """Avoid: triangular eyes, angular eyes, pointed eyes, diamond-shaped eyes, sharp-cornered eyes, oversized mascot filling the frame, side angle, 3/4 angle, profile angle, extreme close-up, cropped face, hidden mouth, exaggerated smile, extra props, extra people, random floating UI, new accessories, redesigned hologram, childish proportions, toy-like rendering, overly glossy plastic surfaces, asymmetrical framing, clutter, visual chaos, or anything that reduces premium realism."""
 
 # Lip-sync hazırlık bloğu (görsel promptlarda)
 LIPSYNC_READINESS = """MOLO's facial area must be clear and readable for talking animation. Eyes and mouth must match reference image exactly — same size, same position, same proportions. Do NOT enlarge or exaggerate any facial feature. The mouth must be unobstructed and easy to animate. Expression: warm, intelligent, slightly playful, slightly robotic, premium. Sophisticated brand mascot, not cartoon or toy."""
@@ -425,12 +425,13 @@ COMPACT_MOTION_GS = """Motion: Minimal, controlled, robotic. Small 2-5cm movemen
 FACE_ANATOMY_LOCK = """MOLO FACE — MATCH REFERENCE IMAGE EXACTLY. Do not reinterpret.
 
 The reference image is the SINGLE SOURCE OF TRUTH for MOLO's face.
-Every facial feature must be the EXACT SAME SIZE and shape as shown in the reference.
+Every facial feature must be the EXACT SAME SIZE and SHAPE as shown in the reference.
 
-EYES: Copy exactly from reference — same size, same position, same proportions.
-- Do NOT enlarge. Do NOT make more prominent. Do NOT exaggerate.
+EYES: Copy exactly from reference — same size, same ROUND shape, same position.
+- Eyes are ROUND — never triangular, angular, pointed, or diamond-shaped.
+- Do NOT enlarge. Do NOT reshape. Do NOT make more prominent.
 - Pupils can shift for gaze direction. Happy = half-circle eyes.
-- If reference shows small subtle eyes, generate small subtle eyes.
+- If reference shows small subtle round eyes, generate small subtle round eyes.
 
 MOUTH: Copy exactly from reference — same curved smile shape and width.
 - Do NOT widen. Do NOT exaggerate.
@@ -440,7 +441,7 @@ VISOR: Dark panel (#0A1628), same proportions as reference.
 - Contains ONLY eyes and mouth — nothing else.
 
 CRITICAL: If in doubt about any feature size, make it SMALLER rather than larger.
-The #1 error is making eyes too big/prominent — avoid this at all costs."""
+The #1 error is making eyes too big or changing their shape to triangles — avoid this at all costs."""
 
 
 # ─── Video Yüz Animasyon Kilidi (kare-kare tutarlılık) ───
