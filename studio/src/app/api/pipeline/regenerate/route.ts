@@ -10,13 +10,23 @@ const PROJECTS_DIR = join(ROOT_DIR, "projects");
 
 export async function POST(req: NextRequest) {
   try {
-    const { projectId, sceneIndex } = await req.json();
+    const { projectId, sceneIndex, variantIndex } = await req.json();
     if (!projectId || sceneIndex === undefined) {
       return NextResponse.json(
         { error: "projectId ve sceneIndex gerekli" },
         { status: 400 }
       );
     }
+
+    // variantIndex validation (optional, defaults to 0)
+    const vIdx = typeof variantIndex === "number" ? variantIndex : 0;
+    if (!Number.isInteger(vIdx) || vIdx < 0 || vIdx > 3) {
+      return NextResponse.json(
+        { error: "variantIndex 0-3 arası tam sayı olmalı" },
+        { status: 400 }
+      );
+    }
+    const variantLabel = `v${vIdx + 1}`;
 
     const projectDir = join(PROJECTS_DIR, projectId);
 
@@ -38,12 +48,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Python ile tek sahne yeniden üret
+    // Python ile tek sahne yeniden üret (variant desteği ile)
     const script = `
 import sys
 sys.path.insert(0, "${SCRIPTS_DIR}")
 from molo_agent import regenerate_single_image
-result = regenerate_single_image(${sceneIndex}, "${projectDir}")
+result = regenerate_single_image(${sceneIndex}, "${projectDir}", variant_label="${variantLabel}")
 if result:
     print(f"OK:{result}")
 else:
@@ -74,9 +84,10 @@ else:
           const newPath = okLine?.replace("OK:", "").trim() || "";
           resolveResp(
             NextResponse.json({
-              message: `Sahne ${sceneIndex + 1} yeniden üretildi`,
+              message: `Sahne ${sceneIndex + 1} (${variantLabel}) yeniden üretildi`,
               path: newPath,
               sceneIndex,
+              variantIndex: vIdx,
             })
           );
         } else {

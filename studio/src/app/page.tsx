@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Film,
@@ -23,99 +24,229 @@ import {
 } from "lucide-react";
 import type { Project, ContentType } from "@/store/studio";
 import { useToast } from "@/components/toast";
+import { Card, Badge, EmptyState, Progress } from "@/components/ui";
+import { MoloFloat, MoloReaction } from "@/components/molo";
 
-const CONTENT_ICONS: Record<ContentType, typeof Film> = {
+/* ─── Content type config ─── */
+
+const CONTENT_ICONS: Partial<Record<ContentType, typeof Film>> = {
   sosyal: Smartphone,
   ekran: Monitor,
   robot: Bot,
 };
 
-const CONTENT_LABELS: Record<ContentType, string> = {
+const CONTENT_LABELS: Partial<Record<ContentType, string>> = {
   sosyal: "Sosyal Medya",
-  ekran: "Klinik Ekranı",
+  ekran: "Klinik Ekrani",
   robot: "Robot",
+  greenscreen: "Green Screen",
+  "greenscreen-yatay": "GS Yatay",
+  "greenscreen-kare": "GS Kare",
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Film }> = {
-  draft: { label: "Taslak", color: "var(--accent-amber)", icon: Film },
-  review: { label: "İnceleme", color: "var(--accent-blue)", icon: Eye },
-  final: { label: "Tamamlandı", color: "var(--accent-green)", icon: CheckCircle2 },
-  error: { label: "Hata", color: "var(--accent-red)", icon: XCircle },
+/* ─── Status config ─── */
+
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; variant: "draft" | "review" | "final" | "error"; icon: typeof Film }
+> = {
+  draft: { label: "Taslak", variant: "draft", icon: Film },
+  review: { label: "Inceleme", variant: "review", icon: Eye },
+  final: { label: "Tamamlandi", variant: "final", icon: CheckCircle2 },
+  error: { label: "Hata", variant: "error", icon: XCircle },
 };
+
+/* ─── Pipeline step progress mapping ─── */
+
+const PIPELINE_PROGRESS: Record<string, number> = {
+  idle: 0,
+  script: 10,
+  images: 25,
+  image_review: 35,
+  voice: 50,
+  approval: 60,
+  videos: 70,
+  edit: 80,
+  subtitles: 85,
+  slowdown: 90,
+  thumbnail: 95,
+  done: 100,
+  error: 0,
+};
+
+/* ─── Stat Card ─── */
 
 function StatCard({
   label,
   value,
   detail,
   accent,
+  icon: Icon,
 }: {
   label: string;
   value: string;
   detail?: string;
-  accent: string;
+  accent: "teal" | "coral" | "blue" | "purple" | "green" | "amber";
+  icon: typeof Film;
 }) {
   return (
-    <div className={`glass-card stat-card ${accent}`}>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{value}</div>
-      {detail && <div className="stat-detail">{detail}</div>}
-    </div>
+    <Card accent={accent} hover={false}>
+      <div style={{ padding: "20px 18px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <Icon size={16} style={{ opacity: 0.5 }} />
+          <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 500 }}>
+            {label}
+          </span>
+        </div>
+        <div style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)", lineHeight: 1 }}>
+          {value}
+        </div>
+        {detail && (
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
+            {detail}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 
-function ProjectCard({ project, onDelete }: { project: Project; onDelete: (id: string) => void }) {
+/* ─── Project Card ─── */
+
+function ProjectCard({
+  project,
+  onDelete,
+}: {
+  project: Project;
+  onDelete: (id: string) => void;
+}) {
   const ContentIcon = CONTENT_ICONS[project.contentType] || Film;
   const statusCfg = STATUS_CONFIG[project.status] || STATUS_CONFIG.draft;
   const StatusIcon = statusCfg.icon;
   const projectUrl = `/scenes?project=${project.id}`;
   const totalDuration = project.durations.reduce((a, b) => a + b, 0);
+  const progressValue =
+    project.pipelineProgress ?? PIPELINE_PROGRESS[project.pipelineStep] ?? 0;
+  const isCompleted = project.status === "final";
 
   return (
-    <div className="glass-card project-card" style={{ position: "relative", overflow: "hidden" }}>
-      {/* Thumbnail */}
-      <Link href={projectUrl} style={{ textDecoration: "none" }}>
-        {project.thumbnailPath ? (
-          <img
-            src={project.thumbnailPath}
-            alt={project.name}
-            className="project-thumb"
-          />
-        ) : (
+    <Card hover className="project-card" accent={isCompleted ? "green" : undefined}>
+      <div style={{ position: "relative", overflow: "hidden" }}>
+        {/* Thumbnail */}
+        <Link href={projectUrl} style={{ textDecoration: "none" }}>
+          {project.thumbnailPath ? (
+            <img
+              src={project.thumbnailPath}
+              alt={project.name}
+              className="project-thumb"
+            />
+          ) : (
+            <div
+              className="project-thumb"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background:
+                  "linear-gradient(135deg, rgba(20,184,166,0.08), rgba(251,146,60,0.08))",
+              }}
+            >
+              <Film size={36} style={{ opacity: 0.15 }} />
+            </div>
+          )}
+        </Link>
+
+        {/* Completed badge with MoloReaction */}
+        {isCompleted && (
           <div
-            className="project-thumb"
             style={{
+              position: "absolute",
+              top: 8,
+              left: 8,
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              background: "linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))",
+              gap: 4,
+              background: "rgba(255,255,255,0.92)",
+              borderRadius: 12,
+              padding: "2px 8px 2px 4px",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
             }}
           >
-            <Film size={36} style={{ opacity: 0.15 }} />
+            <MoloReaction mood="happy" size={20} />
+            <span style={{ fontSize: 10, fontWeight: 600, color: "var(--accent-green)" }}>
+              Tamam
+            </span>
           </div>
         )}
-      </Link>
+
+        {/* Delete */}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDelete(project.id);
+          }}
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            opacity: 0.3,
+            transition: "opacity 0.2s",
+            background: "rgba(0,0,0,0.3)",
+            borderRadius: "50%",
+            width: 28,
+            height: 28,
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: "none",
+            cursor: "pointer",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.3")}
+          title="Projeyi sil"
+          aria-label="Projeyi sil"
+        >
+          <Trash2 size={13} style={{ color: "#fff" }} />
+        </button>
+      </div>
 
       {/* Info */}
-      <div className="project-info" style={{ padding: "12px 14px" }}>
+      <div style={{ padding: "12px 14px" }}>
         <Link href={projectUrl} style={{ textDecoration: "none" }}>
-          <div className="project-name" style={{ marginBottom: 6 }}>{project.title || project.name}</div>
+          <div className="project-name" style={{ marginBottom: 6 }}>
+            {project.title || project.name}
+          </div>
         </Link>
 
         {/* Status + Content Type Row */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 4,
-            fontSize: 11, padding: "2px 8px", borderRadius: 10,
-            background: `color-mix(in srgb, ${statusCfg.color} 12%, transparent)`,
-            color: statusCfg.color, fontWeight: 600,
-          }}>
-            <StatusIcon size={11} />
-            {statusCfg.label}
-          </span>
-          <span style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 3 }}>
+          <Badge variant={statusCfg.variant} pulse={project.status === "review"}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <StatusIcon size={11} />
+              {statusCfg.label}
+            </span>
+          </Badge>
+          <span
+            style={{
+              fontSize: 11,
+              color: "var(--text-muted)",
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+            }}
+          >
             <ContentIcon size={12} /> {CONTENT_LABELS[project.contentType]}
           </span>
         </div>
+
+        {/* Pipeline Progress */}
+        {progressValue > 0 && progressValue < 100 && (
+          <div style={{ marginBottom: 8 }}>
+            <Progress value={progressValue} showMolo color="teal" />
+          </div>
+        )}
 
         {/* Stats Row */}
         <div style={{ display: "flex", gap: 12, fontSize: 11, color: "var(--text-muted)" }}>
@@ -134,43 +265,54 @@ function ProjectCard({ project, onDelete }: { project: Project; onDelete: (id: s
 
         {/* Quick Actions */}
         <div style={{ display: "flex", gap: 4, marginTop: 10, flexWrap: "wrap" }}>
-          <Link href={`/scenes?project=${project.id}`} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 8px" }}>
+          <Link
+            href={`/scenes?project=${project.id}`}
+            className="btn btn-ghost"
+            style={{ fontSize: 11, padding: "4px 8px" }}
+          >
             <FolderOpen size={12} /> Sahneler
           </Link>
-          <Link href={`/images?project=${project.id}`} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 8px" }}>
-            <ImageIcon size={12} /> Görseller
+          <Link
+            href={`/images?project=${project.id}`}
+            className="btn btn-ghost"
+            style={{ fontSize: 11, padding: "4px 8px" }}
+          >
+            <ImageIcon size={12} /> Gorseller
           </Link>
-          <Link href={`/voice?project=${project.id}`} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 8px" }}>
+          <Link
+            href={`/voice?project=${project.id}`}
+            className="btn btn-ghost"
+            style={{ fontSize: 11, padding: "4px 8px" }}
+          >
             <Mic2 size={12} /> Ses
           </Link>
-          <Link href={`/video?project=${project.id}`} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 8px" }}>
+          <Link
+            href={`/video?project=${project.id}`}
+            className="btn btn-ghost"
+            style={{ fontSize: 11, padding: "4px 8px" }}
+          >
             <Play size={12} /> Video
           </Link>
-          <Link href={`/edit?project=${project.id}`} className="btn btn-ghost" style={{ fontSize: 11, padding: "4px 8px" }}>
+          <Link
+            href={`/edit?project=${project.id}`}
+            className="btn btn-ghost"
+            style={{ fontSize: 11, padding: "4px 8px" }}
+          >
             <Scissors size={12} /> Kurgu
           </Link>
         </div>
       </div>
-
-      {/* Delete */}
-      <button
-        className="btn btn-icon btn-ghost"
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(project.id); }}
-        style={{ position: "absolute", top: 8, right: 8, opacity: 0.3, transition: "opacity 0.2s", background: "rgba(0,0,0,0.3)", borderRadius: "50%", width: 28, height: 28, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}
-        onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.3")}
-        title="Projeyi sil"
-      >
-        <Trash2 size={13} style={{ color: "#fff" }} />
-      </button>
-    </div>
+    </Card>
   );
 }
+
+/* ─── Dashboard Page ─── */
 
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
+  const router = useRouter();
 
   const fetchProjects = () => {
     fetch("/api/projects")
@@ -187,9 +329,11 @@ export default function DashboardPage() {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Bu projeyi silmek istediğinize emin misiniz?")) return;
+    if (!confirm("Bu projeyi silmek istediginize emin misiniz?")) return;
     try {
-      const res = await fetch(`/api/projects?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const res = await fetch(`/api/projects?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
       if (res.ok) {
         setProjects((prev) => prev.filter((p) => p.id !== id));
         toast.success("Proje silindi");
@@ -197,7 +341,7 @@ export default function DashboardPage() {
         toast.error("Proje silinemedi");
       }
     } catch {
-      toast.error("Proje silinirken hata oluştu");
+      toast.error("Proje silinirken hata olustu");
     }
   };
 
@@ -210,47 +354,72 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="page-header">
+      {/* Floating Molo background decoration */}
+      <div
+        style={{
+          position: "fixed",
+          bottom: 24,
+          right: 24,
+          zIndex: 0,
+          pointerEvents: "none",
+        }}
+      >
+        <MoloFloat opacity={0.06} size={200} />
+      </div>
+
+      {/* Page Header */}
+      <div className="page-header" style={{ position: "relative", zIndex: 1 }}>
         <div>
           <h1 className="page-title">MOLO Studio</h1>
-          <p className="page-subtitle">İSTADENTAL İçerik Üretim Platformu</p>
+          <p className="page-subtitle">ISTADENTAL Icerik Uretim Platformu</p>
         </div>
-        <Link href="/brief" className="btn btn-primary">
+        <Link
+          href="/brief"
+          className="btn btn-primary"
+          style={{
+            background: "linear-gradient(135deg, var(--accent-teal), var(--accent-cyan, #06b6d4))",
+            border: "none",
+          }}
+        >
           <Plus size={18} />
           Yeni Proje
         </Link>
       </div>
 
       {/* Stats */}
-      <div className="stat-grid">
+      <div className="stat-grid" style={{ position: "relative", zIndex: 1 }}>
         <StatCard
           label="Toplam Video"
           value={String(totalVideos)}
           detail={`${projects.length} proje`}
-          accent="blue"
+          accent="teal"
+          icon={Film}
         />
         <StatCard
           label="Toplam Sahne"
           value={String(totalScenes)}
-          detail="Kling v3 ile üretildi"
+          detail="Kling v3 ile uretildi"
           accent="purple"
+          icon={TrendingUp}
         />
         <StatCard
-          label="Toplam Süre"
+          label="Toplam Sure"
           value={`${(totalDuration / 60).toFixed(1)}m`}
           detail={`${totalDuration.toFixed(0)} saniye`}
-          accent="cyan"
+          accent="coral"
+          icon={Clock}
         />
         <StatCard
-          label="İçerik Türleri"
+          label="Icerik Turleri"
           value={String(new Set(projects.map((p) => p.contentType)).size)}
           detail="sosyal / ekran / robot"
           accent="green"
+          icon={Monitor}
         />
       </div>
 
       {/* Projects */}
-      <div className="section-title">
+      <div className="section-title" style={{ position: "relative", zIndex: 1 }}>
         <TrendingUp size={20} />
         Son Projeler
       </div>
@@ -259,32 +428,36 @@ export default function DashboardPage() {
         <div className="empty-state">
           <Loader2 size={32} className="pulse" />
           <div style={{ fontSize: 14, color: "var(--text-muted)", marginTop: 12 }}>
-            Projeler yükleniyor...
+            Projeler yukleniyor...
           </div>
         </div>
       ) : projects.length === 0 ? (
-        <div className="empty-state">
-          <Film size={64} />
-          <h3 style={{ marginBottom: 8, color: "var(--text-secondary)" }}>
-            Henüz proje yok
-          </h3>
-          <p style={{ marginBottom: 20 }}>
-            İlk projenizi oluşturmak için &quot;Yeni Proje&quot; butonuna tıklayın
-          </p>
-          <Link href="/brief" className="btn btn-primary">
-            <Plus size={18} />
-            İlk Projeyi Oluştur
-          </Link>
-        </div>
+        <EmptyState
+          title="Henuz proje yok!"
+          description="Hadi ilk icerigini olusturalim"
+          action={{
+            label: "Yeni Proje",
+            onClick: () => router.push("/brief"),
+          }}
+        />
       ) : (
-        <div className="project-grid">
+        <div className="project-grid" style={{ position: "relative", zIndex: 1 }}>
           {projects.map((p) => (
             <ProjectCard key={p.id} project={p} onDelete={handleDelete} />
           ))}
         </div>
       )}
 
-      <Link href="/brief" className="fab" aria-label="Yeni Proje">
+      {/* FAB */}
+      <Link
+        href="/brief"
+        className="fab"
+        aria-label="Yeni Proje"
+        style={{
+          background: "linear-gradient(135deg, var(--accent-teal), var(--accent-cyan, #06b6d4))",
+          boxShadow: "0 4px 20px rgba(20,184,166,0.35)",
+        }}
+      >
         <Plus size={24} />
       </Link>
     </>

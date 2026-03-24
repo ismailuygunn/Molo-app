@@ -54,7 +54,14 @@ function SidebarContent() {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-logo">M</div>
+      <div className="sidebar-logo" title="Molo Studio">
+          <svg viewBox="0 0 32 32" width={22} height={22}>
+            <rect x="4" y="8" width="24" height="16" rx="7" fill="#0A1628" />
+            <circle cx="12" cy="15.5" r="2.5" fill="#00D4FF" />
+            <circle cx="20" cy="15.5" r="2.5" fill="#00D4FF" />
+            <path d="M12 20 Q16 24 20 20" fill="none" stroke="#00D4FF" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </div>
 
       {/* Project Picker */}
       {projectId && activeProject && (
@@ -63,7 +70,7 @@ function SidebarContent() {
             onClick={() => setShowPicker(!showPicker)}
             style={{
               width: "100%", padding: "6px 4px", borderRadius: 6,
-              background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.15)",
+              background: "rgba(20,184,166,0.08)", border: "1px solid rgba(20,184,166,0.15)",
               color: "var(--text-secondary)", fontSize: 10, cursor: "pointer",
               display: "flex", alignItems: "center", gap: 4, justifyContent: "center",
               textAlign: "center", lineHeight: 1.3,
@@ -83,7 +90,7 @@ function SidebarContent() {
               position: "absolute", left: "100%", top: 0, marginLeft: 8,
               background: "var(--bg-card)", border: "1px solid var(--border-subtle)",
               borderRadius: 8, padding: 4, minWidth: 200, zIndex: 100,
-              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
             }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)", padding: "4px 8px", marginBottom: 2 }}>
                 Proje Seç
@@ -95,9 +102,9 @@ function SidebarContent() {
                   onClick={() => setShowPicker(false)}
                   style={{
                     display: "block", padding: "6px 10px", borderRadius: 4,
-                    fontSize: 12, color: p.id === projectId ? "var(--accent-blue)" : "var(--text-secondary)",
+                    fontSize: 12, color: p.id === projectId ? "var(--accent-teal)" : "var(--text-secondary)",
                     textDecoration: "none", fontWeight: p.id === projectId ? 600 : 400,
-                    background: p.id === projectId ? "rgba(59,130,246,0.08)" : "transparent",
+                    background: p.id === projectId ? "rgba(20,184,166,0.08)" : "transparent",
                   }}
                 >
                   {p.title || p.name}
@@ -144,7 +151,14 @@ export function Sidebar() {
   return (
     <Suspense fallback={
       <aside className="sidebar">
-        <div className="sidebar-logo">M</div>
+        <div className="sidebar-logo" title="Molo Studio">
+          <svg viewBox="0 0 32 32" width={22} height={22}>
+            <rect x="4" y="8" width="24" height="16" rx="7" fill="#0A1628" />
+            <circle cx="12" cy="15.5" r="2.5" fill="#00D4FF" />
+            <circle cx="20" cy="15.5" r="2.5" fill="#00D4FF" />
+            <path d="M12 20 Q16 24 20 20" fill="none" stroke="#00D4FF" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </div>
         <nav className="sidebar-nav" />
       </aside>
     }>
