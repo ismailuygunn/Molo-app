@@ -254,6 +254,20 @@ KLING_CFG_CLINIC = 0.75     # klinik = orta
 KLING_CFG_EXTERNAL = 0.65   # dis mekan = yaratici ozgurluk
 KLING_MAX_PROMPT_CHARS = 2500  # ⚠️ API hard limit
 
+# ─── Görsel Variant Sistemi ───
+IMAGE_VARIANTS_COUNT = 2       # Her sahne için üretilecek alternatif görsel sayısı (1-3)
+
+# ─── Molo'suz Sahne Prompt'u ───
+ENVIRONMENT_ONLY_PROMPT = """Generate a photorealistic environment scene WITHOUT any character.
+The scene should be empty — ready for text overlay or character compositing later.
+{env_description}
+Style: Clean, well-lit, cinematic. High resolution, crisp edges.
+DO NOT include any character, mascot, robot, or person in the scene."""
+
+# ─── Kling Frame Mode ───
+KLING_FRAME_MODE_FIRST = "first_frame"   # varsayılan — görsel ilk kare olarak kullanılır
+KLING_FRAME_MODE_LAST = "last_frame"     # kullanıcı seçimi — görsel son kare olarak
+
 GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image-preview"  # Nano Banana 2
 GEMINI_TEXT_MODEL = "gemini-2.5-flash"                  # Çeviri için
 
@@ -567,6 +581,10 @@ QUALITY_FILTERS = {
 # Konuşma çok hızlı hissediliyorsa, final videoya hafif slowdown uygulanır
 # 0.88 = %12 yavaşlatma (doğal, rahat konuşma hızı)
 AUDIO_SLOWDOWN = 0.88
+
+# ─── Gorsel Varyant Sayisi ───
+# Kullaniciya kac alternatif gorselden secim yaptirmak istiyoruz
+IMAGE_VARIANTS_COUNT = 2
 
 # ─── Akıllı Sahne Bazlı Slowdown ───
 # Konuşma hızına göre her sahneye farklı yavaşlatma

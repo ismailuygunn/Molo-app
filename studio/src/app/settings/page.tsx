@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Settings, Key, Bot, Film, Check, AlertTriangle, Loader2, X, ExternalLink } from "lucide-react";
+import { MoloLoading } from "@/components/molo";
 
 interface ApiKey {
   id: string;
@@ -69,7 +70,7 @@ export default function SettingsPage() {
           </div>
           {loading ? (
             <div style={{ textAlign: "center", padding: 20 }}>
-              <Loader2 size={20} className="pulse" />
+              <MoloLoading size={36} text="API anahtarları yükleniyor..." />
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -92,7 +93,7 @@ export default function SettingsPage() {
                         {api.source && (
                           <span style={{
                             fontSize: 9, padding: "1px 5px", borderRadius: 6,
-                            background: "rgba(139,92,246,0.1)", color: "var(--accent-purple)",
+                            background: "rgba(20,184,166,0.1)", color: "var(--accent-teal)",
                           }}>
                             {api.source === "file" ? ".env" : api.source === "env" ? "ENV" : "—"}
                           </span>
@@ -133,7 +134,7 @@ export default function SettingsPage() {
           <div style={{ marginTop: 16, padding: 12, background: "rgba(245, 158, 11, 0.08)", borderRadius: "var(--radius-md)", border: "1px solid rgba(245, 158, 11, 0.15)", display: "flex", gap: 8, alignItems: "flex-start" }}>
             <AlertTriangle size={16} style={{ color: "var(--accent-amber)", flexShrink: 0, marginTop: 2 }} />
             <span style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-              API anahtarları <code style={{ color: "var(--accent-cyan)", background: "rgba(6,182,212,0.1)", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>.env</code> dosyasından veya sistem ortam değişkenlerinden (Railway) okunur.
+              API anahtarları <code style={{ color: "var(--accent-teal)", background: "rgba(20,184,166,0.1)", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>.env</code> dosyasından veya sistem ortam değişkenlerinden (Railway) okunur.
               {envSource === "file" ? " Kaynak: .env dosyası" : envSource === "process.env" ? " Kaynak: Sistem ortam değişkenleri" : ""}
             </span>
           </div>
@@ -149,7 +150,7 @@ export default function SettingsPage() {
               <label className="label">Kişilik Profili</label>
               <div className="input" style={{ fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>character.md</span>
-                <a href="/api/files/_config/character.md" target="_blank" style={{ color: "var(--accent-cyan)", display: "flex" }}>
+                <a href="/api/files/_config/character.md" target="_blank" style={{ color: "var(--accent-teal)", display: "flex" }}>
                   <ExternalLink size={12} />
                 </a>
               </div>
@@ -175,7 +176,7 @@ export default function SettingsPage() {
             <Film size={18} /> Üretim Yapılandırması
           </div>
           <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
-            Bu ayarlar <code style={{ color: "var(--accent-cyan)", background: "rgba(6,182,212,0.1)", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>scripts/config.py</code> dosyasından okunur.
+            Bu ayarlar <code style={{ color: "var(--accent-teal)", background: "rgba(20,184,166,0.1)", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>scripts/config.py</code> dosyasından okunur.
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
             {[

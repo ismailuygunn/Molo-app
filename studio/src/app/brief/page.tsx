@@ -9,45 +9,106 @@ import {
   Smartphone,
   Bot,
   Globe,
-  Palette,
   Save,
   Rocket,
   Eye,
   CheckCircle2,
-  X,
   Lightbulb,
   RefreshCw,
-  Loader2,
   Wand2,
   ArrowRight,
   Info,
   Film,
+  Users,
+  MessageSquare,
+  Clapperboard,
 } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/components/toast";
+import { Card, Button, Badge, SelectGrid, Modal } from "@/components/ui";
+import { MoloLoading, MoloPeek } from "@/components/molo";
 
-const CONTENT_TYPES = [
-  { value: "sosyal", label: "Sosyal Medya", icon: Smartphone, desc: "1080×1920 dikey, enerjik", platform: "TikTok / Reels" },
-  { value: "ekran", label: "Klinik Ekranı", icon: Monitor, desc: "1920×1080 yatay, sinematik", platform: "Bekleme Ekranı" },
-  { value: "robot", label: "Robot Ekranı", icon: Bot, desc: "1080×1920 dikey, sıcak", platform: "Robot Ekranı" },
-  { value: "greenscreen", label: "Green Screen", icon: Film, desc: "Chroma key arka plan", platform: "Compositing" },
+/* ─────────────────────────── Constants ─────────────────────────── */
+
+const CONTENT_TYPE_OPTIONS = [
+  {
+    id: "sosyal" as const,
+    label: "Sosyal Medya",
+    description: "1080x1920 dikey, enerjik -- TikTok / Reels",
+    icon: <Smartphone size={22} style={{ color: "var(--accent-teal)" }} />,
+  },
+  {
+    id: "ekran" as const,
+    label: "Klinik Ekrani",
+    description: "1920x1080 yatay, sinematik -- Bekleme Ekrani",
+    icon: <Monitor size={22} style={{ color: "var(--accent-teal)" }} />,
+  },
+  {
+    id: "robot" as const,
+    label: "Robot Ekrani",
+    description: "1080x1920 dikey, sicak -- Robot Ekrani",
+    icon: <Bot size={22} style={{ color: "var(--accent-teal)" }} />,
+  },
+  {
+    id: "greenscreen" as const,
+    label: "Green Screen",
+    description: "Chroma key arka plan -- Compositing",
+    icon: <Film size={22} style={{ color: "var(--accent-teal)" }} />,
+  },
 ];
 
-const GS_SIZES = [
-  { value: "dikey", label: "Dikey (9:16)", desc: "1080×1920" },
-  { value: "yatay", label: "Yatay (16:9)", desc: "1920×1080" },
-  { value: "kare", label: "Kare (1:1)", desc: "1080×1080" },
+const GS_SIZE_OPTIONS = [
+  { id: "dikey" as const, label: "Dikey (9:16)", description: "1080x1920" },
+  { id: "yatay" as const, label: "Yatay (16:9)", description: "1920x1080" },
+  { id: "kare" as const, label: "Kare (1:1)", description: "1080x1080" },
 ];
 
 const LANGUAGES = [
-  { value: "de", label: "🇩🇪 Almanca", flag: "DE" },
-  { value: "tr", label: "🇹🇷 Türkçe", flag: "TR" },
+  { value: "de", label: "Almanca", flag: "DE" },
+  { value: "tr", label: "Turkce", flag: "TR" },
 ];
 
 const TONES = [
-  "Eğlenceli", "Bilgilendirici", "Sıcak", "Afacan",
-  "Heyecanlı", "Sakin", "Premium",
+  "Eglenceli",
+  "Bilgilendirici",
+  "Sicak",
+  "Afacan",
+  "Heyecanli",
+  "Sakin",
+  "Premium",
 ];
+
+const DEFAULT_CATS: [string, string][] = [
+  ["trending", "Trend"],
+  ["educational", "Egitici"],
+  ["humor", "Komedi"],
+  ["campaign", "Kampanya"],
+  ["storytelling", "Hikaye"],
+  ["seasonal", "Mevsimsel"],
+  ["interactive", "Etkilesimli"],
+];
+
+const CATEGORY_COLORS: Record<string, string> = {
+  trending: "rgba(249,115,22,0.12)",
+  humor: "rgba(168,85,247,0.12)",
+  educational: "rgba(34,197,94,0.12)",
+  campaign: "rgba(234,179,8,0.12)",
+  storytelling: "rgba(20,184,166,0.12)",
+  seasonal: "rgba(236,72,153,0.12)",
+  interactive: "rgba(6,182,212,0.12)",
+};
+
+const CATEGORY_BORDERS: Record<string, string> = {
+  trending: "rgba(249,115,22,0.6)",
+  humor: "rgba(168,85,247,0.6)",
+  educational: "rgba(34,197,94,0.6)",
+  campaign: "rgba(234,179,8,0.6)",
+  storytelling: "rgba(20,184,166,0.6)",
+  seasonal: "rgba(236,72,153,0.6)",
+  interactive: "rgba(6,182,212,0.6)",
+};
+
+/* ─────────────────────────── Types ─────────────────────────── */
 
 interface Suggestion {
   title: string;
@@ -76,16 +137,27 @@ interface ScenePreview {
   emotion_note: string;
 }
 
+/* ─────────────────────────── Page ─────────────────────────── */
+
 export default function BriefPage() {
   const router = useRouter();
   const toast = useToast();
+
+  // Core brief fields (API expects these)
   const [konu, setKonu] = useState("");
   const [contentType, setContentType] = useState("sosyal");
   const [lang, setLang] = useState("de");
-  const [tone, setTone] = useState("Eğlenceli");
+  const [tone, setTone] = useState("Eglenceli");
   const [maxScenes, setMaxScenes] = useState(4);
   const [concept, setConcept] = useState("");
   const [gsSize, setGsSize] = useState("dikey");
+
+  // New brief fields
+  const [hedefKitle, setHedefKitle] = useState("");
+  const [anaMesaj, setAnaMesaj] = useState("");
+  const [senaryoIpuclari, setSenaryoIpuclari] = useState("");
+
+  // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -93,10 +165,14 @@ export default function BriefPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestError, setSuggestError] = useState("");
-  const [suggestConfigured, setSuggestConfigured] = useState<boolean | null>(null);
+  const [suggestConfigured, setSuggestConfigured] = useState<boolean | null>(
+    null
+  );
   const [suggestMessage, setSuggestMessage] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [categories, setCategories] = useState<Record<string, CategoryInfo>>({});
+  const [categories, setCategories] = useState<Record<string, CategoryInfo>>(
+    {}
+  );
 
   // Preview state
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
@@ -110,6 +186,19 @@ export default function BriefPage() {
     setSelectedCategory(null);
   }, [contentType, tone]);
 
+  /* ── Build enriched concept for API ── */
+  const buildEnrichedConcept = (): string => {
+    const parts: string[] = [];
+    if (concept.trim()) parts.push(concept.trim());
+    if (hedefKitle.trim())
+      parts.push(`\nHedef Kitle: ${hedefKitle.trim()}`);
+    if (anaMesaj.trim()) parts.push(`\nAna Mesaj: ${anaMesaj.trim()}`);
+    if (senaryoIpuclari.trim())
+      parts.push(`\nSenaryo Ipuclari: ${senaryoIpuclari.trim()}`);
+    return parts.join("\n");
+  };
+
+  /* ── AI Suggestions ── */
   const fetchSuggestions = async () => {
     setSuggestLoading(true);
     setSuggestError("");
@@ -127,10 +216,9 @@ export default function BriefPage() {
       });
       const data = await res.json();
 
-      // Handle not-configured state
       if (data.configured === false) {
         setSuggestConfigured(false);
-        setSuggestMessage(data.message || "API yapılandırılmamış");
+        setSuggestMessage(data.message || "API yapilandirilmamis");
         setSuggestions([]);
         return;
       }
@@ -138,61 +226,57 @@ export default function BriefPage() {
       setSuggestConfigured(true);
 
       if (!res.ok) {
-        setSuggestError(data.error || "Öneriler alınamadı");
+        setSuggestError(data.error || "Oneriler alinamadi");
         return;
       }
       setSuggestions(data.suggestions || []);
       if (data.categories) setCategories(data.categories);
     } catch {
-      setSuggestError("Bağlantı hatası");
+      setSuggestError("Baglanti hatasi");
     } finally {
       setSuggestLoading(false);
     }
   };
 
   const applySuggestion = (s: Suggestion) => {
-    const cleanTitle = s.title.replace(/^[\p{Emoji}\p{Emoji_Presentation}\p{Emoji_Modifier_Base}\s]+/u, "").trim();
+    const cleanTitle = s.title
+      .replace(/^[\p{Emoji}\p{Emoji_Presentation}\p{Emoji_Modifier_Base}\s]+/u, "")
+      .trim();
     setKonu(cleanTitle || s.title);
-    const fullConcept = s.hook ? `${s.concept}\n\nHook: "${s.hook}"` : s.concept;
+    const fullConcept = s.hook
+      ? `${s.concept}\n\nHook: "${s.hook}"`
+      : s.concept;
     setConcept(fullConcept);
-    toast.success("Öneri uygulandı!");
+    toast.success("Oneri uygulandi!");
   };
 
-  const DEFAULT_CATS: [string, string][] = [
-    ["trending", "🔥 Trend"], ["educational", "📚 Eğitici"], ["humor", "😂 Komedi"],
-    ["campaign", "🎯 Kampanya"], ["storytelling", "📖 Hikaye"], ["seasonal", "🗓️ Mevsimsel"],
-    ["interactive", "🎮 Etkileşimli"],
-  ];
-
-  const CATEGORY_COLORS: Record<string, string> = {
-    trending: "rgba(249,115,22,0.15)", humor: "rgba(168,85,247,0.15)",
-    educational: "rgba(34,197,94,0.15)", campaign: "rgba(234,179,8,0.15)",
-    storytelling: "rgba(59,130,246,0.15)", seasonal: "rgba(236,72,153,0.15)",
-    interactive: "rgba(6,182,212,0.15)",
-  };
-  const CATEGORY_BORDERS: Record<string, string> = {
-    trending: "rgba(249,115,22,0.5)", humor: "rgba(168,85,247,0.5)",
-    educational: "rgba(34,197,94,0.5)", campaign: "rgba(234,179,8,0.5)",
-    storytelling: "rgba(59,130,246,0.5)", seasonal: "rgba(236,72,153,0.5)",
-    interactive: "rgba(6,182,212,0.5)",
-  };
-
+  /* ── Save & Submit ── */
   const handleSave = async (startPipeline: boolean) => {
     if (!konu.trim()) return;
     setLoading(true);
     setError("");
 
+    const enrichedConcept = buildEnrichedConcept();
+
     try {
       const res = await fetch("/api/brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ konu, contentType, lang, tone, concept, maxScenes, gsSize }),
+        body: JSON.stringify({
+          konu,
+          contentType,
+          lang,
+          tone,
+          concept: enrichedConcept,
+          maxScenes,
+          gsSize,
+        }),
       });
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Brief oluşturulamadı");
-        toast.error(data.error || "Brief oluşturulamadı");
+        setError(data.error || "Brief olusturulamadi");
+        toast.error(data.error || "Brief olusturulamadi");
         return;
       }
 
@@ -205,16 +289,16 @@ export default function BriefPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ projectId: data.projectId }),
           });
-          toast.success("Brief oluşturuldu — Pipeline başlatılıyor!");
+          toast.success("Brief olusturuldu -- Pipeline baslatiliyor!");
           router.push(`/scenes?project=${data.projectId}`);
         } else {
-          toast.success("Brief başarıyla kaydedildi");
+          toast.success("Brief basariyla kaydedildi");
           router.push(`/scenes?project=${data.projectId}`);
         }
       }
     } catch (e) {
-      setError("Bir hata oluştu");
-      toast.error("Bir hata oluştu");
+      setError("Bir hata olustu");
+      toast.error("Bir hata olustu");
       console.error(e);
     } finally {
       setLoading(false);
@@ -226,24 +310,34 @@ export default function BriefPage() {
     setLoading(true);
     setError("");
 
+    const enrichedConcept = buildEnrichedConcept();
+
     try {
       const res = await fetch("/api/brief", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ konu, contentType, lang, tone, concept, maxScenes, gsSize }),
+        body: JSON.stringify({
+          konu,
+          contentType,
+          lang,
+          tone,
+          concept: enrichedConcept,
+          maxScenes,
+          gsSize,
+        }),
       });
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Brief oluşturulamadı");
-        toast.error(data.error || "Brief oluşturulamadı");
+        setError(data.error || "Brief olusturulamadi");
+        toast.error(data.error || "Brief olusturulamadi");
         setLoading(false);
         return;
       }
 
       if (data.projectId) {
         setSavedProjectId(data.projectId);
-        toast.success("Brief kaydedildi — Pipeline başlatılıyor...");
+        toast.success("Brief kaydedildi -- Pipeline baslatiliyor...");
 
         await fetch("/api/pipeline", {
           method: "POST",
@@ -251,12 +345,11 @@ export default function BriefPage() {
           body: JSON.stringify({ projectId: data.projectId }),
         });
 
-        // Redirect immediately to scenes page where real-time pipeline progress is shown
         router.push(`/scenes?project=${data.projectId}`);
       }
     } catch (e) {
-      setError("Bir hata oluştu");
-      toast.error("Bir hata oluştu");
+      setError("Bir hata olustu");
+      toast.error("Bir hata olustu");
       console.error(e);
       setLoading(false);
     }
@@ -264,105 +357,91 @@ export default function BriefPage() {
 
   const handleConfirmPipeline = () => {
     if (!savedProjectId) return;
-    toast.success("Pipeline devam ediyor! 🚀");
     router.push(`/scenes?project=${savedProjectId}`);
   };
 
-  const currentPlatform = CONTENT_TYPES.find(ct => ct.value === contentType)?.platform || "TikTok / Reels";
+  const currentPlatform =
+    CONTENT_TYPE_OPTIONS.find((ct) => ct.id === contentType)?.label ||
+    "Sosyal Medya";
+
+  /* ─────────────────────────── Render ─────────────────────────── */
 
   return (
     <>
+      {/* Page Header */}
       <div className="page-header">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Link href="/" className="btn btn-ghost btn-icon">
             <ArrowLeft size={20} />
           </Link>
           <div>
-            <h1 className="page-title">Yeni Brief</h1>
-            <p className="page-subtitle">Molo için yeni bir içerik planla</p>
+            <h1 className="page-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Sparkles size={22} style={{ color: "var(--accent-teal)" }} />
+              Yeni Brief
+            </h1>
+            <p className="page-subtitle">
+              Molo icin yeni bir icerik planla
+            </p>
           </div>
         </div>
+        <MoloPeek />
       </div>
 
-      <div style={{ maxWidth: 720, display: "flex", flexDirection: "column", gap: 24 }}>
-        {/* Konu */}
-        <div>
-          <label className="label">Konu *</label>
-          <input
-            className="input"
-            placeholder="Örn: Klinik turu, Diş bakım ipuçları, Hasta karşılama..."
-            value={konu}
-            onChange={(e) => setKonu(e.target.value)}
-          />
-        </div>
+      <div style={{ maxWidth: 760, display: "flex", flexDirection: "column", gap: 28 }}>
 
-        {/* İçerik Türü */}
-        <div>
-          <label className="label">
-            <Palette size={14} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} />
-            İçerik Türü
-          </label>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-            {CONTENT_TYPES.map((ct) => {
-              const Icon = ct.icon;
-              const isActive = contentType === ct.value;
-              return (
-                <div
-                  key={ct.value}
-                  onClick={() => setContentType(ct.value)}
-                  className="glass-card"
-                  style={{
-                    padding: "16px",
-                    cursor: "pointer",
-                    textAlign: "center",
-                    borderColor: isActive ? "var(--accent-blue)" : undefined,
-                    background: isActive ? "rgba(59,130,246,0.08)" : undefined,
-                  }}
-                >
-                  <Icon size={24} style={{ marginBottom: 8, color: isActive ? "var(--accent-blue)" : "var(--text-muted)" }} />
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{ct.label}</div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>{ct.desc}</div>
-                </div>
-              );
-            })}
+        {/* ── Section: Konu ── */}
+        <Card accent="teal">
+          <div style={{ padding: 24 }}>
+            <label className="label" style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
+              Konu *
+            </label>
+            <input
+              className="input"
+              placeholder="Orn: Klinik turu, Dis bakim ipuclari, Hasta karsilama..."
+              value={konu}
+              onChange={(e) => setKonu(e.target.value)}
+              style={{ fontSize: 15 }}
+            />
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
+              Videonun ana konusunu kisa ve net yaz.
+            </p>
           </div>
+        </Card>
 
-          {contentType === "greenscreen" && (
-            <div style={{ marginTop: "1rem" }}>
-              <label style={{ fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.5)", marginBottom: "0.5rem", display: "block" }}>
-                🟢 Green Screen Boyutu
+        {/* ── Section: Icerik Turu ── */}
+        <section>
+          <label className="label" style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+            <Clapperboard size={15} style={{ color: "var(--accent-teal)" }} />
+            Icerik Turu
+          </label>
+          <SelectGrid
+            options={CONTENT_TYPE_OPTIONS}
+            value={contentType}
+            onChange={setContentType}
+            columns={4}
+          />
+
+          {/* Green Screen Size Picker */}
+          {contentType.startsWith("greenscreen") && (
+            <div style={{ marginTop: 16 }}>
+              <label className="label" style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                Green Screen Boyutu
               </label>
-              <div style={{ display: "flex", gap: "0.75rem" }}>
-                {GS_SIZES.map((s) => (
-                  <button
-                    key={s.value}
-                    type="button"
-                    onClick={() => setGsSize(s.value)}
-                    style={{
-                      flex: 1,
-                      padding: "0.75rem",
-                      borderRadius: "0.75rem",
-                      border: gsSize === s.value ? "2px solid #22c55e" : "1px solid rgba(255,255,255,0.1)",
-                      background: gsSize === s.value ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.03)",
-                      color: "#fff",
-                      cursor: "pointer",
-                      textAlign: "center" as const,
-                    }}
-                  >
-                    <div style={{ fontWeight: 600 }}>{s.label}</div>
-                    <div style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.4)" }}>{s.desc}</div>
-                  </button>
-                ))}
-              </div>
+              <SelectGrid
+                options={GS_SIZE_OPTIONS}
+                value={gsSize}
+                onChange={setGsSize}
+                columns={3}
+              />
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Dil + Ton */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* ── Section: Dil + Ton ── */}
+        <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div>
-            <label className="label">
-              <Globe size={14} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} />
+            <label className="label" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <Globe size={14} style={{ color: "var(--accent-teal)" }} />
               Dil
             </label>
             <select
@@ -371,30 +450,36 @@ export default function BriefPage() {
               onChange={(e) => setLang(e.target.value)}
             >
               {LANGUAGES.map((l) => (
-                <option key={l.value} value={l.value}>{l.label}</option>
+                <option key={l.value} value={l.value}>
+                  {l.flag} {l.label}
+                </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="label">Ton</label>
+            <label className="label" style={{ marginBottom: 6 }}>Ton</label>
             <select
               className="input select"
               value={tone}
               onChange={(e) => setTone(e.target.value)}
             >
               {TONES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </select>
           </div>
-        </div>
+        </section>
 
-        {/* Sahne Sayısı */}
-        <div>
-          <label className="label">
-            <Film size={14} style={{ display: "inline", marginRight: 4, verticalAlign: "middle" }} />
-            Sahne Sayısı
-            <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 6, fontWeight: 400 }}>(≈ maliyet kontrolü)</span>
+        {/* ── Section: Sahne Sayisi ── */}
+        <section>
+          <label className="label" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <Film size={14} style={{ color: "var(--accent-teal)" }} />
+            Sahne Sayisi
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 400 }}>
+              (maliyet kontrolu)
+            </span>
           </label>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <input
@@ -403,328 +488,571 @@ export default function BriefPage() {
               max={8}
               value={maxScenes}
               onChange={(e) => setMaxScenes(Number(e.target.value))}
-              style={{ flex: 1, accentColor: "var(--accent-blue)" }}
+              style={{ flex: 1, accentColor: "var(--accent-teal, #14b8a6)" }}
             />
-            <span style={{
-              fontWeight: 700, fontSize: 18, minWidth: 32, textAlign: "center",
-              color: maxScenes <= 3 ? "var(--accent-green, #22c55e)" : maxScenes <= 5 ? "var(--accent-blue)" : "var(--accent-amber)",
-            }}>
+            <span
+              style={{
+                fontWeight: 700,
+                fontSize: 20,
+                minWidth: 36,
+                textAlign: "center",
+                color:
+                  maxScenes <= 3
+                    ? "var(--accent-green, #22c55e)"
+                    : maxScenes <= 5
+                      ? "var(--accent-teal, #14b8a6)"
+                      : "var(--accent-coral, #f97066)",
+                background:
+                  maxScenes <= 3
+                    ? "rgba(34,197,94,0.1)"
+                    : maxScenes <= 5
+                      ? "rgba(20,184,166,0.1)"
+                      : "rgba(249,112,102,0.1)",
+                borderRadius: "var(--radius-md)",
+                padding: "4px 10px",
+              }}
+            >
               {maxScenes}
             </span>
           </div>
-          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-            {maxScenes <= 3 ? "💰 Düşük maliyet" : maxScenes <= 5 ? "⚖️ Dengeli" : "🎬 Detaylı içerik"}
-            {" — "}{maxScenes} sahne × ~8-12s = ~{maxScenes * 10}s video
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
+            {maxScenes <= 3
+              ? "Dusuk maliyet"
+              : maxScenes <= 5
+                ? "Dengeli"
+                : "Detayli icerik"}
+            {" -- "}
+            {maxScenes} sahne x ~8-12s = ~{maxScenes * 10}s video
           </div>
-        </div>
+        </section>
 
-        {/* AI İçerik Önerileri */}
-        <div className="glass-card" style={{ padding: 20, background: "rgba(139,92,246,0.04)", borderColor: "rgba(139,92,246,0.15)" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Wand2 size={18} style={{ color: "var(--accent-purple, #a78bfa)" }} />
-              <span style={{ fontWeight: 700, fontSize: 15 }}>AI İçerik Önerileri</span>
-              <span style={{ fontSize: 11, color: "var(--text-muted)", background: "rgba(139,92,246,0.1)", padding: "2px 8px", borderRadius: 12 }}>
-                {currentPlatform}
-              </span>
+        {/* ── Section: AI Icerik Onerileri ── */}
+        <Card accent="teal">
+          <div style={{ padding: 24 }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Wand2 size={18} style={{ color: "var(--accent-teal)" }} />
+                <span style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)" }}>
+                  AI Icerik Onerileri
+                </span>
+                <Badge variant="info">{currentPlatform}</Badge>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {suggestions.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={<RefreshCw size={13} />}
+                    onClick={fetchSuggestions}
+                    loading={suggestLoading}
+                  >
+                    Yenile
+                  </Button>
+                )}
+                {suggestConfigured !== false && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={
+                      suggestions.length > 0 ? (
+                        <Lightbulb size={14} />
+                      ) : (
+                        <Sparkles size={14} />
+                      )
+                    }
+                    onClick={fetchSuggestions}
+                    loading={suggestLoading}
+                    style={{
+                      background: "linear-gradient(135deg, var(--accent-teal, #14b8a6), var(--accent-blue, #3b82f6))",
+                    }}
+                  >
+                    {suggestLoading
+                      ? "Dusunuyor..."
+                      : suggestions.length > 0
+                        ? "Yeni Fikirler"
+                        : "Icerik Onerisi Al"}
+                  </Button>
+                )}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {suggestions.length > 0 && (
-                <button
-                  className="btn btn-ghost"
-                  onClick={fetchSuggestions}
-                  disabled={suggestLoading}
-                  style={{ fontSize: 12, padding: "6px 12px" }}
-                >
-                  <RefreshCw size={13} className={suggestLoading ? "pulse" : ""} /> Yenile
-                </button>
-              )}
-              {suggestConfigured !== false && (
-                <button
-                  className="btn btn-primary"
-                  onClick={fetchSuggestions}
-                  disabled={suggestLoading}
-                  style={{ fontSize: 13, padding: "8px 16px", background: "rgba(139,92,246,0.8)" }}
-                >
-                  {suggestLoading ? (
-                    <><Loader2 size={14} className="pulse" /> Düşünüyor...</>
-                  ) : suggestions.length > 0 ? (
-                    <><Lightbulb size={14} /> Yeni Fikirler</>
-                  ) : (
-                    <><Sparkles size={14} /> İçerik Önerisi Al</>
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
 
-          {/* Kategori Chip Bar */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-            <button
-              onClick={() => setSelectedCategory(null)}
-              style={{
-                padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid",
-                borderColor: !selectedCategory ? "var(--accent-purple, #a78bfa)" : "rgba(255,255,255,0.1)",
-                background: !selectedCategory ? "rgba(139,92,246,0.15)" : "rgba(255,255,255,0.03)",
-                color: !selectedCategory ? "var(--accent-purple, #a78bfa)" : "var(--text-muted)",
-                transition: "all 0.2s",
-              }}
-            >
-              ✨ Hepsi
-            </button>
-            {(Object.keys(categories).length > 0
-              ? Object.entries(categories).map(([key, cat]) => [key, `${cat.emoji} ${cat.label}`] as [string, string])
-              : DEFAULT_CATS
-            ).map(([key, label]) => (
+            {/* Kategori Chips */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
               <button
-                key={key}
-                onClick={() => setSelectedCategory(selectedCategory === key ? null : key)}
+                onClick={() => setSelectedCategory(null)}
                 style={{
-                  padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid",
-                  borderColor: selectedCategory === key ? (CATEGORY_BORDERS[key] || "var(--accent-purple, #a78bfa)") : "rgba(255,255,255,0.1)",
-                  background: selectedCategory === key ? (CATEGORY_COLORS[key] || "rgba(139,92,246,0.15)") : "rgba(255,255,255,0.03)",
-                  color: selectedCategory === key ? "#fff" : "var(--text-muted)",
+                  padding: "5px 14px",
+                  borderRadius: 20,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  border: `1.5px solid ${!selectedCategory ? "var(--accent-teal, #14b8a6)" : "var(--border-subtle, #e2e8f0)"}`,
+                  background: !selectedCategory ? "rgba(20,184,166,0.1)" : "var(--bg-card)",
+                  color: !selectedCategory ? "var(--accent-teal, #14b8a6)" : "var(--text-muted)",
                   transition: "all 0.2s",
                 }}
               >
-                {label}
+                Hepsi
               </button>
-            ))}
-          </div>
-
-          {/* API not configured info */}
-          {suggestConfigured === false && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 10, padding: 12,
-              background: "rgba(245,158,11,0.06)", borderRadius: 8,
-              border: "1px solid rgba(245,158,11,0.12)",
-            }}>
-              <Info size={16} style={{ color: "var(--accent-amber)", flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                {suggestMessage || "AI önerileri kullanmak için GOOGLE_API_KEY yapılandırılmalı."}
-                {" "}
-                <Link href="/settings" style={{ color: "var(--accent-blue)", textDecoration: "underline" }}>Ayarlar →</Link>
-              </span>
-            </div>
-          )}
-
-          {/* Error */}
-          {suggestError && (
-            <div style={{ fontSize: 12, color: "var(--accent-red)", marginBottom: 12, padding: "8px 12px", background: "rgba(239,68,68,0.06)", borderRadius: 8 }}>
-              {suggestError}
-            </div>
-          )}
-          {/* Suggestion Cards */}
-          {suggestions.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 10 }}>
-              {suggestions.map((s, i) => (
-                <div
-                  key={i}
-                  onClick={() => applySuggestion(s)}
-                  className="glass-card"
+              {(Object.keys(categories).length > 0
+                ? Object.entries(categories).map(
+                    ([key, cat]) =>
+                      [key, `${cat.emoji} ${cat.label}`] as [string, string]
+                  )
+                : DEFAULT_CATS
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() =>
+                    setSelectedCategory(selectedCategory === key ? null : key)
+                  }
                   style={{
-                    padding: 16,
+                    padding: "5px 14px",
+                    borderRadius: 20,
+                    fontSize: 12,
+                    fontWeight: 600,
                     cursor: "pointer",
+                    border: `1.5px solid ${selectedCategory === key ? (CATEGORY_BORDERS[key] || "var(--accent-teal)") : "var(--border-subtle, #e2e8f0)"}`,
+                    background:
+                      selectedCategory === key
+                        ? CATEGORY_COLORS[key] || "rgba(20,184,166,0.1)"
+                        : "var(--bg-card)",
+                    color:
+                      selectedCategory === key
+                        ? "var(--text-primary)"
+                        : "var(--text-muted)",
                     transition: "all 0.2s",
-                    borderColor: "transparent",
-                    borderLeft: s.category ? `3px solid ${CATEGORY_BORDERS[s.category] || "rgba(139,92,246,0.5)"}` : undefined,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = CATEGORY_BORDERS[s.category || ""] || "rgba(139,92,246,0.4)";
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.boxShadow = "0 8px 25px rgba(0,0,0,0.2)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "transparent";
-                    e.currentTarget.style.borderLeft = s.category ? `3px solid ${CATEGORY_BORDERS[s.category] || "rgba(139,92,246,0.5)"}` : "";
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "none";
                   }}
                 >
-                  {/* Title + Category Badge */}
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.4, flex: 1 }}>
-                      {s.title}
-                    </div>
-                    {s.category && (
-                      <span style={{
-                        fontSize: 10, padding: "2px 8px", borderRadius: 10, whiteSpace: "nowrap" as const,
-                        background: CATEGORY_COLORS[s.category] || "rgba(139,92,246,0.1)",
-                        color: "rgba(255,255,255,0.8)", fontWeight: 600, flexShrink: 0,
-                      }}>
-                        {categories[s.category]?.emoji || ""} {categories[s.category]?.label || s.category}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Concept */}
-                  <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 8 }}>
-                    {s.concept}
-                  </div>
-
-                  {/* Hook */}
-                  {s.hook && (
-                    <div style={{
-                      fontSize: 12, color: "var(--accent-blue)", fontStyle: "italic", marginBottom: 10,
-                      padding: "8px 10px", background: "rgba(59,130,246,0.06)", borderRadius: 6,
-                      borderLeft: "2px solid var(--accent-blue)", lineHeight: 1.5,
-                    }}>
-                      🎣 &quot;{s.hook}&quot;
-                    </div>
-                  )}
-
-                  {/* Why */}
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 8 }}>
-                    💡 {s.why}
-                  </div>
-
-                  {/* Footer: Molo Attitude + Arrow */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      {s.molo_attitude && (
-                        <span style={{
-                          fontSize: 10, padding: "2px 8px", borderRadius: 10,
-                          background: "rgba(59,130,246,0.08)", color: "var(--accent-blue)",
-                        }}>
-                          🤖 {s.molo_attitude}
-                        </span>
-                      )}
-                    </div>
-                    <ArrowRight size={12} style={{ color: "var(--accent-purple, #a78bfa)", opacity: 0.6 }} />
-                  </div>
-                </div>
+                  {label}
+                </button>
               ))}
             </div>
-          )}
 
-          {/* Empty state */}
-          {suggestions.length === 0 && !suggestLoading && suggestConfigured !== false && (
-            <div style={{ textAlign: "center", padding: "16px 0", color: "var(--text-muted)", fontSize: 13 }}>
-              Kategori seçin veya doğrudan &quot;İçerik Önerisi Al&quot; butonuna tıklayın.
-            </div>
-          )}
-        </div>
+            {/* API not configured info */}
+            {suggestConfigured === false && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: 12,
+                  background: "rgba(245,158,11,0.06)",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid rgba(245,158,11,0.15)",
+                }}
+              >
+                <Info size={16} style={{ color: "var(--accent-amber)", flexShrink: 0 }} />
+                <span style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                  {suggestMessage || "AI onerileri kullanmak icin GOOGLE_API_KEY yapilandirilmali."}{" "}
+                  <Link
+                    href="/settings"
+                    style={{ color: "var(--accent-teal)", textDecoration: "underline" }}
+                  >
+                    Ayarlar
+                  </Link>
+                </span>
+              </div>
+            )}
 
-        {/* Konsept */}
-        <div>
-          <label className="label">İçerik Konsepti (opsiyonel)</label>
+            {/* Suggest error */}
+            {suggestError && (
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--accent-red, #ef4444)",
+                  marginBottom: 12,
+                  padding: "8px 12px",
+                  background: "rgba(239,68,68,0.06)",
+                  borderRadius: "var(--radius-md)",
+                }}
+              >
+                {suggestError}
+              </div>
+            )}
+
+            {/* Loading state with Molo */}
+            {suggestLoading && (
+              <div style={{ padding: "24px 0" }}>
+                <MoloLoading text="Molo dusunuyor..." />
+              </div>
+            )}
+
+            {/* Suggestion Cards */}
+            {!suggestLoading && suggestions.length > 0 && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                  gap: 12,
+                }}
+              >
+                {suggestions.map((s, i) => (
+                  <div
+                    key={i}
+                    onClick={() => applySuggestion(s)}
+                    className="glass-card"
+                    style={{
+                      padding: 16,
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                      borderColor: "var(--border-subtle, #e2e8f0)",
+                      borderLeft: s.category
+                        ? `3px solid ${CATEGORY_BORDERS[s.category] || "var(--accent-teal)"}`
+                        : undefined,
+                      background: "var(--bg-card)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor =
+                        CATEGORY_BORDERS[s.category || ""] || "var(--accent-teal)";
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.boxShadow =
+                        "0 8px 24px rgba(20,184,166,0.12)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "var(--border-subtle, #e2e8f0)";
+                      e.currentTarget.style.borderLeft = s.category
+                        ? `3px solid ${CATEGORY_BORDERS[s.category] || "var(--accent-teal)"}`
+                        : "";
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                  >
+                    {/* Title + Category Badge */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.4, flex: 1, color: "var(--text-primary)" }}>
+                        {s.title}
+                      </div>
+                      {s.category && (
+                        <Badge variant="info">
+                          {categories[s.category]?.emoji || ""}{" "}
+                          {categories[s.category]?.label || s.category}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Concept */}
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-secondary)",
+                        lineHeight: 1.6,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {s.concept}
+                    </div>
+
+                    {/* Hook */}
+                    {s.hook && (
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "var(--accent-teal)",
+                          fontStyle: "italic",
+                          marginBottom: 10,
+                          padding: "8px 10px",
+                          background: "rgba(20,184,166,0.06)",
+                          borderRadius: "var(--radius-md)",
+                          borderLeft: "2px solid var(--accent-teal)",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        &quot;{s.hook}&quot;
+                      </div>
+                    )}
+
+                    {/* Why */}
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-muted)",
+                        lineHeight: 1.5,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {s.why}
+                    </div>
+
+                    {/* Footer */}
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        {s.molo_attitude && (
+                          <Badge variant="draft">{s.molo_attitude}</Badge>
+                        )}
+                      </div>
+                      <ArrowRight
+                        size={12}
+                        style={{ color: "var(--accent-teal)", opacity: 0.6 }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Empty state */}
+            {suggestions.length === 0 &&
+              !suggestLoading &&
+              suggestConfigured !== false && (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "20px 0",
+                    color: "var(--text-muted)",
+                    fontSize: 13,
+                  }}
+                >
+                  Kategori secin veya dogrudan &quot;Icerik Onerisi Al&quot;
+                  butonuna tiklayin.
+                </div>
+              )}
+          </div>
+        </Card>
+
+        {/* ── Section: Icerik Konsepti ── */}
+        <section>
+          <label className="label" style={{ marginBottom: 6 }}>
+            Icerik Konsepti (opsiyonel)
+          </label>
           <textarea
             className="input textarea"
-            placeholder="Molo klinikte tek başına dolaşıyor. Kendi kendine konuşuyor, şakalar yapıyor..."
+            placeholder="Molo klinikte tek basina dolasiyor. Kendi kendine konusuyor, sakalar yapiyor..."
             value={concept}
             onChange={(e) => setConcept(e.target.value)}
             rows={4}
           />
-        </div>
+        </section>
 
-        {/* Error */}
+        {/* ── Section: Ek Detaylar (New Fields) ── */}
+        <Card>
+          <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <MessageSquare size={16} style={{ color: "var(--accent-coral, #f97066)" }} />
+              <span style={{ fontWeight: 700, fontSize: 15, color: "var(--text-primary)" }}>
+                Ek Detaylar
+              </span>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 400 }}>
+                (opsiyonel ama onerilen)
+              </span>
+            </div>
+
+            {/* Hedef Kitle */}
+            <div>
+              <label className="label" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                <Users size={14} style={{ color: "var(--accent-teal)" }} />
+                Hedef Kitle
+              </label>
+              <textarea
+                className="input textarea"
+                placeholder="Orn: 25-45 yas arasi dis hekimligi hastalar, cocuklu aileler, estetik dis tedavisi arayanlar..."
+                value={hedefKitle}
+                onChange={(e) => setHedefKitle(e.target.value)}
+                rows={2}
+              />
+            </div>
+
+            {/* Ana Mesaj */}
+            <div>
+              <label className="label" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                <Lightbulb size={14} style={{ color: "var(--accent-teal)" }} />
+                Ana Mesaj
+              </label>
+              <input
+                className="input"
+                placeholder="Orn: Dis bakim rutininizi eglenceli hale getirin!"
+                value={anaMesaj}
+                onChange={(e) => setAnaMesaj(e.target.value)}
+              />
+            </div>
+
+            {/* Senaryo Ipuclari */}
+            <div>
+              <label className="label" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                <Clapperboard size={14} style={{ color: "var(--accent-teal)" }} />
+                Senaryo Ipuclari
+              </label>
+              <textarea
+                className="input textarea"
+                placeholder={`Orn:\n- Molo kameraya bakip seyirciyle konussun\n- Ilk sahnede surpriz eleman olsun\n- Komik bir kapanisla bitsin`}
+                value={senaryoIpuclari}
+                onChange={(e) => setSenaryoIpuclari(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+        </Card>
+
+        {/* ── Error Display ── */}
         {error && (
-          <div style={{ padding: 12, background: "rgba(239,68,68,0.1)", borderRadius: "var(--radius-md)", border: "1px solid rgba(239,68,68,0.2)", color: "var(--accent-red)", fontSize: 13 }}>
+          <div
+            style={{
+              padding: 14,
+              background: "rgba(239,68,68,0.06)",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid rgba(239,68,68,0.15)",
+              color: "var(--accent-red, #ef4444)",
+              fontSize: 13,
+            }}
+          >
             {error}
           </div>
         )}
 
-        {/* Actions */}
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <button
-            className="btn btn-primary"
+        {/* ── Action Buttons ── */}
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            flexWrap: "wrap",
+            paddingTop: 4,
+            paddingBottom: 32,
+          }}
+        >
+          <Button
+            variant="secondary"
+            icon={<Eye size={16} />}
             onClick={handleSaveAndPreview}
-            disabled={!konu.trim() || loading}
-            style={{ opacity: !konu.trim() || loading ? 0.5 : 1 }}
+            disabled={!konu.trim()}
+            loading={loading}
           >
-            <Eye size={18} />
-            {loading ? "Senaryo üretiliyor..." : "Kaydet & Önizle"}
-          </button>
-          <button
-            className="btn btn-secondary"
+            Kaydet &amp; Onizle
+          </Button>
+
+          <Button
+            variant="primary"
+            icon={<Rocket size={16} />}
             onClick={() => handleSave(true)}
-            disabled={!konu.trim() || loading}
-            style={{ opacity: !konu.trim() || loading ? 0.5 : 1 }}
+            disabled={!konu.trim()}
+            loading={loading}
+            style={{
+              background:
+                "linear-gradient(135deg, var(--accent-teal, #14b8a6), var(--accent-blue, #3b82f6))",
+            }}
           >
-            <Rocket size={16} />
-            Direkt Pipeline Başlat
-          </button>
-          <button
-            className="btn btn-ghost"
+            Direkt Pipeline Baslat
+          </Button>
+
+          <Button
+            variant="ghost"
+            icon={<Save size={16} />}
             onClick={() => handleSave(false)}
-            disabled={!konu.trim() || loading}
-            style={{ opacity: !konu.trim() || loading ? 0.5 : 1 }}
+            disabled={!konu.trim()}
+            loading={loading}
           >
-            <Save size={16} />
             Sadece Kaydet
-          </button>
-          <Link href="/" className="btn btn-ghost">
-            İptal
+          </Button>
+
+          <Link href="/" className="btn btn-ghost" style={{ display: "flex", alignItems: "center" }}>
+            Iptal
           </Link>
         </div>
       </div>
 
-      {/* Senaryo Önizleme Modal */}
-      {showPreview && previewScenes.length > 0 && (
-        <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000,
-          display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-        }}>
-          <div className="glass-card" style={{
-            maxWidth: 700, width: "100%", maxHeight: "80vh", overflow: "auto",
-            padding: 32, position: "relative",
-          }}>
-            <button
-              onClick={() => setShowPreview(false)}
-              className="btn btn-ghost btn-icon"
-              style={{ position: "absolute", top: 12, right: 12 }}
-            >
-              <X size={18} />
-            </button>
+      {/* ── Scene Preview Modal ── */}
+      <Modal
+        open={showPreview && previewScenes.length > 0}
+        onClose={() => setShowPreview(false)}
+        title="Senaryo Onizleme"
+        size="lg"
+      >
+        <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 16 }}>
+          {previewScenes.length} sahne uretildi. Pipeline arka planda devam
+          ediyor.
+        </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
-              <Sparkles size={22} style={{ color: "var(--accent-blue)" }} />
-              <h2 style={{ fontSize: 20, fontWeight: 700 }}>Senaryo Önizleme</h2>
-            </div>
-
-            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>
-              {previewScenes.length} sahne üretildi. Pipeline arka planda devam ediyor.
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {previewScenes.map((s) => (
-                <div key={s.scene} className="glass-card" style={{ padding: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>Sahne {s.scene}</span>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <span className="badge draft" style={{ fontSize: 10 }}>{s.voice_direction}</span>
-                      <span className="badge review" style={{ fontSize: 10 }}>{s.shot_type}</span>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 8 }}>
-                    🎤 {s.text_de || s.text || ""}
-                  </div>
-                  {s.text_tr && (
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, fontStyle: "italic" }}>
-                      🇹🇷 {s.text_tr}
-                    </div>
-                  )}
-                  <div style={{ display: "flex", gap: 8, marginTop: 8, fontSize: 11, color: "var(--text-muted)" }}>
-                    <span>📸 {s.environment}</span>
-                    <span>🤖 {s.molo_pose}</span>
-                    <span>💭 {s.emotion_note}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {previewScenes.map((s) => (
+            <Card key={s.scene}>
+              <div style={{ padding: 16 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: 8,
+                  }}
+                >
+                  <span style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>
+                    Sahne {s.scene}
+                  </span>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <Badge variant="draft">{s.voice_direction}</Badge>
+                    <Badge variant="review">{s.shot_type}</Badge>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
-              <button className="btn btn-primary" onClick={handleConfirmPipeline}>
-                <CheckCircle2 size={16} />
-                Pipeline İzle
-              </button>
-              <button className="btn btn-ghost" onClick={() => setShowPreview(false)}>
-                Kapat
-              </button>
-            </div>
-          </div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                    marginBottom: 8,
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  {s.text_de || s.text || ""}
+                </div>
+                {s.text_tr && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "var(--text-muted)",
+                      lineHeight: 1.5,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {s.text_tr}
+                  </div>
+                )}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    marginTop: 10,
+                    fontSize: 11,
+                    color: "var(--text-muted)",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span>{s.environment}</span>
+                  <span>{s.molo_pose}</span>
+                  <span>{s.emotion_note}</span>
+                </div>
+              </div>
+            </Card>
+          ))}
         </div>
-      )}
+
+        <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
+          <Button
+            variant="primary"
+            icon={<CheckCircle2 size={16} />}
+            onClick={handleConfirmPipeline}
+            style={{
+              background:
+                "linear-gradient(135deg, var(--accent-teal, #14b8a6), var(--accent-blue, #3b82f6))",
+            }}
+          >
+            Pipeline Izle
+          </Button>
+          <Button variant="ghost" onClick={() => setShowPreview(false)}>
+            Kapat
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 }

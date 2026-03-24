@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, Check, Film, Loader2, Clock, Zap, ImageIcon, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { MoloLoading } from "@/components/molo";
 import type { Project } from "@/store/studio";
 
 function VideoContent() {
@@ -55,7 +56,7 @@ function VideoContent() {
     );
   }
 
-  if (loading) return <div className="empty-state"><Loader2 size={32} className="pulse" /></div>;
+  if (loading) return <div className="empty-state"><MoloLoading text="Videolar yükleniyor..." /></div>;
   if (!project) return <div className="empty-state"><Film size={64} /><h3 style={{ color: "var(--text-secondary)" }}>Proje bulunamadı</h3></div>;
 
   const scene = project.scenes[selected];
@@ -111,7 +112,7 @@ function VideoContent() {
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, color: "var(--text-muted)" }}>📸 Referans Görsel</div>
-                      <div style={{ aspectRatio: isHorizontal ? "16/9" : "9/16", maxHeight: 400, background: "#000", borderRadius: 8, overflow: "hidden" }}>
+                      <div style={{ aspectRatio: isHorizontal ? "16/9" : "9/16", maxHeight: 400, background: "var(--bg-secondary)", borderRadius: 8, overflow: "hidden" }}>
                         {imageFiles[selected] ? (
                           <img src={imageFiles[selected]} alt="Referans" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                         ) : (
@@ -123,7 +124,7 @@ function VideoContent() {
                     </div>
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6, color: "var(--text-muted)" }}>🎬 Video</div>
-                      <div style={{ aspectRatio: isHorizontal ? "16/9" : "9/16", maxHeight: 400, background: "#000", borderRadius: 8, overflow: "hidden" }}>
+                      <div style={{ aspectRatio: isHorizontal ? "16/9" : "9/16", maxHeight: 400, background: "var(--bg-secondary)", borderRadius: 8, overflow: "hidden" }}>
                         <video key={selected} controls autoPlay style={{ width: "100%", height: "100%", objectFit: "contain" }}>
                           {videoFiles[selected] && <source src={videoFiles[selected]} type="video/mp4" />}
                         </video>
@@ -133,7 +134,7 @@ function VideoContent() {
                 ) : (
                   /* Normal video player */
                   <div style={{ marginBottom: 16, position: "relative" }}>
-                    <div style={{ aspectRatio: isHorizontal ? "16/9" : "9/16", maxHeight: 500, background: "#000", borderRadius: 8, overflow: "hidden" }}>
+                    <div style={{ aspectRatio: isHorizontal ? "16/9" : "9/16", maxHeight: 500, background: "var(--bg-secondary)", borderRadius: 8, overflow: "hidden" }}>
                       <video
                         key={selected}
                         controls
@@ -146,12 +147,12 @@ function VideoContent() {
                     </div>
                     {/* Nav arrows */}
                     {selected > 0 && (
-                      <button onClick={() => setSelected(selected - 1)} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                      <button onClick={() => setSelected(selected - 1)} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.3)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                         <ChevronLeft size={18} style={{ color: "#fff" }} />
                       </button>
                     )}
                     {selected < videoFiles.length - 1 && (
-                      <button onClick={() => setSelected(selected + 1)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                      <button onClick={() => setSelected(selected + 1)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.3)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                         <ChevronRight size={18} style={{ color: "#fff" }} />
                       </button>
                     )}
@@ -228,7 +229,7 @@ function VideoContent() {
 
 export default function VideoPage() {
   return (
-    <Suspense fallback={<div className="empty-state"><Loader2 size={32} className="pulse" /></div>}>
+    <Suspense fallback={<div className="empty-state"><MoloLoading text="Yükleniyor..." /></div>}>
       <VideoContent />
     </Suspense>
   );

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Play, Pause, Loader2, Volume2, Mic2, Film, SkipForward, SkipBack, Clock } from "lucide-react";
+import { MoloLoading } from "@/components/molo";
 import type { Project } from "@/store/studio";
 
 function VoiceContent() {
@@ -116,7 +117,7 @@ function VoiceContent() {
     );
   }
 
-  if (loading) return <div className="empty-state"><Loader2 size={32} className="pulse" /></div>;
+  if (loading) return <div className="empty-state"><MoloLoading text="Ses dosyaları yükleniyor..." /></div>;
   if (!project) return <div className="empty-state"><Mic2 size={64} /><h3 style={{ color: "var(--text-secondary)" }}>Proje bulunamadı</h3><Link href="/" className="btn btn-primary" style={{ marginTop: 12 }}>Dashboard</Link></div>;
 
   const totalDuration = project.durations.reduce((a, b) => a + b, 0);
@@ -172,7 +173,7 @@ function VoiceContent() {
           const isPlaying = playing === i;
           const pct = progress[i] || 0;
           return (
-            <div key={scene.scene} className="glass-card" style={{ padding: 14, borderColor: isPlaying ? "var(--accent-blue)" : undefined }}>
+            <div key={scene.scene} className="glass-card" style={{ padding: 14, borderColor: isPlaying ? "var(--accent-teal)" : undefined }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <button
                   className="btn btn-icon btn-secondary"
@@ -182,7 +183,7 @@ function VoiceContent() {
                     opacity: hasAudio ? 1 : 0.3,
                     width: 38, height: 38, padding: 0,
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    background: isPlaying ? "rgba(59,130,246,0.15)" : undefined,
+                    background: isPlaying ? "rgba(20,184,166,0.15)" : undefined,
                   }}
                 >
                   {isPlaying ? <Pause size={16} /> : <Play size={16} />}
@@ -213,8 +214,8 @@ function VoiceContent() {
                       height: "100%", borderRadius: 2,
                       width: `${isPlaying ? pct : (hasAudio ? 100 : 0)}%`,
                       background: isPlaying
-                        ? "linear-gradient(90deg, var(--accent-blue), var(--accent-purple, #a78bfa))"
-                        : hasAudio ? "rgba(16,185,129,0.3)" : "transparent",
+                        ? "linear-gradient(90deg, var(--accent-teal), var(--accent-cyan, #06b6d4))"
+                        : hasAudio ? "rgba(20,184,166,0.3)" : "transparent",
                       transition: isPlaying ? "width 0.1s linear" : "width 0.3s ease",
                     }} />
                   </div>
@@ -262,7 +263,7 @@ function VoiceContent() {
 
 export default function VoicePage() {
   return (
-    <Suspense fallback={<div className="empty-state"><Loader2 size={32} className="pulse" /></div>}>
+    <Suspense fallback={<div className="empty-state"><MoloLoading text="Yükleniyor..." /></div>}>
       <VoiceContent />
     </Suspense>
   );

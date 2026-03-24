@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, Download, Check, ImageIcon, Loader2, ZoomIn, Film, ChevronLeft, ChevronRight } from "lucide-react";
+import { MoloLoading } from "@/components/molo";
 import type { Project } from "@/store/studio";
 
 function ImagesContent() {
@@ -66,7 +67,7 @@ function ImagesContent() {
     );
   }
 
-  if (loading) return <div className="empty-state"><Loader2 size={32} className="pulse" /></div>;
+  if (loading) return <div className="empty-state"><MoloLoading text="Görseller yükleniyor..." /></div>;
   if (!project) return <div className="empty-state"><ImageIcon size={64} /><h3 style={{ color: "var(--text-secondary)" }}>Proje bulunamadı</h3></div>;
 
   const scene = project.scenes[selected];
@@ -105,7 +106,7 @@ function ImagesContent() {
                 width: "100%",
                 aspectRatio: project.contentType === "ekran" ? "16/9" : "9/16",
                 maxHeight: 500,
-                background: "#000",
+                background: "var(--bg-secondary)",
                 borderRadius: 8,
                 overflow: "hidden",
                 display: "flex",
@@ -122,18 +123,18 @@ function ImagesContent() {
                   style={{ width: "100%", height: "100%", objectFit: "contain" }}
                 />
                 <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4 }}>
-                  <button className="btn btn-ghost btn-icon" onClick={(e) => { e.stopPropagation(); setLightbox(imageFiles[selected]); }} style={{ background: "rgba(0,0,0,0.5)", borderRadius: "50%", width: 28, height: 28, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <button className="btn btn-ghost btn-icon" onClick={(e) => { e.stopPropagation(); setLightbox(imageFiles[selected]); }} style={{ background: "rgba(0,0,0,0.3)", borderRadius: "50%", width: 28, height: 28, padding: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <ZoomIn size={14} style={{ color: "#fff" }} />
                   </button>
                 </div>
                 {/* Navigation arrows */}
                 {selected > 0 && (
-                  <button onClick={(e) => { e.stopPropagation(); setSelected(selected - 1); }} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                  <button onClick={(e) => { e.stopPropagation(); setSelected(selected - 1); }} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.3)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                     <ChevronLeft size={18} style={{ color: "#fff" }} />
                   </button>
                 )}
                 {selected < imageFiles.length - 1 && (
-                  <button onClick={(e) => { e.stopPropagation(); setSelected(selected + 1); }} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.5)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                  <button onClick={(e) => { e.stopPropagation(); setSelected(selected + 1); }} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "rgba(0,0,0,0.3)", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                     <ChevronRight size={18} style={{ color: "#fff" }} />
                   </button>
                 )}
@@ -159,7 +160,7 @@ function ImagesContent() {
                     cursor: "pointer",
                     borderRadius: 6,
                     overflow: "hidden",
-                    border: i === selected ? "2px solid var(--accent-blue)" : "2px solid transparent",
+                    border: i === selected ? "2px solid var(--accent-teal)" : "2px solid transparent",
                     opacity: i === selected ? 1 : 0.7,
                     transition: "all 0.15s",
                   }}
@@ -231,7 +232,7 @@ function ImagesContent() {
         <div
           onClick={() => setLightbox(null)}
           style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 1000,
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000,
             display: "flex", alignItems: "center", justifyContent: "center", cursor: "zoom-out",
           }}
         >
@@ -242,12 +243,12 @@ function ImagesContent() {
           />
           {/* Navigation arrows in lightbox */}
           {imageFiles.indexOf(lightbox) > 0 && (
-            <button onClick={(e) => { e.stopPropagation(); const idx = imageFiles.indexOf(lightbox); setLightbox(imageFiles[idx - 1]); setSelected(idx - 1); }} style={{ position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%", width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <button onClick={(e) => { e.stopPropagation(); const idx = imageFiles.indexOf(lightbox); setLightbox(imageFiles[idx - 1]); setSelected(idx - 1); }} style={{ position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <ChevronLeft size={24} style={{ color: "#fff" }} />
             </button>
           )}
           {imageFiles.indexOf(lightbox) < imageFiles.length - 1 && (
-            <button onClick={(e) => { e.stopPropagation(); const idx = imageFiles.indexOf(lightbox); setLightbox(imageFiles[idx + 1]); setSelected(idx + 1); }} style={{ position: "absolute", right: 20, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%", width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <button onClick={(e) => { e.stopPropagation(); const idx = imageFiles.indexOf(lightbox); setLightbox(imageFiles[idx + 1]); setSelected(idx + 1); }} style={{ position: "absolute", right: 20, top: "50%", transform: "translateY(-50%)", background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <ChevronRight size={24} style={{ color: "#fff" }} />
             </button>
           )}
@@ -262,7 +263,7 @@ function ImagesContent() {
 
 export default function ImagesPage() {
   return (
-    <Suspense fallback={<div className="empty-state"><Loader2 size={32} className="pulse" /></div>}>
+    <Suspense fallback={<div className="empty-state"><MoloLoading text="Yükleniyor..." /></div>}>
       <ImagesContent />
     </Suspense>
   );

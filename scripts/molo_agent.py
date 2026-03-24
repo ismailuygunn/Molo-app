@@ -61,6 +61,7 @@ from config import (
     SCENE_PADDING,
     CONTENT_TYPES, DEFAULT_CONTENT_TYPE,
     MOLO_POSES, ENVIRONMENT_IMAGES,
+    IMAGE_VARIANTS_COUNT,
     get_normalize_filter,
 )
 import random
@@ -624,10 +625,13 @@ def _score_image_quality(image_path, molo_ref_path, client):
 
 
 def generate_scene_images(scenes, project_dir):
-    """Her sahne için premium identity-lock promptlarıyla Gemini görseli üretir."""
+    """Her sahne için premium identity-lock promptlarıyla Gemini görseli üretir.
+    IMAGE_VARIANTS_COUNT kadar varyant uretir (v1, v2, ...) ve ilk varyanti ref.png olarak kaydeder."""
     print("\n" + "=" * 60)
-    print("📸 ADIM 4: Sahne Görselleri (Nano Banana 2)")
+    print("📸 ADIM 2: Sahne Görselleri (Nano Banana 2)")
     print("=" * 60)
+
+    variant_count = IMAGE_VARIANTS_COUNT
 
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
     image_files = []
@@ -639,7 +643,7 @@ def generate_scene_images(scenes, project_dir):
         emotion = s.get("emotion_note", "warm, welcoming")
 
         output = project_dir / "scenes" / f"scene_{n:02d}_ref.png"
-        print(f"\n   ── Sahne {n}: {env} | {shot}")
+        print(f"\n   ── Sahne {n}: {env} | {shot} ({variant_count} varyant)")
 
         # Molo referans görseli — ortam bazlı seçim (2 canonical referans)
         if env == "studio":
@@ -711,72 +715,98 @@ Expression: {emotion}
 
 {AVOID_LIST}"""
 
-        # ── Kalite kontrollü üretim (max QC_MAX_RETRIES + 1 deneme) ──
-        best_score = 0
-        best_output = None
-        attempts = QC_MAX_RETRIES + 1
-
-        for attempt in range(attempts):
-            attempt_suffix = f" (deneme {attempt + 1}/{attempts})" if attempt > 0 else ""
-            print(f"      🧠 Gemini üretimi...{attempt_suffix}")
-
-            response = gemini_with_retry(lambda: client.models.generate_content(
-                model=GEMINI_IMAGE_MODEL,
-                contents=[prompt] + images_to_send,
-                config=gtypes.GenerateContentConfig(
-                    response_modalities=["IMAGE", "TEXT"],
-                )
-            ))
-
-            # Görseli kaydet
-            saved = False
-            attempt_path = str(output).replace(".png", f"_try{attempt}.png") if attempt > 0 else str(output)
-
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, 'inline_data') and part.inline_data:
-                    from PIL import Image
-                    import io
-                    img = Image.open(io.BytesIO(part.inline_data.data))
-                    if img.size != (_ct['width'], _ct['height']):
-                        img = img.resize((_ct['width'], _ct['height']), Image.LANCZOS)
-
-                    img.save(attempt_path, "PNG")
-                    saved = True
-                    break
-
-            if not saved:
-                print(f"      ❌ Görsel üretilemedi (deneme {attempt + 1})")
-                continue
-
-            # ── Kalite skoru ──
-            score, details = _score_image_quality(attempt_path, str(molo_ref), client)
-            detail_str = ", ".join(f"{k}={v}" for k, v in details.items()) if details else "N/A"
-            print(f"      🔍 QC: {score}/10 ({detail_str})")
-
-            if score > best_score:
-                best_score = score
-                best_output = attempt_path
-
-            if score >= QC_MIN_SCORE:
-                break
+        # ── Varyant bazli uretim ──
+        variant_suffixes = [f"v{vi+1}" for vi in range(variant_count)]
+        variant_prompts = []
+        for vi in range(variant_count):
+            if vi == 0:
+                variant_prompts.append(prompt)
             else:
-                print(f"      ⚠️ Sahne {n}: kalite skoru düşük ({score}), tekrar deneniyor...")
+                variant_prompts.append(prompt + "\n\nAlternative composition: slightly different framing and pose variation.")
 
-        # En iyi sonucu ana dosyaya taşı
-        if best_output and best_output != str(output):
-            import shutil
-            shutil.copy2(best_output, str(output))
-            for a in range(attempts):
-                try_path = str(output).replace(".png", f"_try{a}.png")
-                if os.path.exists(try_path):
-                    os.remove(try_path)
+        first_variant_ok = False
+        for vi, (v_suffix, v_prompt) in enumerate(zip(variant_suffixes, variant_prompts)):
+            v_output = project_dir / "scenes" / f"scene_{n:02d}_{v_suffix}.png"
+            print(f"      ── Varyant {v_suffix} ──")
 
-        if best_output:
-            qc_label = f"✅ QC={best_score}/10" if best_score >= QC_MIN_SCORE else f"⚠️ QC={best_score}/10 (en iyi)"
-            print(f"      {qc_label} → {output.name}")
+            # ── Kalite kontrollü üretim (max QC_MAX_RETRIES + 1 deneme) ──
+            best_score = 0
+            best_output = None
+            attempts = QC_MAX_RETRIES + 1
+
+            for attempt in range(attempts):
+                attempt_suffix = f" (deneme {attempt + 1}/{attempts})" if attempt > 0 else ""
+                print(f"      🧠 Gemini üretimi {v_suffix}...{attempt_suffix}")
+
+                response = gemini_with_retry(lambda p=v_prompt: client.models.generate_content(
+                    model=GEMINI_IMAGE_MODEL,
+                    contents=[p] + images_to_send,
+                    config=gtypes.GenerateContentConfig(
+                        response_modalities=["IMAGE", "TEXT"],
+                    )
+                ))
+
+                # Görseli kaydet
+                saved = False
+                attempt_path = str(v_output).replace(".png", f"_try{attempt}.png") if attempt > 0 else str(v_output)
+
+                for part in response.candidates[0].content.parts:
+                    if hasattr(part, 'inline_data') and part.inline_data:
+                        from PIL import Image
+                        import io
+                        img = Image.open(io.BytesIO(part.inline_data.data))
+                        if img.size != (_ct['width'], _ct['height']):
+                            img = img.resize((_ct['width'], _ct['height']), Image.LANCZOS)
+
+                        img.save(attempt_path, "PNG")
+                        saved = True
+                        break
+
+                if not saved:
+                    print(f"      ❌ Görsel üretilemedi {v_suffix} (deneme {attempt + 1})")
+                    continue
+
+                # ── Kalite skoru ──
+                score, details = _score_image_quality(attempt_path, str(molo_ref), client)
+                detail_str = ", ".join(f"{k}={v}" for k, v in details.items()) if details else "N/A"
+                print(f"      🔍 QC {v_suffix}: {score}/10 ({detail_str})")
+
+                if score > best_score:
+                    best_score = score
+                    best_output = attempt_path
+
+                if score >= QC_MIN_SCORE:
+                    break
+                else:
+                    print(f"      ⚠️ Sahne {n} {v_suffix}: kalite skoru düşük ({score}), tekrar deneniyor...")
+
+            # En iyi sonucu varyant dosyasina tasi
+            if best_output and best_output != str(v_output):
+                import shutil
+                shutil.copy2(best_output, str(v_output))
+                for a in range(attempts):
+                    try_path = str(v_output).replace(".png", f"_try{a}.png")
+                    if os.path.exists(try_path):
+                        os.remove(try_path)
+
+            if best_output:
+                qc_label = f"✅ QC={best_score}/10" if best_score >= QC_MIN_SCORE else f"⚠️ QC={best_score}/10 (en iyi)"
+                print(f"      {qc_label} → {v_output.name}")
+                # Ilk varyanti ref.png olarak da kaydet (varsayilan/fallback)
+                if vi == 0:
+                    import shutil
+                    shutil.copy2(str(v_output), str(output))
+                    first_variant_ok = True
+            else:
+                print(f"      ❌ Sahne {n} {v_suffix}: hiçbir deneme başarılı olmadı!")
+                if vi == 0:
+                    # Ilk varyant zorunlu — basarisizsa pipeline durur
+                    sys.exit(1)
+
+        if first_variant_ok:
             image_files.append(str(output))
         else:
-            print(f"      ❌ Sahne {n}: hiçbir deneme başarılı olmadı!")
+            print(f"      ❌ Sahne {n}: hiçbir varyant başarılı olmadı!")
             sys.exit(1)
 
     return image_files
@@ -1955,44 +1985,7 @@ def main():
             _write_progress("done", 100, "DRY RUN tamamlandı", is_done=True)
             return
 
-        # ── ADIM 2: Ses üretimi (SES-ÖNCELİKLİ) ──
-        if "voice" in completed and ckpt.get("voice_files"):
-            voice_files = _validate_files(ckpt["voice_files"])
-            durations = ckpt.get("durations", [])
-            if len(voice_files) == len(ckpt["voice_files"]):
-                print(f"   ⏩ Ses üretimi atlandı (checkpoint — {len(voice_files)} dosya)")
-            else:
-                print(f"   ⚠️ {len(ckpt['voice_files']) - len(voice_files)} ses dosyası eksik, yeniden üretiliyor...")
-                completed = [s for s in completed if s != "voice"]
-                _write_progress("voice", 20, "Ses üretimi başlıyor...")
-                voice_files, durations = generate_voices(scenes, lang, project_name, project_dir)
-                completed.append("voice")
-                _write_checkpoint(project_dir, "voice", completed,
-                                  script=script, voice_files=voice_files, durations=durations)
-        else:
-            _write_progress("voice", 20, "Ses üretimi başlıyor...")
-            voice_files, durations = generate_voices(scenes, lang, project_name, project_dir)
-            if "voice" not in completed:
-                completed.append("voice")
-            _write_checkpoint(project_dir, "voice", completed,
-                              script=script, voice_files=voice_files, durations=durations)
-        _write_progress("voice", 30, f"{len(voice_files)} ses dosyası hazır")
-
-        # ── ADIM 3: Onay ──
-        if "approval" not in completed:
-            _write_progress("approval", 32, "İçerik onayı bekleniyor...")
-            if not present_for_approval(script, durations, project_dir, auto_approve=auto_approve):
-                print("\n   🛑 İptal edildi.")
-                _write_progress("idle", 0, "Kullanıcı tarafından iptal edildi")
-                sys.exit(0)
-            completed.append("approval")
-            _write_checkpoint(project_dir, "approval", completed,
-                              script=script, voice_files=voice_files, durations=durations)
-        else:
-            print("   ⏩ Onay atlandı (checkpoint)")
-        _write_progress("approval", 35, "İçerik onaylandı")
-
-        # ── ADIM 4: Görseller ──
+        # ── ADIM 2: Görseller (GORSEL-ONCELIKLI) ──
         if "images" in completed and ckpt.get("image_files"):
             image_files = _validate_files(ckpt["image_files"])
             if len(image_files) == len(ckpt["image_files"]):
@@ -2000,36 +1993,36 @@ def main():
             else:
                 print(f"   ⚠️ {len(ckpt['image_files']) - len(image_files)} görsel eksik, yeniden üretiliyor...")
                 completed = [s for s in completed if s != "images"]
-                _write_progress("images", 38, "Sahne görselleri üretiliyor...")
+                _write_progress("images", 20, "Sahne görselleri üretiliyor...")
                 image_files = generate_scene_images(scenes, project_dir)
                 completed.append("images")
                 _write_checkpoint(project_dir, "images", completed,
-                                  script=script, voice_files=voice_files, durations=durations,
+                                  script=script,
                                   image_files=[str(f) for f in image_files])
         else:
-            _write_progress("images", 38, "Sahne görselleri üretiliyor...")
+            _write_progress("images", 20, "Sahne görselleri üretiliyor...")
             image_files = generate_scene_images(scenes, project_dir)
             if "images" not in completed:
                 completed.append("images")
             _write_checkpoint(project_dir, "images", completed,
-                              script=script, voice_files=voice_files, durations=durations,
+                              script=script,
                               image_files=[str(f) for f in image_files])
-        _write_progress("images", 50, f"{len(image_files)} görsel hazır")
+        _write_progress("images", 40, f"{len(image_files)} görsel hazır")
 
-        # ── ADIM 4.5: Görsel İnceleme Duraklatması ──
-        # Pipeline burada durur — kullanıcı görselleri inceler, kötüyse yeniden üretir
+        # ── ADIM 2.5: Görsel İnceleme Duraklatması ──
+        # Pipeline burada durur — kullanıcı varyantları inceler, seçim yapar
         # Studio UI'dan "Devam Et" butonuna basılınca .pipeline.resume dosyası oluşturulur
-        if "videos" not in completed:  # Eğer video checkpoint'i yoksa duraklat
+        if "voice" not in completed:  # Eğer voice checkpoint'i yoksa duraklat
             import time as _time
             resume_file = project_dir / ".pipeline.resume"
             # Önceki resume sinyalini temizle
             if resume_file.exists():
                 resume_file.unlink()
 
-            _write_progress("review_images", 50,
-                            f"⏸️ {len(image_files)} görsel hazır — inceleme bekleniyor",
+            _write_progress("review_images", 40,
+                            f"⏸️ {len(image_files)} görsel hazır — varyant seçimi bekleniyor",
                             is_paused=True)
-            print(f"\n   ⏸️ DURAKLATILDI — Görselleri inceleyin:")
+            print(f"\n   ⏸️ DURAKLATILDI — Görsel varyantlarını inceleyin:")
             for img in image_files:
                 print(f"      📸 {img}")
             print(f"   Studio UI'dan 'Devam Et' butonuna basın veya:")
@@ -2059,10 +2052,60 @@ def main():
                     image_files = refreshed
                     print(f"   🔄 Güncel görseller yüklendi (checkpoint)")
 
-            _write_progress("images", 51, "Görsel onaylandı — video üretimine geçiliyor...")
-            print(f"\n   ▶️ Devam ediliyor — ADIM 5: Video Üretimi")
+            # ── Approval.json oku: kullanıcı varyant seçimlerini uygula ──
+            approval_path = project_dir / "scenes" / "approval.json"
+            if approval_path.exists():
+                import shutil
+                with open(approval_path, 'r') as f:
+                    approval_data = json.load(f)
+                # Seçilen varyantları canonical ref.png'ye kopyala
+                for scene_key, sel in approval_data.items():
+                    scene_num = int(scene_key)
+                    variant = sel.get("selectedVariant", "v1")
+                    src = project_dir / "scenes" / f"scene_{scene_num:02d}_{variant}.png"
+                    dst = project_dir / "scenes" / f"scene_{scene_num:02d}_ref.png"
+                    if src.exists():
+                        shutil.copy2(str(src), str(dst))
+                        print(f"   ✅ Sahne {scene_num}: {variant} → ref.png")
+                # Sahne verilerini approval flag'leriyle güncelle
+                for s in scenes:
+                    sk = str(s['scene'])
+                    if sk in approval_data:
+                        s['withMolo'] = approval_data[sk].get('withMolo', True)
+                        s['frameRole'] = approval_data[sk].get('frameRole', 'first')
+                print(f"   ✅ Varyant seçimleri uygulandı (approval.json)")
+            else:
+                print(f"   ℹ️ approval.json bulunamadı — varsayılan varyantlar (v1) kullanılıyor")
 
-        # ── ADIM 5: Videolar ──
+            _write_progress("images", 42, "Görsel onaylandı — ses üretimine geçiliyor...")
+            print(f"\n   ▶️ Devam ediliyor — ADIM 3: Ses Üretimi")
+
+        # ── ADIM 3: Ses üretimi ──
+        if "voice" in completed and ckpt.get("voice_files"):
+            voice_files = _validate_files(ckpt["voice_files"])
+            durations = ckpt.get("durations", [])
+            if len(voice_files) == len(ckpt["voice_files"]):
+                print(f"   ⏩ Ses üretimi atlandı (checkpoint — {len(voice_files)} dosya)")
+            else:
+                print(f"   ⚠️ {len(ckpt['voice_files']) - len(voice_files)} ses dosyası eksik, yeniden üretiliyor...")
+                completed = [s for s in completed if s != "voice"]
+                _write_progress("voice", 45, "Ses üretimi başlıyor...")
+                voice_files, durations = generate_voices(scenes, lang, project_name, project_dir)
+                completed.append("voice")
+                _write_checkpoint(project_dir, "voice", completed,
+                                  script=script, voice_files=voice_files, durations=durations,
+                                  image_files=[str(f) for f in image_files])
+        else:
+            _write_progress("voice", 45, "Ses üretimi başlıyor...")
+            voice_files, durations = generate_voices(scenes, lang, project_name, project_dir)
+            if "voice" not in completed:
+                completed.append("voice")
+            _write_checkpoint(project_dir, "voice", completed,
+                              script=script, voice_files=voice_files, durations=durations,
+                              image_files=[str(f) for f in image_files])
+        _write_progress("voice", 55, f"{len(voice_files)} ses dosyası hazır")
+
+        # ── ADIM 4: Videolar ──
         if "videos" in completed and ckpt.get("video_files"):
             video_files = _validate_files(ckpt["video_files"])
             if len(video_files) == len(ckpt["video_files"]):
@@ -2070,7 +2113,7 @@ def main():
             else:
                 print(f"   ⚠️ {len(ckpt['video_files']) - len(video_files)} video eksik, yeniden üretiliyor...")
                 completed = [s for s in completed if s != "videos"]
-                _write_progress("videos", 52, "Video üretimi başlıyor (Kling API)...")
+                _write_progress("videos", 60, "Video üretimi başlıyor (Kling API)...")
                 video_files = generate_videos(scenes, image_files, project_dir, durations=durations)
                 completed.append("videos")
                 _write_checkpoint(project_dir, "videos", completed,
@@ -2078,7 +2121,7 @@ def main():
                                   image_files=[str(f) for f in image_files],
                                   video_files=[str(f) for f in video_files])
         else:
-            _write_progress("videos", 52, "Video üretimi başlıyor (Kling API)...")
+            _write_progress("videos", 60, "Video üretimi başlıyor (Kling API)...")
             video_files = generate_videos(scenes, image_files, project_dir, durations=durations)
             if "videos" not in completed:
                 completed.append("videos")
@@ -2086,14 +2129,14 @@ def main():
                               script=script, voice_files=voice_files, durations=durations,
                               image_files=[str(f) for f in image_files],
                               video_files=[str(f) for f in video_files])
-        _write_progress("videos", 70, f"{len(video_files)}/{len(scenes)} video hazır")
+        _write_progress("videos", 80, f"{len(video_files)}/{len(scenes)} video hazır")
 
         if len(video_files) < len(scenes):
             print(f"\n   ⚠️ {len(video_files)}/{len(scenes)} video hazır — devam ediliyor")
 
-        # ── ADIM 5b: Video Kalite Kontrol (opsiyonel) ──
+        # ── ADIM 4b: Video Kalite Kontrol (opsiyonel) ──
         if quality_check and "quality_check" not in completed:
-            _write_progress("quality_check", 71, "Video tutarlılık kontrolü...")
+            _write_progress("quality_check", 81, "Video tutarlılık kontrolü...")
             check_video_consistency(video_files, scenes, project_dir)
             completed.append("quality_check")
         elif quality_check:
@@ -2104,7 +2147,7 @@ def main():
         if smart_slowdown:
             scene_speeds = calculate_scene_speeds(scenes, durations)
 
-        # ── ADIM 6: Per-Scene Merge ──
+        # ── ADIM 5: Per-Scene Merge ──
         if "edit" in completed and ckpt.get("merged_scenes"):
             merged_scenes = _validate_files(ckpt["merged_scenes"])
             if len(merged_scenes) == len(ckpt["merged_scenes"]):
@@ -2112,7 +2155,7 @@ def main():
             else:
                 print(f"   ⚠️ {len(ckpt['merged_scenes']) - len(merged_scenes)} merge eksik, yeniden oluşturuluyor...")
                 completed = [s for s in completed if s != "edit"]
-                _write_progress("edit", 72, "Per-scene merge oluşturuluyor...")
+                _write_progress("edit", 82, "Per-scene merge oluşturuluyor...")
                 merged_scenes = compose_edit(video_files, voice_files, durations, project_dir, project_name, scene_speeds=scene_speeds)
                 if not merged_scenes:
                     raise RuntimeError("Per-scene merge başarısız")
@@ -2123,7 +2166,7 @@ def main():
                                   video_files=[str(f) for f in video_files],
                                   merged_scenes=merged_scenes)
         else:
-            _write_progress("edit", 72, "Per-scene merge oluşturuluyor...")
+            _write_progress("edit", 82, "Per-scene merge oluşturuluyor...")
             merged_scenes = compose_edit(video_files, voice_files, durations, project_dir, project_name, scene_speeds=scene_speeds)
             if not merged_scenes:
                 raise RuntimeError("Per-scene merge başarısız")
@@ -2134,14 +2177,14 @@ def main():
                               image_files=[str(f) for f in image_files],
                               video_files=[str(f) for f in video_files],
                               merged_scenes=merged_scenes)
-        _write_progress("edit", 78, f"{len(merged_scenes)} sahne merge edildi")
+        _write_progress("edit", 85, f"{len(merged_scenes)} sahne merge edildi")
 
-        # ── ADIM 7: Altyazı (sadece ASS üretimi) ──
+        # ── ADIM 6: Altyazı (sadece ASS üretimi) ──
         if "subtitles" in completed and ckpt.get("ass_path") and os.path.exists(ckpt["ass_path"]):
             ass_path = ckpt["ass_path"]
             print(f"   ⏩ Altyazı atlandı (checkpoint)")
         else:
-            _write_progress("subtitles", 80, "Altyazı çevirisi yapılıyor...")
+            _write_progress("subtitles", 87, "Altyazı çevirisi yapılıyor...")
             ass_path = add_subtitles(None, scenes, durations, project_dir, project_name, lang)
             if "subtitles" not in completed:
                 completed.append("subtitles")
@@ -2150,14 +2193,14 @@ def main():
                               image_files=[str(f) for f in image_files],
                               video_files=[str(f) for f in video_files],
                               merged_scenes=merged_scenes, ass_path=ass_path)
-        _write_progress("subtitles", 85, "ASS altyazı hazır")
+        _write_progress("subtitles", 90, "ASS altyazı hazır")
 
-        # ── ADIM 8: Final Compose (crossfade + altyazı + slowdown — TEK encode) ──
+        # ── ADIM 7: Final Compose (crossfade + altyazı + slowdown — TEK encode) ──
         if "final" in completed and ckpt.get("final") and os.path.exists(ckpt["final"]):
             final = ckpt["final"]
             print(f"   ⏩ Final compose atlandı (checkpoint)")
         else:
-            _write_progress("final", 87, "Final render (crossfade + altyazı + slowdown)...")
+            _write_progress("final", 92, "Final render (crossfade + altyazı + slowdown)...")
             final_speed = 1.0 if smart_slowdown else None  # Per-scene slowdown zaten uygulandı
             final = compose_final(merged_scenes, ass_path, project_dir, project_name, speed=final_speed)
             if not final:
@@ -2167,14 +2210,14 @@ def main():
             _write_checkpoint(project_dir, "final", completed,
                               script=script, voice_files=voice_files, durations=durations,
                               merged_scenes=merged_scenes, ass_path=ass_path, final=final)
-        _write_progress("final", 93, "Final video hazır")
+        _write_progress("final", 96, "Final video hazır")
 
-        # ── ADIM 9: Thumbnail (şartlı) ──
+        # ── ADIM 8: Thumbnail (şartlı) ──
         if _ct.get('thumbnail', False):
             if "thumbnail" in completed:
                 print(f"   ⏩ Thumbnail atlandı (checkpoint)")
             else:
-                _write_progress("thumbnail", 95, "Thumbnail üretiliyor...")
+                _write_progress("thumbnail", 98, "Thumbnail üretiliyor...")
                 title = script.get("title", project_name)
                 generate_thumbnail(final, project_dir, project_name, title)
                 if "thumbnail" not in completed:
