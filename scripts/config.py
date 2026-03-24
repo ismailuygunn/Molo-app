@@ -43,20 +43,20 @@ CONTENT_TYPES = {
         "scene_direction": (
             "Vertical 9:16 social media format. "
             "MOLO centered, front-facing, symmetrical composition. "
-            "Energetic, scroll-stopping, dynamic."
+            "Lively, scroll-stopping, dynamic."
         ),
         "video_prompt_boost": (
-            "Create a premium scroll-stopping vertical video. "
+            "Create an eye-catching, lively vertical video. "
             "Dynamic energy, punchy visual rhythm. "
             "The character must command attention within the first second. "
             "Bold, vibrant, high-contrast lighting. "
-            "Every frame must feel like a social media hero shot."
+            "Every frame must feel like an engaging social media moment."
         ),
         "image_rules": (
             "Bold close framing. MOLO fills 60-70% of vertical frame. "
             "Strong eye contact, expressive pose. "
             "Background: dramatic dark studio with blue volumetric fog and rim lighting. "
-            "The image must feel like a premium TikTok/Reels thumbnail."
+            "The image must feel like a bold social media visual."
         ),
         "thumbnail": True,
         "thumbnail_w": 1080,
@@ -84,14 +84,14 @@ CONTENT_TYPES = {
             "Wide cinematic composition for a premium lobby display. "
             "The character should feel naturally integrated into the clinic environment, not floating. "
             "Elegant negative space, balanced framing, soft warm lighting. "
-            "The video must feel like a luxury brand commercial, calm and editorial. "
+            "The video must feel like a polished brand commercial, calm and editorial. "
             "Camera: stable, no shake, no dramatic zoom. Subtle ambient motion only."
         ),
         "image_rules": (
             "Wide horizontal composition. MOLO occupies 40-50% of frame. "
             "Significant negative space for cinematic feel. "
             "Background: warm premium clinic interior or minimal studio. "
-            "The image must feel like a luxury campaign still."
+            "The image must feel like a polished campaign still."
         ),
         "thumbnail": False,
         "thumbnail_w": 1920,
@@ -243,9 +243,15 @@ KLING_MODEL = "kling-v3"                     # ⚠️ En son model — asla dü�
 KLING_API_BASE = "https://api.klingai.com"
 KLING_DURATION = "5"
 KLING_CFG_SCALE = 0.7                         # Prompt'a bağlılık (0-1, 0.5 default, 0.7 sıkı)
-KLING_NEGATIVE_PROMPT = "face morphing, face distortion, asymmetric face, oversized eyes, enlarged eyes, bulging eyes, protruding eyes, triangular eyes, angular eyes, pointed eyes, sharp-cornered eyes, geometric eyes, diamond eyes, pentagon eyes, eye shape change, eye size change, eye spacing change, mouth cavity, teeth visible, tongue visible, 3D mouth opening, biological mouth, asymmetric mouth, visor size change, visor shape change, extra limbs, blurry, low quality, watermark, text overlay, childish cartoon, toy-like, plastic glow, oversized mouth, inner mouth glow, elastic body, rubbery motion, bouncing, jittery, flickering, artifacts, ghost face features, duplicate eyes, face element drift, eye shape change between frames, face element position drift, visor proportion change, inconsistent eye size, one eye larger than other, feature enlargement, exaggerated facial features"
+KLING_NEGATIVE_PROMPT = "triangular eyes, angular eyes, eye shape change, eye size change, face morphing, face distortion, asymmetric face, mouth cavity, teeth visible, tongue visible, extra limbs, blurry, low quality, watermark, text overlay, toy-like, bouncing, jittery, flickering, ghost features"
+# DEPRECATED: sahne pozisyonu yerine ortam bazli CFG kullanin (asagida)
 KLING_CFG_FIRST_LAST = 0.8                    # İlk ve son sahne — karakter tutarlılığı
 KLING_CFG_MIDDLE = 0.7                        # Orta sahneler — biraz yaratıcılık
+
+# ─── Ortam Bazli CFG (sahne pozisyonu yerine ortam bazli) ───
+KLING_CFG_STUDIO = 0.8      # studio = siki referans takibi
+KLING_CFG_CLINIC = 0.75     # klinik = orta
+KLING_CFG_EXTERNAL = 0.65   # dis mekan = yaratici ozgurluk
 KLING_MAX_PROMPT_CHARS = 2500  # ⚠️ API hard limit
 
 GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image-preview"  # Nano Banana 2
@@ -262,6 +268,8 @@ VOICE_PRESETS = {
     "calm":        {"stability": 0.65, "similarity_boost": 0.75, "style": 0.25, "speed": 0.90},
     "playful":     {"stability": 0.35, "similarity_boost": 0.80, "style": 0.60, "speed": 1.00},
     "mischievous": {"stability": 0.35, "similarity_boost": 0.85, "style": 0.65, "speed": 1.00},
+    "whisper":     {"stability": 0.55, "similarity_boost": 0.90, "style": 0.40, "speed": 0.85},
+    "surprised":   {"stability": 0.20, "similarity_boost": 0.80, "style": 0.85, "speed": 1.15},
 }
 
 # ElevenLabs varsayılan ayarlar
@@ -299,8 +307,55 @@ SUBTITLE_STYLES = {
 }
 DEFAULT_SUBTITLE_STYLE = "premium"
 
+# ─── Brief Şablonu ───
+BRIEF_TEMPLATE = """# [Konu Başlığı]
+
+Konu: [Ne hakkında]
+Dil: de|tr|en
+İçerik türü: sosyal|ekran|robot|greenscreen
+Ton: [Enerji + duygu — örn. "Afacan, meraklı"]
+
+## Hedef Kitle
+[Kim izleyecek? Yaş, durum — örn. "diş hekimi korkusu olan yetişkinler"]
+
+## Ana Mesaj
+[1 cümle — videonun tek çıkarımı]
+
+## Senaryo İpuçları
+- [Molo ne yapabilir? örn. "kameraya fısıldayabilir"]
+- [Hangi ortamlar? örn. "banyo aynası önü, klinik bekleme"]
+- [Espri tarzı? örn. "kendini övme, insan alışkanlıklarını sorgulama"]
+
+## Kaçınılacaklar
+- [örn. "çok ciddi olmasın", "tıbbi terim kullanmasın"]
+"""
+
+# ─── Senaryo Çeşitliliği ───
+AVAILABLE_SHOTS = {
+    "wide": "Full body + environment visible, establishes location",
+    "medium": "Waist up, balanced character and environment",
+    "medium-close": "Chest up, face prominent, conversational",
+    "close": "Head and shoulders, emotional emphasis",
+}
+
+ENVIRONMENT_SUGGESTIONS = {
+    "dental_care": ["modern_bathroom", "family_kitchen", "school_classroom", "clinic"],
+    "introduction": ["studio", "city_park", "clinic_lobby"],
+    "seasonal": ["snowy_street", "beach", "autumn_park"],
+    "food_related": ["family_kitchen", "ice_cream_shop", "supermarket"],
+    "fear_reduction": ["cozy_living_room", "child_bedroom", "clinic"],
+    "general": ["studio", "clinic", "city_park", "modern_living_room"],
+}
+
+EMOTION_ARCS = {
+    "energetic_opener": ["curious surprise", "building excitement", "confident delivery", "warm invitation"],
+    "educational": ["friendly curiosity", "focused explanation", "playful aside", "proud conclusion"],
+    "reassuring": ["gentle greeting", "empathetic acknowledgment", "calm explanation", "warm encouragement"],
+    "mischievous": ["sneaky curiosity", "cheeky reveal", "proud self-praise", "warm wink farewell"],
+}
+
 # ─── Molo Karakter Kişiliği (İçerik/senaryo üretiminde kullanılır) ───
-CHARACTER_PERSONALITY = """MOLO is İstadental's brand mascot and digital host. Small, blue, attentive, intelligent, and slightly robotic. Charming but never childish. Premium, modern, and memorable.
+CHARACTER_PERSONALITY = """MOLO is İstadental's brand mascot and digital host. Small, blue, attentive, intelligent, and slightly robotic. Charming but never childish. Lively, modern, and memorable.
 
 Personality: warm, observant, slightly mischievous, controlled, attentive, slightly hyperactive, trustworthy, slightly robotic. Notices details, makes clever remarks, has humor but is never a clown. Can make small jokes, gently self-praise, quietly self-comment — but never breaks brand seriousness.
 
@@ -310,14 +365,20 @@ Role: welcomes visitors, eases first-moment tension, makes the experience warmer
 
 # ─── Molo Karakter Kimlik Kilidi (Prompt'lara otomatik eklenir) ───
 
-# Görsel promptlara eklenen karakter kilidi
-CHARACTER_IDENTITY_LOCK = """MOLO character is LOCKED to the reference image(s). COPY the character EXACTLY as shown.
-Do NOT enlarge, distort, exaggerate, or reinterpret ANY facial feature.
-The eyes, mouth, and visor must be the EXACT same size and shape as reference — not bigger, not smaller.
-Do not make eyes more prominent than reference. Do not make mouth wider than reference.
-Do not add features not in reference. Do not simplify features from reference.
-Preserve: same face, same proportions, same blue-and-white colors, same materials, same silhouette, same hologram cone on top.
-If in doubt about any feature size, make it SMALLER rather than larger."""
+# ─── YENi: Tek parca gorsel kilidi (eski 6 blogu birlestir) ───
+CHARACTER_LOCK_IMAGE = """Copy MOLO exactly from the reference image.
+- Same face, same ROUND eye shape and size, same curved mouth, same visor proportions
+- Same body, blue-white colors, materials, silhouette, hologram cone on top
+- Eyes: ROUND — never triangular or angular. If unsure, make SMALLER.
+- Mouth: subtle smile. No teeth, no tongue, no cavity.
+- Face clear and readable for lip-sync animation.
+- Hologram: identical to reference — same shape, scale, placement.
+Lighting: soft, warm, realistic. Materials: polished but not plastic.
+Maximum resolution, crisp edges, detailed textures.
+DO NOT: enlarge eyes, reshape face, add accessories, redesign hologram, make toy-like."""
+
+# DEPRECATED: eski gorsel kilidi — geriye uyumluluk icin CHARACTER_LOCK_IMAGE'a alias
+CHARACTER_IDENTITY_LOCK = CHARACTER_LOCK_IMAGE
 
 # Video promptlara eklenen hareket kuralları
 CHARACTER_MOVEMENT_RULES = """Movement rules:
@@ -351,40 +412,36 @@ Gesture rules:
 - if any gesture happens, it must be very small and elegant
 - no arm flailing, no theatrical gestures, no child-like waving"""
 
-# Hologram kilidi (hem görsel hem video)
+# DEPRECATED: hologram kilidi — artik CHARACTER_LOCK_IMAGE icinde
 HOLOGRAM_LOCK = """The hologram on top of MOLO's head must remain exactly identical to the reference design in shape, placement, material logic, scale, geometry, and visual language. No variation is allowed. The hologram must not become a different device, must not be enlarged, and must not be simplified."""
 
-# Genel yasaklar (hem görsel hem video)
-AVOID_LIST = """Avoid: triangular eyes, angular eyes, pointed eyes, diamond-shaped eyes, sharp-cornered eyes, oversized mascot filling the frame, side angle, 3/4 angle, profile angle, extreme close-up, cropped face, hidden mouth, exaggerated smile, extra props, extra people, random floating UI, new accessories, redesigned hologram, childish proportions, toy-like rendering, overly glossy plastic surfaces, asymmetrical framing, clutter, visual chaos, or anything that reduces premium realism."""
+# Genel yasaklar (hem gorsel hem video)
+AVOID_LIST = """Avoid: side angle, profile, extreme close-up, oversized mascot, extra props,
+childish proportions, toy rendering, visual clutter, asymmetric framing,
+triangular or angular eyes, redesigned hologram."""
 
-# Lip-sync hazırlık bloğu (görsel promptlarda)
-LIPSYNC_READINESS = """MOLO's facial area must be clear and readable for talking animation. Eyes and mouth must match reference image exactly — same size, same position, same proportions. Do NOT enlarge or exaggerate any facial feature. The mouth must be unobstructed and easy to animate. Expression: warm, intelligent, slightly playful, slightly robotic, premium. Sophisticated brand mascot, not cartoon or toy."""
+# DEPRECATED: lip-sync blogu — artik CHARACTER_LOCK_IMAGE icinde
+LIPSYNC_READINESS = CHARACTER_LOCK_IMAGE
 
-# Aydınlatma ve malzeme (tüm promptlarda)
-LIGHTING_RULES = """The lighting should feel high-end, cinematic, soft, and premium, but realistic. The character should integrate naturally into the space. Avoid flat toy lighting, overexposed glow, or over-stylized cartoon shading. The materials should feel polished but not overly glossy or plastic."""
+# DEPRECATED: aydinlatma blogu — artik CHARACTER_LOCK_IMAGE icinde
+LIGHTING_RULES = CHARACTER_LOCK_IMAGE
 
-# Eski uyumluluk için CHARACTER_RULES (video promptlara eklenir)
-CHARACTER_RULES = f"""{CHARACTER_IDENTITY_LOCK}
+# Eski uyumluluk icin CHARACTER_RULES (video promptlara eklenir)
+CHARACTER_RULES = f"""{CHARACTER_LOCK_IMAGE}
 
-{CHARACTER_MOVEMENT_RULES}
-
-{HOLOGRAM_LOCK}
-
-{AVOID_LIST}"""
+{CHARACTER_MOVEMENT_RULES}"""
 
 # ─── Referans Görseller ───
+# Sadece 2 canonical referans — tutarlılık için tek kaynak
 MOLO_POSES = {
-    "front":          REFERENCE_DIR / "front-vertical.png",
-    "front-close":    REFERENCE_DIR / "front-close.png",
-    "front-wave":     REFERENCE_DIR / "front-wave.jpg",
-    "front-vertical": REFERENCE_DIR / "front-vertical.png",
-    "front-fiverr":   REFERENCE_DIR / "front-fiverr.png",
-    "ref-studio":     REFERENCE_DIR / "ref-front-studio.png",
-    "ref-dark":       REFERENCE_DIR / "ref-front-dark.png",
-    "ref-3q":         REFERENCE_DIR / "ref-front-3q.png",
-    "side-run-1":     REFERENCE_DIR / "side-run-1.jpg",
-    "side-run-2":     REFERENCE_DIR / "side-run-2.jpg",
+    "front":  REFERENCE_DIR / "ref-front-studio.png",  # PRIMARY — tüm sahneler
+    "studio": REFERENCE_DIR / "ref-front-dark.png",     # studio/dark ortam için
 }
+DEFAULT_MOLO_POSE = "front"
+
+# Arşiv: Eski referanslar (aktif kullanılmıyor, silme)
+# front-vertical.png, front-close.png, front-fiverr.png,
+# front-wave.jpg, ref-front-3q.png, side-run-1.jpg, side-run-2.jpg
 
 ENVIRONMENT_IMAGES = {
     "clinic":     REFERENCE_DIR / "clinic-photo.JPG",
@@ -398,50 +455,44 @@ VOICE_PROFILES = {
     "tr": "Molo-tr",
 }
 
-# ─── Kling Kompakt Prompt Blokları (2500 char limit) ───
-COMPACT_LOCK = """Character identity locked to source image. Same face, eyes, mouth, body, proportions, blue-white colors, materials, silhouette, hologram. No redesign, no reinterpretation, no simplification, no childish or toy-like changes. Hologram shape/scale/placement must stay identical. Premium digital host, not cartoon.
+# ─── Kling Kompakt Video Prompt Bloklari (2500 char limit) ───
 
-Face lock: COPY face from reference EXACTLY. Same eye size, same mouth shape, same visor proportions. Do NOT enlarge eyes. Do NOT exaggerate any feature. Eyes and mouth must be same scale as reference — if in doubt, make SMALLER. No face morphing, no feature resizing, no reinterpretation."""
+# YENi: Tek parca dikey video kilidi (eski COMPACT_LOCK + COMPACT_MOTION + COMPACT_FACE_LOCK)
+COMPACT_VIDEO_LOCK = """Character locked to reference: same face, round eyes, mouth, body,
+blue-white colors, hologram. No redesign. 3D robot host, not cartoon.
+Eyes: ROUND throughout — never triangular or angular. Same size as reference.
+Movement: minimal, controlled, robotic. Small upper-body only. Front-facing, eye contact.
+No bouncing, elastic motion, wobble. Face stable — no morphing, warping, expression spikes.
+Lip sync: speech-driven, moderate openings. No glow, no jitter.
+Gestures: very small and elegant only."""
 
-COMPACT_MOTION = """Movement: minimal, controlled, precise. Small upper-body motion only. Tiny head nods allowed. Front-facing, direct eye contact. No big turns, no bouncing, no elastic/rubbery motion, no wobble. Face stable throughout, no warping, no expression spikes. Lip sync: speech-driven only, moderate openings, no glow, no jitter. Gestures: very small and elegant only."""
+# YENi: Tek parca ekran video kilidi (eski COMPACT_LOCK_EKRAN + COMPACT_MOTION_EKRAN)
+COMPACT_VIDEO_LOCK_EKRAN = """Character locked to reference: same face, round eyes, mouth, body,
+blue-white colors, hologram. No redesign. 3D robot host in horizontal commercial scene.
+Eyes: ROUND throughout — never triangular or angular. Same size as reference.
+Movement: minimal, controlled, robotic. Small upper-body only. Elegant negative space.
+No bouncing, elastic motion, wobble. Face stable — no morphing, warping, expression spikes.
+Lip sync: speech-driven, moderate openings. No glow, no jitter.
+Camera: horizontal composition, balanced framing, no dramatic motion.
+Lighting: soft warm studio, subtle shadows, polished material. No harsh contrast."""
 
-# ─── Ekran (Yatay 16:9) Premium Prompt Blokları ───
-COMPACT_LOCK_EKRAN = """Animate the referenced MOLO mascot in a premium horizontal commercial scene. Keep the character fully locked to the reference: same face, same eyes, same mouth design, same body proportions, same blue-white colors, same materials, same silhouette, and the exact same hologram unit on top of the head. Do not redesign or alter MOLO in any way.
+# YENi: Tek parca green screen video kilidi (eski COMPACT_LOCK_GS + COMPACT_MOTION_GS)
+COMPACT_VIDEO_LOCK_GS = """Character: MOLO — compact dental robot. Dark navy-blue body. Face exactly as reference — same ROUND eye size/shape, same mouth. Hologram cone on top glowing cyan. NOT a cartoon. Clean 3D-rendered robot.
+BACKGROUND: MUST be perfectly flat solid chroma green (#00B140). No exceptions.
+Eyes: ROUND throughout — never triangular or angular. Same size as reference.
+Movement: minimal, controlled, robotic. Small 2-5cm movements only. No bouncing, no elastic.
+Character stays in place. Background must remain perfectly static uniform green throughout."""
 
-Face lock: COPY face from reference EXACTLY. Same eye size, same mouth shape, same visor proportions. Do NOT enlarge eyes. Do NOT exaggerate any feature. Match reference scale precisely. No face morphing, no feature resizing."""
+# DEPRECATED: eski kompakt bloklar — geriye uyumluluk icin alias
+COMPACT_LOCK = COMPACT_VIDEO_LOCK
+COMPACT_MOTION = ""  # artik COMPACT_VIDEO_LOCK icinde birlesik
+COMPACT_LOCK_EKRAN = COMPACT_VIDEO_LOCK_EKRAN
+COMPACT_MOTION_EKRAN = ""  # artik COMPACT_VIDEO_LOCK_EKRAN icinde birlesik
+COMPACT_LOCK_GS = COMPACT_VIDEO_LOCK_GS
+COMPACT_MOTION_GS = ""  # artik COMPACT_VIDEO_LOCK_GS icinde birlesik
 
-COMPACT_MOTION_EKRAN = """Motion rules: very small, precise, premium movement. Slightly robotic timing. No elastic body motion, no cartoon wobble, no exaggerated rocking, no big gestures, no panic flailing, no drifting, no unstable physics.
-Face rules: no face morphing, no cheek distortion, no eye warping, no sudden expression spikes, no random facial glow, no lighting flicker on mouth or eyes.
-Mouth rules: if silent keep mouth naturally closed and stable. If speech added mouth moves only with dialogue. No mouth glow, no oversized openings, no distorted jaw, no weird inner-mouth artifacts.
-Camera: horizontal composition, balanced premium framing, elegant negative space, no dramatic camera motion, no shaky movement, no chaotic zoom.
-Lighting: soft premium studio lighting, warm off-white luxury tone, subtle sculptural shadows, polished material definition, no harsh contrast, no cheap plastic shine."""
-
-# ─── Green Screen Kompakt Prompt Blokları ───
-COMPACT_LOCK_GS = """Character: MOLO — compact dental mascot robot. Dark navy-blue metallic body. Face exactly as reference image — same eye SIZE and SHAPE, same mouth shape. Eyes must remain ROUND throughout — never triangular, angular, or pointed. Do NOT enlarge or reshape any facial feature. Open hologram cone on top glowing cyan. Short, rounded, not more than 60cm tall. NOT a real person. Not a cartoon. Premium 3D-rendered robot with clean, studio-quality appearance. BACKGROUND: MUST be perfectly flat solid chroma green (#00B140). No exceptions."""
-
-COMPACT_MOTION_GS = """Motion: Minimal, controlled, robotic. Small 2-5cm movements only. No bouncing, no elastic motion, no exaggerated gestures. Subtle head tilt, gentle hand wave, slight body lean — all micro-movements. Character stays in place — no walking, no jumping, no large position changes. BACKGROUND: Must remain perfectly static uniform green throughout entire duration."""
-
-# ─── Yüz Anatomisi Kilidi (göz/ağız/vizör tutarlılığı) ───
-FACE_ANATOMY_LOCK = """MOLO FACE — MATCH REFERENCE IMAGE EXACTLY. Do not reinterpret.
-
-The reference image is the SINGLE SOURCE OF TRUTH for MOLO's face.
-Every facial feature must be the EXACT SAME SIZE and SHAPE as shown in the reference.
-
-EYES: Copy exactly from reference — same size, same ROUND shape, same position.
-- Eyes are ROUND — never triangular, angular, pointed, or diamond-shaped.
-- Do NOT enlarge. Do NOT reshape. Do NOT make more prominent.
-- Pupils can shift for gaze direction. Happy = half-circle eyes.
-- If reference shows small subtle round eyes, generate small subtle round eyes.
-
-MOUTH: Copy exactly from reference — same curved smile shape and width.
-- Do NOT widen. Do NOT exaggerate.
-- No teeth, no tongue, no inner cavity.
-
-VISOR: Dark panel (#0A1628), same proportions as reference.
-- Contains ONLY eyes and mouth — nothing else.
-
-CRITICAL: If in doubt about any feature size, make it SMALLER rather than larger.
-The #1 error is making eyes too big or changing their shape to triangles — avoid this at all costs."""
+# DEPRECATED: yuz anatomisi kilidi — artik CHARACTER_LOCK_IMAGE icinde
+FACE_ANATOMY_LOCK = CHARACTER_LOCK_IMAGE
 
 
 # ─── Video Yüz Animasyon Kilidi (kare-kare tutarlılık) ───
@@ -457,8 +508,8 @@ FACE_CONSISTENCY_VIDEO_LOCK = """FACE CONSISTENCY DURING ANIMATION:
 - No face elements drifting position on visor"""
 
 
-# ─── Kompakt Yüz Kilidi (Kling 2500 char limiti için kısa versiyon) ───
-COMPACT_FACE_LOCK = """Face: EXACT copy of reference image. Same eye SIZE and SHAPE — eyes are ROUND, never triangular or angular. Same mouth shape, same visor proportions. Do NOT enlarge eyes. Do NOT reshape eyes into triangles or sharp corners. Do NOT exaggerate any feature. Match reference scale precisely. No face morphing, no warping, no asymmetry. Visor proportions constant throughout."""
+# DEPRECATED: kompakt yuz kilidi — artik COMPACT_VIDEO_LOCK icinde
+COMPACT_FACE_LOCK = ""  # icerik artik COMPACT_VIDEO_LOCK bloklarina dahil
 
 # ─── Sahne Ortam Prompt Blokları ───
 CLINIC_ENV_BLOCK = """Also use the provided clinic background reference as the environmental base for this composition. The final image must clearly place MOLO inside that premium dental clinic environment. The clinic interior should remain visible, readable, and recognizable behind and around MOLO.
@@ -496,13 +547,8 @@ CRITICAL INTEGRATION RULES:
 
 Style: Premium photorealistic composite — a high-quality 3D character naturally placed in a real-world environment, like a luxury brand campaign shot on location."""
 
-# ─── Görsel Kalite Kilidi (Gemini üretim kalitesi) ───
-IMAGE_QUALITY_LOCK = """Quality preservation rules:
-- Render at maximum resolution and sharpness. Every edge must be crisp and well-defined.
-- No compression artifacts, no blur, no noise, no soft focus.
-- Material textures must be detailed and visible (metallic reflections, surface scratches, translucent visor).
-- Color accuracy must be preserved — no washed out colors, no oversaturation.
-- The final image must look like a high-end 3D render, not a compressed web image."""
+# DEPRECATED: gorsel kalite kilidi — artik CHARACTER_LOCK_IMAGE icinde
+IMAGE_QUALITY_LOCK = CHARACTER_LOCK_IMAGE
 
 # ─── FFmpeg Kalite Filtreleri ───
 QUALITY_FILTERS = {

@@ -93,14 +93,16 @@ MOLO's speech is **bright, fluid, clean, and slightly playful**.
 
 ## Reference Images
 
-| File | Pose | When to use |
-|------|------|-------------|
-| `ref-front-studio.png` | Front, studio blue bg | **Primary reference** — canonical front view |
-| `ref-front-dark.png` | Front, dark bg | **Primary reference** — canonical dark studio |
-| `ref-front-3q.png` | Front 3/4, dark bg | **Primary reference** — 3/4 angle reference |
-| `front-vertical.png` | Front, vertical crop | Social media formats |
-| `front-close.png` | Front, close-up | Detail reference |
-| `front-wave.jpg` | Front, subtle wave | Greeting, farewell |
-| `front-fiverr.png` | Front, clean render | Clean backgrounds |
-| `side-run-1.jpg` | Side, walking | Entrances (rare) |
-| `clinic-photo.JPG` | Clinic interior | Clinic background scenes |
+### Active (Canonical — pipeline bu 2 referansı kullanır)
+| File | When to use |
+|------|-------------|
+| `ref-front-studio.png` | **PRIMARY** — tüm sahneler (clinic, external, vs.) |
+| `ref-front-dark.png` | Studio/dark ortam sahneleri |
+
+### Environment References
+| File | When to use |
+|------|-------------|
+| `clinic-photo.JPG` | Clinic background scenes |
+
+### Archive (Aktif kullanılmıyor — tutarsızlık kaynağı)
+`front-vertical.png`, `front-close.png`, `front-fiverr.png`, `front-wave.jpg`, `ref-front-3q.png`, `side-run-1.jpg`, `side-run-2.jpg`

@@ -40,16 +40,15 @@ from config import (
     BASE_DIR, PROJECTS_DIR, REFERENCE_DIR, VOICES_DIR,
     FFMPEG, OUTPUT_WIDTH, OUTPUT_HEIGHT, OUTPUT_FPS,
     KLING_MODEL, KLING_API_BASE, KLING_DURATION, KLING_MAX_PROMPT_CHARS, KLING_CFG_SCALE,
-    KLING_NEGATIVE_PROMPT, KLING_CFG_FIRST_LAST, KLING_CFG_MIDDLE,
+    KLING_NEGATIVE_PROMPT,
+    KLING_CFG_STUDIO, KLING_CFG_CLINIC, KLING_CFG_EXTERNAL,
     GEMINI_IMAGE_MODEL, GEMINI_TEXT_MODEL, ELEVENLABS_MODEL,
     VOICE_PRESETS, VOICE_DEFAULT, VOICE_PROFILES,
     CHARACTER_PERSONALITY, CHARACTER_IDENTITY_LOCK,
-    HOLOGRAM_LOCK, LIPSYNC_READINESS, LIGHTING_RULES, AVOID_LIST,
-    COMPACT_LOCK, COMPACT_MOTION,
-    FACE_ANATOMY_LOCK, FACE_CONSISTENCY_VIDEO_LOCK, COMPACT_FACE_LOCK,
-    COMPACT_LOCK_EKRAN, COMPACT_MOTION_EKRAN,
+    CHARACTER_LOCK_IMAGE, HOLOGRAM_LOCK, LIGHTING_RULES, AVOID_LIST,
+    COMPACT_VIDEO_LOCK, COMPACT_VIDEO_LOCK_EKRAN, COMPACT_VIDEO_LOCK_GS,
+    FACE_CONSISTENCY_VIDEO_LOCK,
     CLINIC_ENV_BLOCK, STUDIO_ENV_BLOCK, EXTERNAL_ENV_BLOCK,
-    IMAGE_QUALITY_LOCK,
     QUALITY_FILTERS, AUDIO_SLOWDOWN, CROSSFADE_DURATION,
     SMART_SLOWDOWN_TARGET_WPS, SMART_SLOWDOWN_FAST_WPS, SMART_SLOWDOWN_SLOW_WPS,
     SMART_SLOWDOWN_MIN, SMART_SLOWDOWN_MAX,
@@ -266,6 +265,37 @@ def generate_script(brief_path, lang="de", max_scenes=4):
     print(f"   📄 Brief: {brief_path}")
     print(f"   🎬 Maks sahne: {max_scenes}")
 
+    # Brief zenginleştirme — varsa özel alanları çıkar
+    brief_extras = ""
+    brief_lower = brief.lower()
+    if "## hedef kitle" in brief_lower:
+        print("   ✅ Brief: Hedef Kitle bulundu")
+    else:
+        print("   ⚠️ Brief: 'Hedef Kitle' eksik — zenginleştirilmiş brief önerilir")
+    if "## ana mesaj" in brief_lower:
+        print("   ✅ Brief: Ana Mesaj bulundu")
+    else:
+        print("   ⚠️ Brief: 'Ana Mesaj' eksik — zenginleştirilmiş brief önerilir")
+    if "## senaryo" in brief_lower:
+        print("   ✅ Brief: Senaryo İpuçları bulundu")
+
+    # Ortam önerilerini brief konusuna göre seç
+    from config import ENVIRONMENT_SUGGESTIONS, EMOTION_ARCS
+    env_suggestions = ENVIRONMENT_SUGGESTIONS.get("general", [])
+    for key in ENVIRONMENT_SUGGESTIONS:
+        if key in brief_lower:
+            env_suggestions = ENVIRONMENT_SUGGESTIONS[key]
+            break
+
+    # Duygu arcını ton'a göre seç
+    emotion_arc = EMOTION_ARCS.get("energetic_opener", [])
+    if "afacan" in brief_lower or "mischiev" in brief_lower:
+        emotion_arc = EMOTION_ARCS["mischievous"]
+    elif "rahatl" in brief_lower or "korku" in brief_lower or "reassur" in brief_lower:
+        emotion_arc = EMOTION_ARCS["reassuring"]
+    elif "bilgi" in brief_lower or "educat" in brief_lower:
+        emotion_arc = EMOTION_ARCS["educational"]
+
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
 
     lang_names = {"de": "German", "tr": "Turkish", "en": "English"}
@@ -321,9 +351,31 @@ TYPES:
    - Morning routine → "modern_bathroom" or "family_kitchen"
 When environment is NOT "clinic" and NOT "studio", you MUST include a "background_description"
 field with 2-3 sentences describing the visual background (lighting, colors, details).
-AVAILABLE POSES: front (neutral speaking), front-wave (greeting/farewell)
-AVAILABLE VOICE DIRECTIONS: energetic, warm, informative, playful, mischievous, calm, excited
-AVAILABLE SHOT TYPES: medium (full body, environment visible), medium-close (upper body, face prominent), close-medium (face focus, lip-sync priority)
+
+SUGGESTED ENVIRONMENTS for this content: {', '.join(env_suggestions)}
+SUGGESTED EMOTION ARC across scenes: {' → '.join(emotion_arc)}
+
+MOLO is always front-facing. Do not specify pose — reference image is selected automatically.
+
+VOICE DIRECTION GUIDE:
+- whisper: secrets, conspiracies, "let me tell you something" moments
+- surprised: "did you know?!" hooks, genuine wonder
+- mischievous: self-praise, gentle teasing, fourth-wall breaks
+- playful: jokes, light moments
+- energetic: openings, calls to action
+- warm: farewells, reassuring content
+- calm: dental anxiety reduction content
+- informative: educational explanations
+- excited: high energy reactions
+
+AVAILABLE SHOT TYPES: wide (full body + environment visible), medium (waist up, balanced), medium-close (chest up, face prominent), close (head and shoulders, emotional emphasis)
+
+SCENE VARIETY RULES:
+- NO TWO SCENES should have the same environment. If scene 1 is clinic, scene 2 must be different.
+- Each scene should have a different shot type. Progression: wide → medium → medium-close → close.
+- Each scene should have a different emotion. No flat "warm and welcoming" repeated.
+- At least one scene should use a real-world environment (not studio or clinic).
+- Opening scene: WIDEST framing. Final scene: CLOSEST framing.
 
 OUTPUT FORMAT — Return ONLY valid JSON, no markdown:
 {{
@@ -335,7 +387,6 @@ OUTPUT FORMAT — Return ONLY valid JSON, no markdown:
       "text_tr": "Aynı metnin Türkçe çevirisi (referans için)",
       "environment": "clinic",
       "background_description": "",
-      "molo_pose": "front-wave",
       "voice_direction": "energetic",
       "shot_type": "medium",
       "emotion_note": "excited greeting, slightly mischievous"
@@ -584,17 +635,16 @@ def generate_scene_images(scenes, project_dir):
     for s in scenes:
         n = s["scene"]
         env = s.get("environment", "clinic")
-        pose = s.get("molo_pose", "front")
         shot = s.get("shot_type", "medium")
-        emotion = s.get("emotion_note", "warm, premium, welcoming")
+        emotion = s.get("emotion_note", "warm, welcoming")
 
         output = project_dir / "scenes" / f"scene_{n:02d}_ref.png"
-        print(f"\n   ── Sahne {n}: {env} | {pose} | {shot}")
+        print(f"\n   ── Sahne {n}: {env} | {shot}")
 
-        # Molo referans görseli
-        molo_ref = MOLO_POSES.get(pose, MOLO_POSES["front"])
-        if not molo_ref.exists():
-            print(f"      ⚠️ Poz bulunamadı: {pose}, front kullanılıyor")
+        # Molo referans görseli — ortam bazlı seçim (2 canonical referans)
+        if env == "studio":
+            molo_ref = MOLO_POSES["studio"]
+        else:
             molo_ref = MOLO_POSES["front"]
 
         # Görüntüleri yükle
@@ -646,47 +696,20 @@ Style: Premium photorealistic composite, like a luxury brand campaign shot on lo
             print(f"      🌍 Dış mekân: {env} → prompt tabanlı arka plan")
 
         # Premium prompt oluştur
-        orient_text = "horizontal wide" if _ct['orientation'] == 'horizontal' else "vertical"
         image_rules = _ct.get('image_rules', '')
-        prompt = f"""{gs_reminder}CRITICAL: Copy MOLO's face from the reference image EXACTLY.
-Do not enlarge eyes. Do not reshape eyes. Eyes must remain ROUND — never triangular, angular, or pointed.
-Every facial feature must be the SAME SIZE AND SHAPE as the reference.
-
-{CHARACTER_IDENTITY_LOCK}
-
-{FACE_ANATOMY_LOCK}
+        prompt = f"""{gs_reminder}{CHARACTER_LOCK_IMAGE}
 
 {env_block}
 
-Create a {_ct['orientation']} {_ct['aspect']} premium digital-host frame. MOLO must be directly facing the camera, making clear direct eye contact, positioned in the center of the frame, with a symmetrical, screen-friendly composition.
+Create a {_ct['orientation']} {_ct['aspect']} frame. MOLO front-facing, direct eye contact, centered, symmetrical.
+Framing: {shot} shot. Posture: upright, welcoming.
+Expression: {emotion}
 
 {_ct['scene_direction']}
 
 {image_rules}
 
-The framing should be a {shot} shot. The posture must be upright, open, welcoming, and stable.
-
-Expression and mood: {emotion}
-
-{LIPSYNC_READINESS}
-
-{HOLOGRAM_LOCK}
-
-{LIGHTING_RULES}
-
-Important composition rules:
-- MOLO must be front-facing and centered
-- MOLO must not fill the entire frame
-- the environment must remain visible in the background
-- the mouth area must be clean and readable for lip-sync
-- the face must remain symmetrical and stable — eyes ROUND and same size as reference, not enlarged or triangular
-- the image must feel designed for a {orient_text} digital display host
-
-{IMAGE_QUALITY_LOCK}
-
-{AVOID_LIST}
-
-FINAL REMINDER: Match the reference face EXACTLY. Eyes must be ROUND — never triangular or angular. Do NOT make eyes bigger than reference. If in doubt, make features smaller."""
+{AVOID_LIST}"""
 
         # ── Kalite kontrollü üretim (max QC_MAX_RETRIES + 1 deneme) ──
         best_score = 0
@@ -841,9 +864,7 @@ def build_video_prompt(scene):
 
     if is_gs:
         # Green screen modu
-        from config import COMPACT_LOCK_GS, COMPACT_MOTION_GS
-        lock = COMPACT_LOCK_GS
-        motion = COMPACT_MOTION_GS
+        lock = COMPACT_VIDEO_LOCK_GS
 
         orientation = _ct.get("orientation", "vertical")
         if orientation == "horizontal":
@@ -873,8 +894,7 @@ Avoid: {shot} angle changes, background color variation, shadow on green, any no
 
     elif is_ekran:
         # Premium yatay ekran formatı
-        lock = COMPACT_LOCK_EKRAN
-        motion = COMPACT_MOTION_EKRAN
+        lock = COMPACT_VIDEO_LOCK_EKRAN
         scene_block = f"""Scene: Premium horizontal {shot} commercial scene. {_ct['scene_direction']}
 
 {_ct.get('video_prompt_boost', '')}
@@ -886,8 +906,7 @@ Overall tone: quiet visual humor, luxury editorial commercial, premium mascot, s
 Avoid: changing MOLO's face/hologram/proportions, sloppy pose, childish comedy, cartoon effects, busy background, visible clinic clutter, random props, toy-like rendering, generic AI styling, or anything that reduces elegance and luxury-brand credibility."""
     else:
         # Dikey format (sosyal/robot)
-        lock = COMPACT_LOCK
-        motion = COMPACT_MOTION
+        lock = COMPACT_VIDEO_LOCK
         scene_block = f"""Premium front-facing {shot} {voice_dir} performance. MOLO centered, symmetrical, directly facing camera.
 
 {_ct['scene_direction']}
@@ -900,37 +919,49 @@ Acting: warm, precise, premium, slightly robotic, controlled, direct. Not childi
 
 Avoid: side angle, 3/4 view, oversized mascot, cartoon wobble, arm flailing, face morphing, exaggerated smile, toy rendering, asymmetric framing, bouncing, elastic motion."""
 
-    # Yüz tutarlılık kilidi
-    scene_block += f"\n\n{COMPACT_FACE_LOCK}"
-    # Dış mekân ortam bağlamı
-    bg_desc = scene.get("background_description", "")
-    scene_env = scene.get("environment", "studio")
-    if scene_env != "clinic" and scene_env != "studio" and bg_desc:
-        scene_block += f"\n\nEnvironment continuity: {bg_desc}. Background must stay stable throughout animation. No background morphing or drift."
-
-    full = f"{lock}\n\n{motion}\n\n{scene_block}"
+    full = f"{lock}\n\n{scene_block}"
 
     if len(full) > KLING_MAX_PROMPT_CHARS:
         original_len = len(full)
-        # "Avoid:" bloğunu koru — her zaman prompt'un sonunda kalmalı
+        # Truncation priority: Avoid block first, then video_prompt_boost content
+        # NEVER truncate the lock or emotion/acting direction
         avoid_marker = "Avoid:"
+        boost_content = _ct.get('video_prompt_boost', '')
+
         if avoid_marker in scene_block:
+            # Step 1: Try truncating the Avoid block
             parts = scene_block.rsplit(avoid_marker, 1)
             content_part = parts[0].rstrip()
             avoid_part = avoid_marker + parts[1]
+
+            # First try: remove Avoid block entirely
+            test_full = f"{lock}\n\n{content_part}"
+            if len(test_full) <= KLING_MAX_PROMPT_CHARS:
+                # Avoid block removal is enough, try to keep as much as possible
+                remaining = KLING_MAX_PROMPT_CHARS - len(test_full) - 2  # -2 for \n\n
+                if remaining > 0:
+                    truncated_avoid = avoid_part[:remaining].rstrip()
+                    scene_block = f"{content_part}\n\n{truncated_avoid}"
+                else:
+                    scene_block = content_part
+            else:
+                # Step 2: Also truncate video_prompt_boost content from scene_block
+                if boost_content and boost_content in content_part:
+                    content_part = content_part.replace(boost_content, '').strip()
+                overhead = len(lock) + 4  # +4 for \n\n separators
+                max_content = KLING_MAX_PROMPT_CHARS - overhead
+                if len(content_part) > max_content:
+                    content_part = content_part[:max_content].rstrip()
+                scene_block = content_part
         else:
-            content_part = scene_block
-            avoid_part = ""
+            # No Avoid block — truncate content directly
+            overhead = len(lock) + 4
+            max_content = KLING_MAX_PROMPT_CHARS - overhead
+            if len(scene_block) > max_content:
+                scene_block = scene_block[:max_content].rstrip()
 
-        # İçerik kısmını kırp, avoid bloğunu koru
-        overhead = len(lock) + len(motion) + len(avoid_part) + 10  # +10 newlines
-        max_content = KLING_MAX_PROMPT_CHARS - overhead
-        if len(content_part) > max_content:
-            content_part = content_part[:max_content].rstrip()
-
-        scene_block = f"{content_part}\n\n{avoid_part}" if avoid_part else content_part
-        full = f"{lock}\n\n{motion}\n\n{scene_block}"
-        print(f"   ⚠️ Prompt kırpıldı: {original_len} → {len(full)} char (Avoid bloğu korundu)")
+        full = f"{lock}\n\n{scene_block}"
+        print(f"   ⚠️ Prompt kırpıldı: {original_len} → {len(full)} char")
 
     return full
 
@@ -945,11 +976,14 @@ def _submit_kling_task(scene, ref_path, scene_duration="5", total_scenes=1):
         print(f"   Sahne {n}: {len(prompt)} char ❌ FAZLA")
         return None, n
 
-    # Sahne bazlı cfg_scale: ilk/son sahne daha sıkı, ortalar biraz serbest
-    if n == 1 or n == total_scenes:
-        cfg = KLING_CFG_FIRST_LAST
+    # Ortam bazlı cfg_scale
+    env = scene.get("environment", "studio")
+    if env == "studio":
+        cfg = KLING_CFG_STUDIO
+    elif env == "clinic":
+        cfg = KLING_CFG_CLINIC
     else:
-        cfg = KLING_CFG_MIDDLE
+        cfg = KLING_CFG_EXTERNAL
 
     img_b64 = base64.b64encode(open(ref_path, "rb").read()).decode()
     token = get_kling_token()
@@ -1074,9 +1108,10 @@ def generate_videos(scenes, image_files, project_dir, durations=None):
                 tid, sn = _submit_kling_task(s, ref, scene_duration=sd, total_scenes=len(scenes))
                 if tid:
                     out = project_dir / "scenes" / f"scene_{n:02d}.mp4"
-                    cfg_used = KLING_CFG_FIRST_LAST if (n == 1 or n == len(scenes)) else KLING_CFG_MIDDLE
+                    s_env = s.get("environment", "studio")
+                    cfg_used = KLING_CFG_STUDIO if s_env == "studio" else (KLING_CFG_CLINIC if s_env == "clinic" else KLING_CFG_EXTERNAL)
                     active.append((tid, n, str(out), idx))
-                    print(f"   Sahne {n}: {len(build_video_prompt(s))} char | {sd}s | cfg={cfg_used} → Task={tid}")
+                    print(f"   Sahne {n}: {len(build_video_prompt(s))} char | {sd}s | cfg={cfg_used} ({s_env}) → Task={tid}")
                 else:
                     print(f"   Sahne {n}: ❌ submit başarısız")
                     failed_this_round.append(idx)
