@@ -1985,6 +1985,71 @@ def main():
             _write_progress("done", 100, "DRY RUN tamamlandı", is_done=True)
             return
 
+        # ── ADIM 1.5: Senaryo İnceleme Duraklatması ──
+        # Pipeline burada durur — kullanıcı sahne metinlerini inceler/düzenler
+        # Studio UI'dan "Devam Et" butonuna basılınca .pipeline.resume dosyası oluşturulur
+        # Düzenleme yapıldıysa scenes/script_edit.json dosyasına yazılır
+        # Frontend endpoint: POST /api/pipeline/edit-script → script_edit.json yazar
+        if "images" not in completed:  # Görseller henüz üretilmediyse duraklat
+            import time as _time
+            resume_file = project_dir / ".pipeline.resume"
+            script_edit_file = project_dir / "scenes" / "script_edit.json"
+
+            # scenes.json'u erken yaz — UI gösterebilsin / düzenleyebilsin
+            scenes_dir = project_dir / "scenes"
+            scenes_dir.mkdir(parents=True, exist_ok=True)
+            scenes_json_path = scenes_dir / "scenes.json"
+            with open(scenes_json_path, "w", encoding="utf-8") as f:
+                json.dump({"title": script.get("title", ""), "scenes": scenes},
+                          f, ensure_ascii=False, indent=2)
+
+            # Önceki resume sinyalini temizle
+            if resume_file.exists():
+                resume_file.unlink()
+
+            _write_progress("review_script", 18,
+                            f"⏸️ {len(scenes)} sahne hazır — senaryo inceleme bekleniyor",
+                            is_paused=True)
+            print(f"\n   ⏸️ SENARYO İNCELEME — {len(scenes)} sahne:")
+            for s in scenes:
+                print(f"      Sahne {s['scene']}: [{s.get('voice_direction','?')}] {s['text'][:80]}...")
+            print(f"   Studio UI'dan senaryoyu düzenleyip 'Devam Et' butonuna basın.\n")
+
+            # Resume sinyali bekle
+            while not resume_file.exists():
+                _time.sleep(1)
+                # Pipeline durdurulmuş olabilir
+                if _progress_path:
+                    try:
+                        with open(_progress_path, "r") as _pf:
+                            _pd = json.load(_pf)
+                            if _pd.get("isError"):
+                                print("   🛑 Pipeline durduruldu.")
+                                sys.exit(0)
+                    except Exception:
+                        pass
+
+            # Resume sinyali geldi
+            resume_file.unlink(missing_ok=True)
+
+            # Kullanıcı senaryoyu düzenlediyse script_edit.json'dan yükle
+            if script_edit_file.exists():
+                try:
+                    with open(script_edit_file, "r", encoding="utf-8") as f:
+                        edited = json.load(f)
+                    if edited.get("scenes"):
+                        scenes = edited["scenes"]
+                        script["scenes"] = scenes
+                        print(f"   ✏️ Düzenlenmiş senaryo yüklendi ({len(scenes)} sahne)")
+                        # Checkpoint'u düzenlenmiş senaryo ile güncelle
+                        _write_checkpoint(project_dir, "script", completed, script=script)
+                except Exception as e:
+                    print(f"   ⚠️ Script edit okunamadı: {e}")
+
+            _write_progress("script", 20,
+                            "Senaryo onaylandı — görsel üretimine geçiliyor...")
+            print(f"\n   ▶️ Devam ediliyor — ADIM 2: Görsel Üretimi")
+
         # ── ADIM 2: Görseller (GORSEL-ONCELIKLI) ──
         if "images" in completed and ckpt.get("image_files"):
             image_files = _validate_files(ckpt["image_files"])

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, Key, Bot, Film, Check, AlertTriangle, Loader2, X, ExternalLink } from "lucide-react";
+import { Settings, Key, Bot, Film, Check, AlertTriangle, Loader2, X, ExternalLink, DollarSign } from "lucide-react";
 import { MoloLoading } from "@/components/molo";
 
 interface ApiKey {
@@ -211,6 +211,56 @@ export default function SettingsPage() {
                 <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{t.aspect} • Kling {t.kling}</div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Tahmini Maliyetler */}
+        <div className="glass-card" style={{ padding: 24 }}>
+          <div className="section-title">
+            <DollarSign size={18} /> Tahmini Maliyetler
+          </div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
+            Aşağıdaki rakamlar ortalama kullanım senaryolarına göre tahmin edilmiştir. Gerçek maliyetler kullanım miktarına göre değişir.
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[
+              { label: "Gemini (senaryo + görseller)", cost: "~$0.02 / proje", color: "var(--accent-blue)" },
+              { label: "ElevenLabs (ses)", cost: "~$0.05 / sahne", color: "var(--accent-purple)" },
+              { label: "Kling v3 (video, 5s)", cost: "~$0.10 / sahne", color: "var(--accent-teal)" },
+              { label: "Kling v3 (video, 10s)", cost: "~$0.20 / sahne", color: "var(--accent-coral)" },
+            ].map((item) => (
+              <div key={item.label} style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "10px 14px", borderRadius: "var(--radius-md)",
+                background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)",
+              }}>
+                <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{item.label}</span>
+                <span style={{
+                  fontSize: 13, fontWeight: 600, fontFamily: "var(--font-mono, monospace)",
+                  color: item.color,
+                }}>
+                  {item.cost}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="divider" />
+
+          <div style={{
+            padding: "14px 16px", borderRadius: "var(--radius-md)",
+            background: "rgba(20, 184, 166, 0.06)", border: "1px solid rgba(20, 184, 166, 0.12)",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <span style={{ fontSize: 13, color: "var(--text-secondary)", fontWeight: 500 }}>
+              Ortalama proje maliyeti (4 sahne)
+            </span>
+            <span style={{
+              fontSize: 16, fontWeight: 700, fontFamily: "var(--font-mono, monospace)",
+              color: "var(--accent-teal)",
+            }}>
+              ~$0.72
+            </span>
           </div>
         </div>
       </div>

@@ -513,7 +513,7 @@ function EditContent() {
       }}>
       {videoSrc ? (
           <div style={{ position: "relative", display: "inline-block" }}>
-            <video key={`${videoSrc}_${renderKey}`} controls style={{
+            <video key={`${videoSrc}_${renderKey}`} autoPlay muted controls style={{
               maxHeight: "45vh", maxWidth: "100%", width: "auto",
               display: "block", borderRadius: 12,
               boxShadow: "0 4px 24px rgba(0,0,0,0.4)",

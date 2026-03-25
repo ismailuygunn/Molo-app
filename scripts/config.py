@@ -448,12 +448,26 @@ CHARACTER_RULES = f"""{CHARACTER_LOCK_IMAGE}
 # ─── Referans Görseller ───
 # Sadece 2 canonical referans — tutarlılık için tek kaynak
 MOLO_POSES = {
-    "front":  REFERENCE_DIR / "ref-front-studio.png",  # PRIMARY — tüm sahneler
-    "studio": REFERENCE_DIR / "ref-front-dark.png",     # studio/dark ortam için
+    "front":          REFERENCE_DIR / "ref-front-studio.png",  # PRIMARY — tüm sahneler
+    "studio":         REFERENCE_DIR / "ref-front-dark.png",     # studio/dark ortam için
+    "front-close":    REFERENCE_DIR / "front-close.png",        # detay referansı
+    "front-wave":     REFERENCE_DIR / "front-wave.jpg",         # selamlama pozu (opsiyonel)
+    "front-3q":       REFERENCE_DIR / "ref-front-3q.png",       # 3/4 açı (opsiyonel)
+    "side-run":       REFERENCE_DIR / "side-run-1.jpg",         # yandan yürüyüş (opsiyonel)
 }
 DEFAULT_MOLO_POSE = "front"
 
-# Arşiv: Eski referanslar (aktif kullanılmıyor, silme)
+# Önerilen pozlar — UI'da seçenek olarak sunulur
+POSE_LABELS = {
+    "front": "Önden (Standart)",
+    "studio": "Studio (Koyu)",
+    "front-close": "Yakın Plan",
+    "front-wave": "El Sallama",
+    "front-3q": "3/4 Açı",
+    "side-run": "Yandan Yürüyüş",
+}
+
+# Not: Eski referanslar fiziksel olarak _reference/ dizininde duruyor
 # front-vertical.png, front-close.png, front-fiverr.png,
 # front-wave.jpg, ref-front-3q.png, side-run-1.jpg, side-run-2.jpg
 
