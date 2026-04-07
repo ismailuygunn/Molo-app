@@ -13,6 +13,7 @@ import {
   ImageIcon,
   AlertCircle,
   CheckCircle2,
+  Edit3,
 } from "lucide-react";
 import { useStudioStore } from "@/store/studio";
 import type { Scene, PipelineStep } from "@/store/studio";
@@ -139,9 +140,16 @@ interface SceneRowProps {
   audioUrl: string | null;
   showApproval: boolean;
   projectId: string;
+  lang: string;
+  qcScore?: Record<string, { score: number }>;
+  isEditable: boolean;
+  onEditSave?: (sceneNumber: number, text: string) => void;
 }
 
-function SceneRow({ scene, imageUrl, audioUrl, showApproval, projectId }: SceneRowProps) {
+function SceneRow({ scene, imageUrl, audioUrl, showApproval, projectId, lang, qcScore, isEditable, onEditSave }: SceneRowProps) {
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+  const displayText = lang === "tr" ? (scene.text_tr || scene.text_de) : scene.text_de;
   return (
     <Card hover={false}>
       <div
@@ -200,18 +208,42 @@ function SceneRow({ scene, imageUrl, audioUrl, showApproval, projectId }: SceneR
             </h3>
             {scene.shot_type && <Badge variant="draft">{scene.shot_type}</Badge>}
             {scene.emotion_note && <Badge variant="info">{scene.emotion_note}</Badge>}
+            {qcScore && (
+              <Badge variant={Object.values(qcScore)[0]?.score >= 7 ? "final" : Object.values(qcScore)[0]?.score >= 5 ? "review" : "error"}>
+                QC: {Math.round(Object.values(qcScore).reduce((sum, v) => sum + v.score, 0) / Object.values(qcScore).length)}/10
+              </Badge>
+            )}
           </div>
 
-          <p
-            style={{
-              fontSize: 14,
-              lineHeight: 1.6,
-              color: "var(--text-secondary)",
-              margin: "0 0 10px",
-            }}
-          >
-            {scene.text_de}
-          </p>
+          {editing ? (
+            <div style={{ marginBottom: 10 }}>
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                style={{
+                  width: "100%", minHeight: 80, padding: "8px 12px",
+                  fontSize: 14, lineHeight: 1.6, borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--accent-teal)", background: "var(--bg-secondary)",
+                  color: "var(--text-primary)", resize: "vertical", fontFamily: "inherit",
+                }}
+              />
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <Button variant="primary" size="sm" onClick={() => {
+                  onEditSave?.(scene.scene, editText);
+                  setEditing(false);
+                }}>Kaydet</Button>
+                <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Iptal</Button>
+              </div>
+            </div>
+          ) : (
+            <p style={{ fontSize: 14, lineHeight: 1.6, color: "var(--text-secondary)", margin: "0 0 10px", cursor: isEditable ? "pointer" : "default" }}
+               onClick={() => { if (isEditable) { setEditText(displayText); setEditing(true); } }}
+               title={isEditable ? "Tiklayarak duzenle" : undefined}
+            >
+              {displayText}
+              {isEditable && <Edit3 size={12} style={{ marginLeft: 6, opacity: 0.4, verticalAlign: "middle" }} />}
+            </p>
+          )}
 
           {/* Metadata */}
           <div
@@ -229,6 +261,12 @@ function SceneRow({ scene, imageUrl, audioUrl, showApproval, projectId }: SceneR
             )}
             {scene.environment && <span>Ortam: {scene.environment}</span>}
             {scene.molo_pose && <span>Poz: {scene.molo_pose}</span>}
+            {(scene as unknown as Record<string, unknown>).word_count != null && (
+              <span>{String((scene as unknown as Record<string, unknown>).word_count)} kelime</span>
+            )}
+            {(scene as unknown as Record<string, unknown>).estimated_duration_s != null && (
+              <span>~{String((scene as unknown as Record<string, unknown>).estimated_duration_s)}s</span>
+            )}
           </div>
 
           {/* Audio */}
@@ -271,6 +309,9 @@ function ScenesContent() {
   });
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [files, setFiles] = useState<ProjectFiles>({ scenes_images: [], audio: [] });
+  const [lang, setLang] = useState("de");
+  const [qcScores, setQcScores] = useState<Record<string, Record<string, { score: number }>>>({});
+  const [logTail, setLogTail] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -284,6 +325,7 @@ function ScenesContent() {
       if (!res.ok) return;
       const data = await res.json();
       setStatus(data);
+      if (data.log) setLogTail(data.log);
     } catch {
       // Silent — will retry on next poll
     }
@@ -301,6 +343,8 @@ function ScenesContent() {
       if (Array.isArray(data.scenes)) {
         setScenes(data.scenes);
       }
+      if (data.lang) setLang(data.lang);
+      if (data.qcScores) setQcScores(data.qcScores);
     } catch {
       // Silent
     }
@@ -450,12 +494,37 @@ function ScenesContent() {
     }
   }, [projectId, toast, fetchStatus, approveAllImages]);
 
+  // ── Edit save handler ──
+  const handleEditSave = useCallback(async (sceneNumber: number, newText: string) => {
+    if (!projectId) return;
+    try {
+      const textField = lang === "tr" ? "text_tr" : "text_de";
+      const res = await fetch("/api/pipeline/edit-script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          scenes: [{ scene: sceneNumber, [textField]: newText, text: newText }],
+        }),
+      });
+      if (res.ok) {
+        toast.success(`Sahne ${sceneNumber} guncellendi`);
+        await fetchScenes();
+      } else {
+        toast.error("Duzenleme kaydedilemedi");
+      }
+    } catch {
+      toast.error("Duzenleme kaydedilemedi");
+    }
+  }, [projectId, lang, toast, fetchScenes]);
+
   // ── Derived state ──
   const stepLabel = STEP_LABELS[status.step] ?? status.step;
   const badgeVariant = STEP_BADGE_VARIANT[status.step] ?? "info";
   const isReviewStep =
     status.step === "image_review" || status.step === "review_images";
   const showApproval = status.isPaused && isReviewStep;
+  const isScriptEditable = status.isPaused && (status.step === "review_script" || status.step === "review_images" || status.step === "image_review");
 
   // ── No project ──
   if (!projectId) {
@@ -559,6 +628,19 @@ function ScenesContent() {
             {status.message || "Bir hata olustu."}
           </div>
         )}
+        {status.isError && logTail && (
+          <details style={{ marginTop: 8, fontSize: 12 }}>
+            <summary style={{ cursor: "pointer", color: "var(--text-muted)" }}>Pipeline log goster</summary>
+            <pre style={{
+              marginTop: 8, padding: 12, background: "var(--bg-secondary)",
+              borderRadius: "var(--radius-md)", fontSize: 11, lineHeight: 1.5,
+              color: "var(--text-secondary)", maxHeight: 200, overflow: "auto",
+              whiteSpace: "pre-wrap", wordBreak: "break-all",
+            }}>
+              {logTail.slice(-500)}
+            </pre>
+          </details>
+        )}
 
         {/* Controls */}
         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
@@ -635,6 +717,10 @@ function ScenesContent() {
               audioUrl={findSceneAudio(files.audio, scene.scene)}
               showApproval={showApproval}
               projectId={projectId}
+              lang={lang}
+              qcScore={qcScores[`scene_${String(scene.scene).padStart(2, "0")}`]}
+              isEditable={isScriptEditable}
+              onEditSave={handleEditSave}
             />
           ))}
         </div>

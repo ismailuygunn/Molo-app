@@ -47,9 +47,9 @@ export async function GET(req: NextRequest) {
     const isRunning = processAlive && data.isRunning;
     const isDone = data.isDone;
     const isPaused = data.isPaused || false;
-    const isError = data.isError || (!processAlive && !isDone && !isPaused && data.isRunning);
+    const isError = data.isError || (!processAlive && !isDone && !isPaused && data.step !== "idle");
 
-    // Read last 1500 chars of log for display
+    // Always read log tail for display
     let logTail = "";
     try {
       const log = await readFile(logPath, "utf-8");

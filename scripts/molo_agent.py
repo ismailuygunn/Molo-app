@@ -292,27 +292,77 @@ OUTPUT FORMAT — Return ONLY valid JSON, no markdown:
   ]
 }}"""
 
-    response = gemini_with_retry(lambda: client.models.generate_content(
-        model=GEMINI_TEXT_MODEL,
-        contents=f"Write a MOLO script based on this brief:\n\n{brief}",
-        config=gtypes.GenerateContentConfig(
-            system_instruction=system_prompt,
-            temperature=0.8,
-        )
-    ))
+    def _validate_script_quality(scenes, max_scenes):
+        """Post-generation quality checks on script."""
+        issues = []
 
-    # JSON parse
-    text = response.text.strip()
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        # Check scene count
+        if len(scenes) != max_scenes:
+            issues.append(f"Expected {max_scenes} scenes, got {len(scenes)}")
 
-    try:
-        script = json.loads(text)
-    except json.JSONDecodeError:
-        print(f"   ❌ JSON parse hatası. Gemini çıktısı:\n{text[:500]}")
-        sys.exit(1)
+        # Check required fields
+        required = ["scene", "text", "environment", "voice_direction", "shot_type", "emotion_note"]
+        for s in scenes:
+            missing = [f for f in required if not s.get(f)]
+            if missing:
+                issues.append(f"Scene {s.get('scene', '?')}: missing {', '.join(missing)}")
+
+        # Check environment variety
+        envs = [s.get("environment", "") for s in scenes]
+        if len(set(envs)) < len(envs) * 0.5:  # More than half are same
+            issues.append(f"Low environment variety: {envs}")
+
+        # Add word count and estimated duration to each scene
+        for s in scenes:
+            text = s.get("text", "")
+            wc = len(text.split())
+            s["word_count"] = wc
+            # ~2.5 words/sec for German, ~3 words/sec for Turkish
+            s["estimated_duration_s"] = round(wc / 2.5, 1)
+
+            if wc > 100:
+                issues.append(f"Scene {s.get('scene', '?')}: {wc} words (max ~80)")
+
+        return issues
+
+    temperatures = [0.8, 0.9, 1.0]
+    script = None
+    for attempt_num, temp in enumerate(temperatures):
+        response = gemini_with_retry(lambda t=temp: client.models.generate_content(
+            model=GEMINI_TEXT_MODEL,
+            contents=f"Write a MOLO script based on this brief:\n\n{brief}",
+            config=gtypes.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=t,
+            )
+        ))
+
+        # JSON parse with robust cleanup
+        raw_text = response.text.strip()
+        if raw_text.startswith("```"):
+            raw_text = raw_text.split("\n", 1)[1] if "\n" in raw_text else raw_text[3:]
+        if raw_text.endswith("```"):
+            raw_text = raw_text.rsplit("```", 1)[0]
+        if raw_text.startswith("json"):
+            raw_text = raw_text[4:].strip()
+        raw_text = raw_text.strip()
+
+        try:
+            script = json.loads(raw_text)
+            break  # Parse succeeded
+        except json.JSONDecodeError:
+            if attempt_num < len(temperatures) - 1:
+                print(f"   ⚠️ JSON parse hatası (deneme {attempt_num+1}/3, sıcaklık={temp}). Tekrar deneniyor...")
+            else:
+                print(f"   ❌ JSON parse hatası (3 denemede başarısız). Gemini çıktısı:\n{raw_text[:500]}")
+                sys.exit(1)
 
     scenes = script.get("scenes", [])
+
+    # Post-generation quality checks
+    issues = _validate_script_quality(scenes, max_scenes)
+    if issues:
+        print(f"   ⚠️ Script quality issues: {'; '.join(issues)}")
 
     # Sahne sayısı limiti
     if len(scenes) > max_scenes:
@@ -364,8 +414,10 @@ def generate_voices(scenes, lang, project_name, project_dir=None):
 
     voice_files = []
     durations = []
+    total_scenes = len(scenes)
 
-    for s in scenes:
+    for i, s in enumerate(scenes):
+        _write_progress("voice", 55 + (i * 30 // total_scenes), f"Sahne {i+1}/{total_scenes} ses üretiliyor...")
         n = s["scene"]
         text = s["text"]
         direction = s.get("voice_direction", "warm")
@@ -517,8 +569,8 @@ def _score_image_quality(image_path, molo_ref_path, client):
             overall = min(overall, int(face_avg))
         return overall, scores
     except Exception as e:
-        print(f"      ⚠️ QC skor hesaplanamadı: {e}")
-        return 10, {}  # Hata durumunda geç
+        print(f"   ⚠️ QC scoring failed: {e}")
+        return 5, {}  # Return below-threshold score instead of bypassing
 
 
 def generate_scene_images(scenes, project_dir):
@@ -532,14 +584,16 @@ def generate_scene_images(scenes, project_dir):
 
     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
     image_files = []
+    total_scenes = len(scenes)
 
-    for s in scenes:
+    for i, s in enumerate(scenes):
         n = s["scene"]
         env = s.get("environment", "clinic")
         shot = s.get("shot_type", "medium")
         emotion = s.get("emotion_note", "warm, welcoming")
 
         output = project_dir / "scenes" / f"scene_{n:02d}_ref.png"
+        _write_progress("images", 20 + (i * 20 // total_scenes), f"Sahne {i+1}/{total_scenes} görsel üretiliyor...")
         print(f"\n   ── Sahne {n}: {env} | {shot} ({variant_count} varyant)")
 
         # Molo referans görseli — ortam bazlı seçim (2 canonical referans)
@@ -615,13 +669,19 @@ Expression: {emotion}
         # ── Varyant bazli uretim ──
         variant_suffixes = [f"v{vi+1}" for vi in range(variant_count)]
         variant_prompts = []
+        variant_additions = [
+            "Alternative composition: use rule-of-thirds framing instead of centered. Different lighting angle — slightly warmer/cooler tone.",
+            "Different perspective: slightly lower camera angle. More dramatic rim lighting, slightly wider framing.",
+        ]
         for vi in range(variant_count):
             if vi == 0:
                 variant_prompts.append(prompt)
             else:
-                variant_prompts.append(prompt + "\n\nAlternative composition: slightly different framing and pose variation.")
+                extra = variant_additions[min(vi - 1, len(variant_additions) - 1)]
+                variant_prompts.append(prompt + f"\n\n{extra}")
 
         first_variant_ok = False
+        variant_scores = []  # Collect (score, details) per variant
         for vi, (v_suffix, v_prompt) in enumerate(zip(variant_suffixes, variant_prompts)):
             v_output = project_dir / "scenes" / f"scene_{n:02d}_{v_suffix}.png"
             print(f"      ── Varyant {v_suffix} ──")
@@ -629,6 +689,7 @@ Expression: {emotion}
             # ── Kalite kontrollü üretim (max QC_MAX_RETRIES + 1 deneme) ──
             best_score = 0
             best_output = None
+            best_details = {}
             attempts = QC_MAX_RETRIES + 1
 
             for attempt in range(attempts):
@@ -671,11 +732,13 @@ Expression: {emotion}
                 if score > best_score:
                     best_score = score
                     best_output = attempt_path
+                    best_details = details
 
                 if score >= QC_MIN_SCORE:
                     break
                 else:
                     print(f"      ⚠️ Sahne {n} {v_suffix}: kalite skoru düşük ({score}), tekrar deneniyor...")
+                    _write_progress("images", 20 + (i * 20 // total_scenes), f"Sahne {i+1}/{total_scenes} kalite kontrol (deneme {attempt+1}/{attempts})...")
 
             # En iyi sonucu varyant dosyasina tasi
             if best_output and best_output != str(v_output):
@@ -687,6 +750,7 @@ Expression: {emotion}
                         os.remove(try_path)
 
             if best_output:
+                variant_scores.append((best_score, best_details))
                 qc_label = f"✅ QC={best_score}/10" if best_score >= QC_MIN_SCORE else f"⚠️ QC={best_score}/10 (en iyi)"
                 print(f"      {qc_label} → {v_output.name}")
                 # Ilk varyanti ref.png olarak da kaydet (varsayilan/fallback)
@@ -695,10 +759,23 @@ Expression: {emotion}
                     shutil.copy2(str(v_output), str(output))
                     first_variant_ok = True
             else:
+                variant_scores.append((0, {}))
                 print(f"      ❌ Sahne {n} {v_suffix}: hiçbir deneme başarılı olmadı!")
                 if vi == 0:
                     # Ilk varyant zorunlu — basarisizsa pipeline durur
                     sys.exit(1)
+
+        # Write QC scores for this scene
+        qc_path = project_dir / "scenes" / "qc_scores.json"
+        try:
+            existing_qc = json.loads(qc_path.read_text()) if qc_path.exists() else {}
+        except Exception:
+            existing_qc = {}
+        existing_qc[f"scene_{n:02d}"] = {
+            f"v{vi+1}": {"score": score, "details": det}
+            for vi, (score, det) in enumerate(variant_scores)
+        }
+        qc_path.write_text(json.dumps(existing_qc, indent=2, ensure_ascii=False))
 
         if first_variant_ok:
             image_files.append(str(output))
@@ -945,7 +1022,7 @@ def main():
             scenes_dir.mkdir(parents=True, exist_ok=True)
             scenes_json_path = scenes_dir / "scenes.json"
             with open(scenes_json_path, "w", encoding="utf-8") as f:
-                json.dump({"title": script.get("title", ""), "scenes": scenes},
+                json.dump({"title": script.get("title", ""), "scenes": scenes, "lang": lang},
                           f, ensure_ascii=False, indent=2)
 
             # Önceki resume sinyalini temizle
@@ -1114,6 +1191,18 @@ def main():
                               script=script, voice_files=voice_files, durations=durations,
                               image_files=[str(f) for f in image_files])
         _write_progress("voice", 55, f"{len(voice_files)} ses dosyası hazır")
+
+        # Update scenes.json with durations
+        scenes_json_path = project_dir / "scenes" / "scenes.json"
+        try:
+            scenes_data = json.loads(scenes_json_path.read_text(encoding="utf-8"))
+            if isinstance(scenes_data, dict):
+                scenes_data["durations"] = durations
+                scenes_data["total_duration"] = sum(durations) if durations else 0
+                scenes_json_path.write_text(json.dumps(scenes_data, ensure_ascii=False, indent=2), encoding="utf-8")
+                print(f"   📝 scenes.json güncellendi (durations eklendi)")
+        except Exception as e:
+            print(f"   ⚠️ scenes.json güncellenemedi: {e}")
 
         # ── BİTTİ ──
         _write_checkpoint(project_dir, "done", completed,
