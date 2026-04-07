@@ -124,15 +124,10 @@ function parsePipelineLog(log: string) {
   let step = "starting";
   let progress = 5;
 
-  if (log.includes("ADIM 1:") || log.includes("Senaryo")) { step = "script"; progress = 10; }
-  if (log.includes("ADIM 2:") || log.includes("Ses Üretimi")) { step = "voice"; progress = 25; }
-  if (log.includes("Otomatik onay")) { step = "approval"; progress = 30; }
-  if (log.includes("ADIM 4:") || log.includes("Görselleri")) { step = "images"; progress = 40; }
-  if (log.includes("ADIM 5:") || log.includes("Video")) { step = "videos"; progress = 55; }
-  if (log.includes("ADIM 6:") || log.includes("Kurgu")) { step = "edit"; progress = 75; }
-  if (log.includes("ADIM 7:") || log.includes("Altyazı")) { step = "subtitles"; progress = 85; }
-  if (log.includes("ADIM 8:") || log.includes("Slowdown")) { step = "slowdown"; progress = 90; }
-  if (log.includes("ADIM 9:") || log.includes("Thumbnail")) { step = "thumbnail"; progress = 95; }
+  if (log.includes("Senaryo")) { step = "script"; progress = 15; }
+  if (log.includes("Görselleri") || log.includes("görsel")) { step = "images"; progress = 40; }
+  if (log.includes("inceleme") || log.includes("DURAKLATILDI")) { step = "image_review"; progress = 50; }
+  if (log.includes("Ses") || log.includes("voice")) { step = "voice"; progress = 75; }
   if (isDone) { step = "done"; progress = 100; }
   if (isError) { step = "error"; }
 

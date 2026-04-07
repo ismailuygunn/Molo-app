@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const projectDir = join(PROJECTS_DIR, projectId);
 
     // Create project directories
-    for (const dir of ["scenes", "audio", "draft", "final", "subtitles"]) {
+    for (const dir of ["scenes", "audio"]) {
       await mkdir(join(projectDir, dir), { recursive: true });
     }
 

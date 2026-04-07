@@ -29,17 +29,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: "error", error: `HTTP ${res.status}` });
     }
 
-    if (keyId === "kling_access" || keyId === "kling_secret") {
-      const access = process.env.KLING_API_ACCESS;
-      const secret = process.env.KLING_API_SECRET;
-      if (!access || !secret) return NextResponse.json({ status: "missing", error: "Key not set" });
-      // Simple connectivity check — just test that keys exist and are non-empty
-      if (access.length > 10 && secret.length > 10) {
-        return NextResponse.json({ status: "ok", message: "Kling keys configured" });
-      }
-      return NextResponse.json({ status: "error", error: "Keys too short" });
-    }
-
     return NextResponse.json({ status: "error", error: "Bilinmeyen API key" });
   } catch (error) {
     return NextResponse.json({ status: "error", error: String(error) });

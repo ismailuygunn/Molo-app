@@ -47,10 +47,8 @@ const STEP_LABELS: Record<string, string> = {
   images: "Gorseller uretiliyor...",
   image_review: "Gorsel onayi bekleniyor",
   review_images: "Gorsel onayi bekleniyor",
+  review_script: "Senaryo inceleniyor",
   voice: "Sesler uretiliyor...",
-  videos: "Videolar uretiliyor...",
-  edit: "Kurgu yapiliyor...",
-  subtitles: "Altyazi ekleniyor...",
   done: "Tamamlandi!",
   error: "Hata olustu",
 };
@@ -62,10 +60,8 @@ const STEP_BADGE_VARIANT: Record<string, "draft" | "review" | "final" | "error" 
   images: "review",
   image_review: "review",
   review_images: "review",
+  review_script: "review",
   voice: "review",
-  videos: "review",
-  edit: "review",
-  subtitles: "review",
   done: "success",
   error: "error",
 };

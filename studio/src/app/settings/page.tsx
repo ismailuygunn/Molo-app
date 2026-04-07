@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Settings, Key, Bot, Film, Check, AlertTriangle, Loader2, X, ExternalLink, DollarSign } from "lucide-react";
+import { Key, Bot, Film, Check, AlertTriangle, Loader2, X, ExternalLink, DollarSign } from "lucide-react";
 import { MoloLoading } from "@/components/molo";
 
 interface ApiKey {
@@ -170,45 +170,21 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Üretim Ayarları — Salt okunur bilgilendirme */}
+        {/* İçerik Türleri */}
         <div className="glass-card" style={{ padding: 24 }}>
           <div className="section-title">
-            <Film size={18} /> Üretim Yapılandırması
-          </div>
-          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12 }}>
-            Bu ayarlar <code style={{ color: "var(--accent-teal)", background: "rgba(20,184,166,0.1)", padding: "1px 5px", borderRadius: 4, fontSize: 11 }}>scripts/config.py</code> dosyasından okunur.
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-            {[
-              { label: "FPS", value: "24" },
-              { label: "CRF", value: "16" },
-              { label: "Slowdown", value: "0.88x" },
-              { label: "Crossfade", value: "0.7s" },
-              { label: "Scene Padding", value: "0.4s" },
-              { label: "BGM Volume", value: "-22dB" },
-            ].map((item) => (
-              <div key={item.label}>
-                <label className="label">{item.label}</label>
-                <div className="input" style={{ fontSize: 13, color: "var(--text-secondary)", cursor: "default" }}>{item.value}</div>
-              </div>
-            ))}
-          </div>
-
-          <div className="divider" />
-
-          <div className="section-title" style={{ fontSize: 14 }}>
-            <Settings size={16} /> İçerik Türleri
+            <Film size={18} /> İçerik Türleri
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
             {[
-              { label: "📱 Sosyal", res: "1080×1920", aspect: "9:16", kling: "5s / 10s" },
-              { label: "📺 Ekran", res: "1920×1080", aspect: "16:9", kling: "5s / 10s" },
-              { label: "🤖 Robot", res: "1080×1920", aspect: "9:16", kling: "5s / 10s" },
+              { label: "Sosyal", res: "1080x1920", aspect: "9:16" },
+              { label: "Ekran", res: "1920x1080", aspect: "16:9" },
+              { label: "Robot", res: "1080x1920", aspect: "9:16" },
             ].map((t) => (
               <div key={t.label} className="glass-card" style={{ padding: 12, textAlign: "center" }}>
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{t.label}</div>
                 <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{t.res}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{t.aspect} • Kling {t.kling}</div>
+                <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{t.aspect}</div>
               </div>
             ))}
           </div>
@@ -226,8 +202,6 @@ export default function SettingsPage() {
             {[
               { label: "Gemini (senaryo + görseller)", cost: "~$0.02 / proje", color: "var(--accent-blue)" },
               { label: "ElevenLabs (ses)", cost: "~$0.05 / sahne", color: "var(--accent-purple)" },
-              { label: "Kling v3 (video, 5s)", cost: "~$0.10 / sahne", color: "var(--accent-teal)" },
-              { label: "Kling v3 (video, 10s)", cost: "~$0.20 / sahne", color: "var(--accent-coral)" },
             ].map((item) => (
               <div key={item.label} style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -259,7 +233,7 @@ export default function SettingsPage() {
               fontSize: 16, fontWeight: 700, fontFamily: "var(--font-mono, monospace)",
               color: "var(--accent-teal)",
             }}>
-              ~$0.72
+              ~$0.22
             </span>
           </div>
         </div>

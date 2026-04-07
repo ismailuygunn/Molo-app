@@ -16,7 +16,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "MOLO Studio — İçerik Üretim Platformu",
-  description: "İSTADENTAL Molo maskotu için otonom içerik üretim ve kurgu platformu",
+  description: "İSTADENTAL Molo maskotu için senaryo, sahne ve ses üretim platformu",
 };
 
 export default function RootLayout({

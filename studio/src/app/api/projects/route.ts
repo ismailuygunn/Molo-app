@@ -83,46 +83,17 @@ export async function GET() {
           }));
         } catch { /* no scenes */ }
 
-        // ── Status — smart scan for any MP4/thumbnail ──
+        // ── Status ──
         let status = "draft";
-        let finalPath = "";
-        let draftPath = "";
         let thumbnailPath = "";
 
-        // Scan final/ directory
+        // Thumbnail: first scene ref or variant image
         try {
-          const finalFiles = await readdir(join(projectPath, "final"));
-          const mp4 = finalFiles.find(f => f.endsWith("_final.mp4")) || finalFiles.find(f => f.endsWith(".mp4"));
-          if (mp4) {
-            status = "final";
-            finalPath = `/api/files/${enc}/final/${encodeURIComponent(mp4)}`;
-          }
-          const thumb = finalFiles.find(f => f.includes("thumbnail")) || finalFiles.find(f => f.includes("thumb"));
-          if (thumb) {
-            thumbnailPath = `/api/files/${enc}/final/${encodeURIComponent(thumb)}`;
-          }
-        } catch { /* no final dir */ }
-
-        // Scan draft/ if no final
-        if (status !== "final") {
-          try {
-            const draftFiles = await readdir(join(projectPath, "draft"));
-            const mp4 = draftFiles.find(f => f.endsWith(".mp4"));
-            if (mp4) {
-              status = "review";
-              draftPath = `/api/files/${enc}/draft/${encodeURIComponent(mp4)}`;
-            }
-          } catch { /* no draft dir */ }
-        }
-
-        // Fallback thumbnail: first scene ref image
-        if (!thumbnailPath) {
-          try {
-            const sFiles = await readdir(join(projectPath, "scenes"));
-            const ref = sFiles.filter(f => f.endsWith("_ref.png") || f.endsWith("_ref.jpg")).sort()[0];
-            if (ref) thumbnailPath = `/api/files/${enc}/scenes/${ref}`;
-          } catch { /* no scenes dir */ }
-        }
+          const sFiles = await readdir(join(projectPath, "scenes"));
+          const ref = sFiles.filter(f => f.endsWith("_ref.png") || f.endsWith("_ref.jpg")).sort()[0]
+            || sFiles.filter(f => f.endsWith(".png") || f.endsWith(".jpg")).sort()[0];
+          if (ref) thumbnailPath = `/api/files/${enc}/scenes/${ref}`;
+        } catch { /* no scenes dir */ }
 
         // ── Pipeline status ──
         let pipelineStep = status === "final" ? "done" : "idle";
@@ -136,7 +107,7 @@ export async function GET() {
         projects.push({
           id: entry, name, date, status, contentType, lang, brief, title,
           scenes, durations, pipelineStep, pipelineProgress,
-          thumbnailPath, finalPath, draftPath,
+          thumbnailPath,
         });
       } catch (err) {
         // Log but don't crash — skip this project

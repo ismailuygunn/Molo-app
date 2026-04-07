@@ -10,10 +10,8 @@ export const revalidate = 0;
 const ENV_PATH = resolve(process.cwd(), "..", ".env");
 
 const KEYS = [
-  { id: "google", env: "GOOGLE_API_KEY", label: "Google API Key" },
-  { id: "kling_access", env: "KLING_API_ACCESS", label: "Kling Access Key" },
-  { id: "kling_secret", env: "KLING_API_SECRET", label: "Kling Secret Key" },
-  { id: "elevenlabs", env: "ELEVENLABS_API_KEY", label: "ElevenLabs API Key" },
+  { id: "google", env: "GOOGLE_API_KEY", label: "Google API Key (Gemini)" },
+  { id: "elevenlabs", env: "ELEVENLABS_API_KEY", label: "ElevenLabs API Key (Ses)" },
 ];
 
 export async function GET() {

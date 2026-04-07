@@ -64,8 +64,6 @@ export interface Project {
   pipelineStep: PipelineStep;
   pipelineProgress: number;
   thumbnailPath?: string;
-  finalPath?: string;
-  draftPath?: string;
 }
 
 // ── Store ──

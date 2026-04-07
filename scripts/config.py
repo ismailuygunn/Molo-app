@@ -13,19 +13,12 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent.parent
 REFERENCE_DIR = BASE_DIR / "_reference"
 VOICES_DIR = BASE_DIR / "_voices"
-VIDEOS_DIR = BASE_DIR / "_videos-raw"
 PROJECTS_DIR = BASE_DIR / "projects"
 CONFIG_DIR = BASE_DIR / "_config"
 ERROR_LOG = CONFIG_DIR / "error-log.md"
 
 # ─── Araçlar ───
 FFMPEG = shutil.which("ffmpeg") or "/usr/bin/ffmpeg"
-
-# ─── Video Çıktı Formatı (varsayılan — content type ile override edilir) ───
-OUTPUT_WIDTH = 1080
-OUTPUT_HEIGHT = 1920
-OUTPUT_FPS = 24
-OUTPUT_ASPECT = "9:16"
 
 # ─── İçerik Türü Profilleri ───
 # Brief'te "İçerik türü: sosyal | ekran | robot" ile seçilir
@@ -35,22 +28,12 @@ CONTENT_TYPES = {
         "width": 1080,
         "height": 1920,
         "aspect": "9:16",
-        "kling_aspect": "9:16",
         "orientation": "vertical",
         "is_greenscreen": False,
-        "subtitle_margin_v": 550,
-        "subtitle_fontsize": 42,
         "scene_direction": (
             "Vertical 9:16 social media format. "
             "MOLO centered, front-facing, symmetrical composition. "
             "Lively, scroll-stopping, dynamic."
-        ),
-        "video_prompt_boost": (
-            "Create an eye-catching, lively vertical video. "
-            "Dynamic energy, punchy visual rhythm. "
-            "The character must command attention within the first second. "
-            "Bold, vibrant, high-contrast lighting. "
-            "Every frame must feel like an engaging social media moment."
         ),
         "image_rules": (
             "Bold close framing. MOLO fills 60-70% of vertical frame. "
@@ -58,20 +41,14 @@ CONTENT_TYPES = {
             "Background: dramatic dark studio with blue volumetric fog and rim lighting. "
             "The image must feel like a bold social media visual."
         ),
-        "thumbnail": True,
-        "thumbnail_w": 1080,
-        "thumbnail_h": 1920,
     },
     "ekran": {
         "label": "📺 Klinik Ekranı",
         "width": 1920,
         "height": 1080,
         "aspect": "16:9",
-        "kling_aspect": "16:9",
         "orientation": "horizontal",
         "is_greenscreen": False,
-        "subtitle_margin_v": 80,
-        "subtitle_fontsize": 36,
         "scene_direction": (
             "Horizontal 16:9 wide clinic lobby screen format. "
             "MOLO can be positioned slightly off-center for a cinematic feel. "
@@ -80,33 +57,20 @@ CONTENT_TYPES = {
             "leaning on furniture, sitting on a dental chair, or waking up from a nap. "
             "Premium, warm, slightly humorous, like a living lobby host."
         ),
-        "video_prompt_boost": (
-            "Wide cinematic composition for a premium lobby display. "
-            "The character should feel naturally integrated into the clinic environment, not floating. "
-            "Elegant negative space, balanced framing, soft warm lighting. "
-            "The video must feel like a polished brand commercial, calm and editorial. "
-            "Camera: stable, no shake, no dramatic zoom. Subtle ambient motion only."
-        ),
         "image_rules": (
             "Wide horizontal composition. MOLO occupies 40-50% of frame. "
             "Significant negative space for cinematic feel. "
             "Background: warm premium clinic interior or minimal studio. "
             "The image must feel like a polished campaign still."
         ),
-        "thumbnail": False,
-        "thumbnail_w": 1920,
-        "thumbnail_h": 1080,
     },
     "robot": {
         "label": "🤖 Robot Ekranı (Speedy Pixel)",
         "width": 1080,
         "height": 1920,
         "aspect": "9:16",
-        "kling_aspect": "9:16",
         "orientation": "vertical",
         "is_greenscreen": False,
-        "subtitle_margin_v": 500,
-        "subtitle_fontsize": 46,
         "scene_direction": (
             "Vertical 9:16 robot display format for Saha Robotics Speedy Pixel. "
             "MOLO centered, front-facing, direct eye contact. "
@@ -114,45 +78,26 @@ CONTENT_TYPES = {
             "Warm, welcoming, conversational — like greeting clinic visitors face-to-face. "
             "Close to medium-close framing preferred since robot screen is smaller."
         ),
-        "video_prompt_boost": (
-            "Close conversational framing optimized for small robot display screen. "
-            "Direct eye contact, warm personal presence, slightly robotic charm. "
-            "The character should feel like they are talking directly to the viewer. "
-            "Intimate, friendly, reliable. Like a gentle host greeting you at the door."
-        ),
         "image_rules": (
             "Close-up to medium-close framing. MOLO fills 70-80% of vertical frame. "
             "Strong direct eye contact — must feel personal and intimate. "
             "Background: soft, warm, slightly blurred clinic. "
             "The image must feel welcoming and conversational."
         ),
-        "thumbnail": False,
-        "thumbnail_w": 1080,
-        "thumbnail_h": 1920,
     },
     "greenscreen": {
         "label": "🟢 Green Screen (Dikey)",
         "width": 1080,
         "height": 1920,
         "aspect": "9:16",
-        "kling_aspect": "9:16",
         "orientation": "vertical",
         "is_greenscreen": True,
-        "subtitle_margin_v": 550,
-        "subtitle_fontsize": 42,
         "scene_direction": (
             "Vertical 9:16 green screen studio shoot. "
             "CRITICAL: Background must be a perfectly uniform, solid, bright chroma green (#00B140). "
             "No shadows on the green background. No gradients. No fog. No floor. No props. "
             "MOLO is the only visible element. Green extends to all edges with zero variation. "
             "Professional studio lighting on character only — no light spill on green."
-        ),
-        "video_prompt_boost": (
-            "Chroma key ready professional studio shoot. "
-            "Perfectly flat, evenly lit, solid green (#00B140) background filling the ENTIRE frame edge to edge. "
-            "MOLO centered, front-facing. Soft key lighting on character, fill light to eliminate all shadows. "
-            "No floor reflections. No shadow cast on green surface. No ambient particles. "
-            "The green must remain PERFECTLY UNIFORM frame to frame — ready for live chroma key extraction."
         ),
         "image_rules": (
             "MOLO centered on perfectly flat solid chroma green (#00B140) background. "
@@ -161,33 +106,20 @@ CONTENT_TYPES = {
             "Character edges must be clean and sharp against the green — no green spill on character. "
             "The background must be pixel-perfect uniform green for chroma key."
         ),
-        "thumbnail": False,
-        "thumbnail_w": 1080,
-        "thumbnail_h": 1920,
     },
     "greenscreen-yatay": {
         "label": "🟢 Green Screen (Yatay)",
         "width": 1920,
         "height": 1080,
         "aspect": "16:9",
-        "kling_aspect": "16:9",
         "orientation": "horizontal",
         "is_greenscreen": True,
-        "subtitle_margin_v": 80,
-        "subtitle_fontsize": 36,
         "scene_direction": (
             "Horizontal 16:9 green screen studio shoot. "
             "CRITICAL: Background must be a perfectly uniform, solid, bright chroma green (#00B140). "
             "No shadows on the green background. No gradients. No fog. No floor. No props. "
             "MOLO can be positioned slightly off-center or left-third for compositing flexibility. "
             "Professional studio lighting on character only — no light spill on green."
-        ),
-        "video_prompt_boost": (
-            "Chroma key ready professional horizontal studio shoot. "
-            "Perfectly flat, evenly lit, solid green (#00B140) background filling the ENTIRE frame edge to edge. "
-            "MOLO positioned for compositing flexibility. Soft key lighting on character, fill light to eliminate all shadows. "
-            "No floor reflections. No shadow cast on green surface. No ambient particles. "
-            "The green must remain PERFECTLY UNIFORM frame to frame — ready for live chroma key extraction."
         ),
         "image_rules": (
             "MOLO on perfectly flat solid chroma green (#00B140) background, positioned slightly off-center. "
@@ -196,33 +128,20 @@ CONTENT_TYPES = {
             "Character edges must be clean and sharp against the green — no green spill on character. "
             "The background must be pixel-perfect uniform green for chroma key."
         ),
-        "thumbnail": False,
-        "thumbnail_w": 1920,
-        "thumbnail_h": 1080,
     },
     "greenscreen-kare": {
         "label": "🟢 Green Screen (Kare)",
         "width": 1080,
         "height": 1080,
         "aspect": "1:1",
-        "kling_aspect": "1:1",
         "orientation": "square",
         "is_greenscreen": True,
-        "subtitle_margin_v": 200,
-        "subtitle_fontsize": 38,
         "scene_direction": (
             "Square 1:1 green screen studio shoot. "
             "CRITICAL: Background must be a perfectly uniform, solid, bright chroma green (#00B140). "
             "No shadows on the green background. No gradients. No fog. No floor. No props. "
             "MOLO centered and filling 60-70% of frame. "
             "Professional studio lighting on character only — no light spill on green."
-        ),
-        "video_prompt_boost": (
-            "Chroma key ready professional square studio shoot. "
-            "Perfectly flat, evenly lit, solid green (#00B140) background filling the ENTIRE frame edge to edge. "
-            "MOLO centered, filling 60-70% of frame. Soft key lighting on character, fill light to eliminate all shadows. "
-            "No floor reflections. No shadow cast on green surface. No ambient particles. "
-            "The green must remain PERFECTLY UNIFORM frame to frame — ready for live chroma key extraction."
         ),
         "image_rules": (
             "MOLO centered on perfectly flat solid chroma green (#00B140) background, filling 60-70% of square frame. "
@@ -231,28 +150,9 @@ CONTENT_TYPES = {
             "Character edges must be clean and sharp against the green — no green spill on character. "
             "The background must be pixel-perfect uniform green for chroma key."
         ),
-        "thumbnail": False,
-        "thumbnail_w": 1080,
-        "thumbnail_h": 1080,
     },
 }
 DEFAULT_CONTENT_TYPE = "sosyal"
-
-# ─── Model Kilitleri (⚠️ KESİN KURAL: DEĞİŞTİRİLMEZ) ───
-KLING_MODEL = "kling-v3"                     # ⚠️ En son model — asla düşürülmez
-KLING_API_BASE = "https://api.klingai.com"
-KLING_DURATION = "5"
-KLING_CFG_SCALE = 0.7                         # Prompt'a bağlılık (0-1, 0.5 default, 0.7 sıkı)
-KLING_NEGATIVE_PROMPT = "triangular eyes, angular eyes, eye shape change, eye size change, face morphing, face distortion, asymmetric face, mouth cavity, teeth visible, tongue visible, extra limbs, blurry, low quality, watermark, text overlay, toy-like, bouncing, jittery, flickering, ghost features"
-# DEPRECATED: sahne pozisyonu yerine ortam bazli CFG kullanin (asagida)
-KLING_CFG_FIRST_LAST = 0.8                    # İlk ve son sahne — karakter tutarlılığı
-KLING_CFG_MIDDLE = 0.7                        # Orta sahneler — biraz yaratıcılık
-
-# ─── Ortam Bazli CFG (sahne pozisyonu yerine ortam bazli) ───
-KLING_CFG_STUDIO = 0.8      # studio = siki referans takibi
-KLING_CFG_CLINIC = 0.75     # klinik = orta
-KLING_CFG_EXTERNAL = 0.65   # dis mekan = yaratici ozgurluk
-KLING_MAX_PROMPT_CHARS = 2500  # ⚠️ API hard limit
 
 # ─── Görsel Variant Sistemi ───
 IMAGE_VARIANTS_COUNT = 2       # Her sahne için üretilecek alternatif görsel sayısı (1-3)
@@ -263,10 +163,6 @@ The scene should be empty — ready for text overlay or character compositing la
 {env_description}
 Style: Clean, well-lit, cinematic. High resolution, crisp edges.
 DO NOT include any character, mascot, robot, or person in the scene."""
-
-# ─── Kling Frame Mode ───
-KLING_FRAME_MODE_FIRST = "first_frame"   # varsayılan — görsel ilk kare olarak kullanılır
-KLING_FRAME_MODE_LAST = "last_frame"     # kullanıcı seçimi — görsel son kare olarak
 
 GEMINI_IMAGE_MODEL = "gemini-3.1-flash-image-preview"  # Nano Banana 2
 GEMINI_TEXT_MODEL = "gemini-2.5-flash"                  # Çeviri için
@@ -293,33 +189,6 @@ VOICE_DEFAULT = {
     "style": 0.45,
     "speed": 1.00,
 }
-
-# ─── Altyazı Stilleri ───
-SUBTITLE_STYLES = {
-    "premium": {
-        "fontname": "Montserrat",
-        "bold": True,
-        "outline": 2,
-        "shadow": 1,
-        "border_style": 1,           # 1=outline+shadow, 3=opaque box
-        "primary_color": "&H00FFFFFF",
-        "outline_color": "&H40000000",  # Yarı-saydam siyah
-        "back_color": "&H80000000",     # Yarı-saydam arka plan
-        "spacing": 1,
-    },
-    "minimal": {
-        "fontname": "Arial",
-        "bold": True,
-        "outline": 1,
-        "shadow": 0,
-        "border_style": 4,
-        "primary_color": "&H00FFFFFF",
-        "outline_color": "&H00000000",
-        "back_color": "&H96000000",
-        "spacing": 0,
-    },
-}
-DEFAULT_SUBTITLE_STYLE = "premium"
 
 # ─── Brief Şablonu ───
 BRIEF_TEMPLATE = """# [Konu Başlığı]
@@ -483,62 +352,6 @@ VOICE_PROFILES = {
     "tr": "Molo-tr",
 }
 
-# ─── Kling Kompakt Video Prompt Bloklari (2500 char limit) ───
-
-# YENi: Tek parca dikey video kilidi (eski COMPACT_LOCK + COMPACT_MOTION + COMPACT_FACE_LOCK)
-COMPACT_VIDEO_LOCK = """Character locked to reference: same face, round eyes, mouth, body,
-blue-white colors, hologram. No redesign. 3D robot host, not cartoon.
-Eyes: ROUND throughout — never triangular or angular. Same size as reference.
-Movement: minimal, controlled, robotic. Small upper-body only. Front-facing, eye contact.
-No bouncing, elastic motion, wobble. Face stable — no morphing, warping, expression spikes.
-Lip sync: speech-driven, moderate openings. No glow, no jitter.
-Gestures: very small and elegant only."""
-
-# YENi: Tek parca ekran video kilidi (eski COMPACT_LOCK_EKRAN + COMPACT_MOTION_EKRAN)
-COMPACT_VIDEO_LOCK_EKRAN = """Character locked to reference: same face, round eyes, mouth, body,
-blue-white colors, hologram. No redesign. 3D robot host in horizontal commercial scene.
-Eyes: ROUND throughout — never triangular or angular. Same size as reference.
-Movement: minimal, controlled, robotic. Small upper-body only. Elegant negative space.
-No bouncing, elastic motion, wobble. Face stable — no morphing, warping, expression spikes.
-Lip sync: speech-driven, moderate openings. No glow, no jitter.
-Camera: horizontal composition, balanced framing, no dramatic motion.
-Lighting: soft warm studio, subtle shadows, polished material. No harsh contrast."""
-
-# YENi: Tek parca green screen video kilidi (eski COMPACT_LOCK_GS + COMPACT_MOTION_GS)
-COMPACT_VIDEO_LOCK_GS = """Character: MOLO — compact dental robot. Dark navy-blue body. Face exactly as reference — same ROUND eye size/shape, same mouth. Hologram cone on top glowing cyan. NOT a cartoon. Clean 3D-rendered robot.
-BACKGROUND: MUST be perfectly flat solid chroma green (#00B140). No exceptions.
-Eyes: ROUND throughout — never triangular or angular. Same size as reference.
-Movement: minimal, controlled, robotic. Small 2-5cm movements only. No bouncing, no elastic.
-Character stays in place. Background must remain perfectly static uniform green throughout."""
-
-# DEPRECATED: eski kompakt bloklar — geriye uyumluluk icin alias
-COMPACT_LOCK = COMPACT_VIDEO_LOCK
-COMPACT_MOTION = ""  # artik COMPACT_VIDEO_LOCK icinde birlesik
-COMPACT_LOCK_EKRAN = COMPACT_VIDEO_LOCK_EKRAN
-COMPACT_MOTION_EKRAN = ""  # artik COMPACT_VIDEO_LOCK_EKRAN icinde birlesik
-COMPACT_LOCK_GS = COMPACT_VIDEO_LOCK_GS
-COMPACT_MOTION_GS = ""  # artik COMPACT_VIDEO_LOCK_GS icinde birlesik
-
-# DEPRECATED: yuz anatomisi kilidi — artik CHARACTER_LOCK_IMAGE icinde
-FACE_ANATOMY_LOCK = CHARACTER_LOCK_IMAGE
-
-
-# ─── Video Yüz Animasyon Kilidi (kare-kare tutarlılık) ───
-FACE_CONSISTENCY_VIDEO_LOCK = """FACE CONSISTENCY DURING ANIMATION:
-- Face must match reference in EVERY frame — no reinterpretation
-- Eye SIZE and SHAPE must stay IDENTICAL frame-to-frame — eyes are ROUND, never triangular or angular
-- Eye proportions must not change — do not enlarge or reshape mid-animation
-- If eyes start round in frame 1, they MUST remain round in every subsequent frame
-- Mouth shape must return to same neutral position between words
-- Visor size/shape/darkness must not change
-- No face morphing, stretching, warping during movement
-- No flickering, no asymmetric sizing, no ghost features
-- No face elements drifting position on visor"""
-
-
-# DEPRECATED: kompakt yuz kilidi — artik COMPACT_VIDEO_LOCK icinde
-COMPACT_FACE_LOCK = ""  # icerik artik COMPACT_VIDEO_LOCK bloklarina dahil
-
 # ─── Sahne Ortam Prompt Blokları ───
 CLINIC_ENV_BLOCK = """Also use the provided clinic background reference as the environmental base for this composition. The final image must clearly place MOLO inside that premium dental clinic environment. The clinic interior should remain visible, readable, and recognizable behind and around MOLO.
 
@@ -577,116 +390,3 @@ Style: Premium photorealistic composite — a high-quality 3D character naturall
 
 # DEPRECATED: gorsel kalite kilidi — artik CHARACTER_LOCK_IMAGE icinde
 IMAGE_QUALITY_LOCK = CHARACTER_LOCK_IMAGE
-
-# ─── FFmpeg Kalite Filtreleri ───
-QUALITY_FILTERS = {
-    "unsharp": "3:3:0.5",        # keskinlik
-    "contrast": 1.05,
-    "brightness": 0.02,
-    "saturation": 1.1,
-    "crf": 16,                    # (18 varsayılan, 16 daha yüksek kalite)
-    "pix_fmt": "yuv420p",
-    "profile": "high",
-    "movflags": "+faststart",
-    "preset": "slow",
-}
-
-# ─── Final Video Yavaşlatma ───
-# Konuşma çok hızlı hissediliyorsa, final videoya hafif slowdown uygulanır
-# 0.88 = %12 yavaşlatma (doğal, rahat konuşma hızı)
-AUDIO_SLOWDOWN = 0.88
-
-# ─── Gorsel Varyant Sayisi ───
-# Kullaniciya kac alternatif gorselden secim yaptirmak istiyoruz
-IMAGE_VARIANTS_COUNT = 2
-
-# ─── Akıllı Sahne Bazlı Slowdown ───
-# Konuşma hızına göre her sahneye farklı yavaşlatma
-SMART_SLOWDOWN_TARGET_WPS = 2.5   # Hedef: 2.5 kelime/saniye (rahat dinleme)
-SMART_SLOWDOWN_FAST_WPS = 3.0     # Bu üstü → yavaşlatılır
-SMART_SLOWDOWN_SLOW_WPS = 2.0     # Bu altı → dokunulmaz (speed=1.0)
-SMART_SLOWDOWN_MIN = 0.75         # Minimum speed (max %25 yavaşlatma)
-SMART_SLOWDOWN_MAX = 1.0          # Maximum speed (hızlandırma yok)
-
-# ─── Crossfade ───
-CROSSFADE_DURATION = 0.7
-
-# ─── Sahne Arası Nefes Boşluğu ───
-# Her sahne sonuna eklenen sessiz uzatma (son kare dondurulur)
-SCENE_PADDING = 0.4    # saniye — sahne sonunda nefes alanı
-
-# ─── Freeze-Frame (Son Kare Dondurma) ───
-# Video kısa kaldığında son kareyi dondurarak uzatır (tpad filtresi)
-# Pingpong/loop'a göre çok daha doğal — karakter "dinliyormuş" gibi görünür
-FREEZE_FRAME_MAX = 3.0      # Max freeze süresi (saniye) — bundan sonra pingpong/loop kullan
-FREEZE_FRAME_FADE = 0.3     # Freeze'e geçişte "stillness" fade süresi
-
-# ─── Per-Scene Nefes Boşluğu ───
-# Ses sonundaki yumuşak fade-out — sahneler arası keskin kesilme hissini azaltır
-SCENE_BREATH_FADE = 0.2     # saniye
-
-# ─── Sahne Geçiş Tipleri ───
-# FFmpeg xfade desteklenen geçişler
-TRANSITION_TYPES = [
-    "fade",           # standart fade (varsayılan)
-    "fadeblack",      # siyah üzerinden fade
-    "fadewhite",      # beyaz üzerinden fade
-    "dissolve",       # yumuşak dissolve
-    "wipeleft",       # soldan sil
-    "wiperight",      # sağdan sil
-    "wipeup",         # alttan sil
-    "wipedown",       # üstten sil
-    "slideleft",      # sola kaydir
-    "slideright",     # sağa kaydir
-    "slideup",        # yukarı kaydir
-    "slidedown",      # aşağı kaydir
-]
-DEFAULT_TRANSITION = "fade"
-
-# ─── Arka Plan Müziği ───
-BGM_VOLUME_DB = -22           # konuşmaya göre çok düşük (-22dB)
-BGM_FADE_IN = 1.5             # giriş fade (saniye)
-BGM_FADE_OUT = 2.0            # çıkış fade (saniye)
-BGM_DIR = BASE_DIR / "_bgm"   # müzik dosyaları dizini
-
-# ─── Otomatik Thumbnail (Gemini Nano Banana 2) ───
-# Thumbnail boyutları content-type'dan alınır: _ct['thumbnail_w'], _ct['thumbnail_h']
-THUMBNAIL_WIDTH = 1080   # varsayılan (sosyal)
-THUMBNAIL_HEIGHT = 1920  # varsayılan (sosyal)
-
-# ─── Kling Retry ───
-KLING_MAX_PARALLEL = 3         # API paralel task limiti
-KLING_RETRY_WAIT = 30          # retry arası bekleme (saniye)
-KLING_MAX_RETRIES = 3          # max retry per scene
-
-# ─── FFmpeg Yardımcı Fonksiyonlar ───
-def get_normalize_filter(with_quality=False, content_type=None):
-    """Normalize filter — content type'a göre doğru boyut kullanır.
-    Green screen modunda renk düzeltme atlanır ve pad rengi chroma green olur."""
-    if content_type and content_type in CONTENT_TYPES:
-        ct = CONTENT_TYPES[content_type]
-        w, h = ct["width"], ct["height"]
-    else:
-        w, h = OUTPUT_WIDTH, OUTPUT_HEIGHT
-
-    # Green screen için pad rengi chroma green, renk düzeltme yok
-    is_gs = content_type and CONTENT_TYPES.get(content_type, {}).get("is_greenscreen", False)
-    pad_color = "color=0x00B140" if is_gs else "black"
-
-    base = (
-        f"scale={w}:{h}:"
-        f"force_original_aspect_ratio=decrease:flags=lanczos,"
-        f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:{pad_color},"
-        f"setsar=1"
-    )
-
-    if is_gs:
-        return base  # unsharp/contrast/brightness/saturation yeşili bozar
-
-    if with_quality:
-        q = QUALITY_FILTERS
-        base += (
-            f",unsharp={q['unsharp']}"
-            f",eq=contrast={q['contrast']}:brightness={q['brightness']}:saturation={q['saturation']}"
-        )
-    return base
