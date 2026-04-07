@@ -9,12 +9,6 @@ export type PipelineStep =
   | "images"
   | "image_review"
   | "voice"
-  | "approval"
-  | "videos"
-  | "edit"
-  | "subtitles"
-  | "slowdown"
-  | "thumbnail"
   | "done"
   | "error";
 

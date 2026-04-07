@@ -7,10 +7,6 @@ import {
   LayoutDashboard,
   FileText,
   Film,
-  Mic2,
-  ImageIcon,
-  Video,
-  Scissors,
   Settings,
   ChevronDown,
   FolderOpen,
@@ -26,10 +22,6 @@ const navItems = [
   { href: "/", icon: LayoutDashboard, label: "Dashboard", needsProject: false },
   { href: "/brief", icon: FileText, label: "Brief", needsProject: false },
   { href: "/scenes", icon: Film, label: "Sahneler", needsProject: true },
-  { href: "/voice", icon: Mic2, label: "Ses", needsProject: true },
-  { href: "/images", icon: ImageIcon, label: "Görseller", needsProject: true },
-  { href: "/video", icon: Video, label: "Video", needsProject: true },
-  { href: "/edit", icon: Scissors, label: "Kurgu", needsProject: true },
   { href: "/settings", icon: Settings, label: "Ayarlar", needsProject: false },
 ];
 

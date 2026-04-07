@@ -12,9 +12,6 @@ import {
   Smartphone,
   Bot,
   Trash2,
-  Mic2,
-  ImageIcon,
-  Scissors,
   Play,
   Loader2,
   CheckCircle2,
@@ -60,16 +57,10 @@ const STATUS_CONFIG: Record<
 
 const PIPELINE_PROGRESS: Record<string, number> = {
   idle: 0,
-  script: 10,
-  images: 25,
-  image_review: 35,
-  voice: 50,
-  approval: 60,
-  videos: 70,
-  edit: 80,
-  subtitles: 85,
-  slowdown: 90,
-  thumbnail: 95,
+  script: 15,
+  images: 40,
+  image_review: 50,
+  voice: 75,
   done: 100,
   error: 0,
 };
@@ -272,34 +263,6 @@ function ProjectCard({
           >
             <FolderOpen size={12} /> Sahneler
           </Link>
-          <Link
-            href={`/images?project=${project.id}`}
-            className="btn btn-ghost"
-            style={{ fontSize: 11, padding: "4px 8px" }}
-          >
-            <ImageIcon size={12} /> Gorseller
-          </Link>
-          <Link
-            href={`/voice?project=${project.id}`}
-            className="btn btn-ghost"
-            style={{ fontSize: 11, padding: "4px 8px" }}
-          >
-            <Mic2 size={12} /> Ses
-          </Link>
-          <Link
-            href={`/video?project=${project.id}`}
-            className="btn btn-ghost"
-            style={{ fontSize: 11, padding: "4px 8px" }}
-          >
-            <Play size={12} /> Video
-          </Link>
-          <Link
-            href={`/edit?project=${project.id}`}
-            className="btn btn-ghost"
-            style={{ fontSize: 11, padding: "4px 8px" }}
-          >
-            <Scissors size={12} /> Kurgu
-          </Link>
         </div>
       </div>
     </Card>
@@ -389,16 +352,16 @@ export default function DashboardPage() {
       {/* Stats */}
       <div className="stat-grid" style={{ position: "relative", zIndex: 1 }}>
         <StatCard
-          label="Toplam Video"
-          value={String(totalVideos)}
-          detail={`${projects.length} proje`}
+          label="Toplam Proje"
+          value={String(projects.length)}
+          detail={`${totalVideos} tamamlandi`}
           accent="teal"
           icon={Film}
         />
         <StatCard
           label="Toplam Sahne"
           value={String(totalScenes)}
-          detail="Kling v3 ile uretildi"
+          detail="Gemini ile uretildi"
           accent="purple"
           icon={TrendingUp}
         />
