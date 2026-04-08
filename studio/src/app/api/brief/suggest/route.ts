@@ -59,7 +59,7 @@ const PLATFORM_CONTEXT: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { contentType, lang, tone, existingTopics, category } = await req.json();
+    const { contentType, lang, tone, existingTopics, category, selectedTrends } = await req.json();
 
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
@@ -84,41 +84,23 @@ export async function POST(req: NextRequest) {
       ? `\nSADECE "${CATEGORIES[category].label}" kategorisinden 6 öneri üret.\nKategori açıklaması: ${CATEGORIES[category].desc}\nÖrnek konular: ${CATEGORIES[category].examples}`
       : `\nTÜM kategorilerden karışık 8 öneri üret. Her önerinin hangi kategoriye ait olduğunu belirt.\nKategoriler: ${Object.entries(CATEGORIES).map(([k, v]) => `${v.emoji} ${v.label} (key: ${k})`).join(", ")}`;
 
-    // ── Step 1: Fetch real-time TikTok trends via Gemini + Google Search ──
-    let liveTrends = "";
-    try {
-      const trendRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `Search the web and list the top 10 TikTok trends happening RIGHT NOW globally this week (April 2026). Include:
-1. Viral challenges and their names
-2. Popular video formats (POV, GRWM, skit types)
-3. Brand mascot trends (Duolingo owl, Scrub Daddy, Nutter Butter style content)
-4. Trending sounds/audios being used
-5. Any dental/health related viral content
+    // Build trend context from user's selected trends
+    let trendBlock = "";
+    if (selectedTrends?.length > 0) {
+      const trendList = selectedTrends.map((t: { name: string; description: string; platforms?: string[]; mascot_adaptation?: string }) =>
+        `- ${t.name} (${t.platforms?.join(", ") || "TikTok"}): ${t.description}${t.mascot_adaptation ? `\n  Maskot uyarlama: ${t.mascot_adaptation}` : ""}`
+      ).join("\n");
+      trendBlock = `
 
-Be SPECIFIC with trend names, not generic. Return a concise bullet list.` }] }],
-            generationConfig: { temperature: 0.5, maxOutputTokens: 1500 },
-            tools: [{ google_search: {} }],
-          }),
-          signal: AbortSignal.timeout(15000),
-        }
-      );
-      if (trendRes.ok) {
-        const trendData = await trendRes.json();
-        liveTrends = trendData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        if (liveTrends) {
-          liveTrends = `\n\nGERÇEK ZAMANLI TIKTOK TRENDLERİ (web aramasından, ${today}):\n${liveTrends}\n\nBu trendleri ÖNERİLERİNE YANSIT. Her öneri bu listeden en az bir trende referans versin.`;
-        }
-      }
-    } catch {
-      // Search grounding failed — continue without live trends
+KULLANICININ SEÇTİĞİ GÜNCEL TRENDLER (Perplexity ile gerçek zamanlı çekildi):
+${trendList}
+
+TÜM önerilerin bu seçilen trendlere dayanması ZORUNLU.
+Her öneri, yukarıdaki trendlerden birini MOLO karakteriyle uyarlamalı.
+trend_reference alanında hangi seçilen trende dayandığını yaz.`;
     }
 
-    // ── Step 2: Generate suggestions with trend context ──
+    // ── Generate suggestions with trend context ──
     const prompt = `Sen İSTADENTAL diş kliniğinin maskotu MOLO için yaratıcı, viral potansiyelli TikTok içerik önerileri üreten bir yaratıcı direktörsün.
 
 MOLO KARAKTERİ:
@@ -131,7 +113,7 @@ MOLO KARAKTERİ:
 - Almanya'daki Türk diş kliniğinin maskotu
 
 BUGÜNÜN TARİHİ: ${today}
-${liveTrends}
+${trendBlock}
 
 PLATFORM: ${platform}
 

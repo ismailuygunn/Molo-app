@@ -141,6 +141,16 @@ interface ScenePreview {
   emotion_note: string;
 }
 
+interface TrendItem {
+  name: string;
+  platforms: string[];
+  description: string;
+  mascot_adaptation: string;
+  virality: string;
+  hashtags: string[];
+  format_type: string;
+}
+
 /* ─────────────────────────── Page ─────────────────────────── */
 
 export default function BriefPage() {
@@ -162,7 +172,11 @@ export default function BriefPage() {
   const [trendContext, setTrendContext] = useState("");
   const [hashtags, setHashtags] = useState("#MoloMobil #IstaDental");
 
-  // Trend fetching removed — trends are now part of AI suggestions
+  // Trend discovery state
+  const [trends, setTrends] = useState<TrendItem[]>([]);
+  const [trendsLoading, setTrendsLoading] = useState(false);
+  const [selectedTrends, setSelectedTrends] = useState<TrendItem[]>([]);
+  const [trendsError, setTrendsError] = useState("");
 
   // New brief fields
   const [hedefKitle, setHedefKitle] = useState("");
@@ -224,6 +238,7 @@ export default function BriefPage() {
           tone,
           existingTopics: konu ? [konu] : [],
           category: selectedCategory,
+          selectedTrends: selectedTrends.length > 0 ? selectedTrends : undefined,
         }),
       });
       const data = await res.json();
@@ -250,6 +265,31 @@ export default function BriefPage() {
     }
   };
 
+  const fetchTrends = async () => {
+    setTrendsLoading(true);
+    setTrendsError("");
+    try {
+      const res = await fetch("/api/trends");
+      const data = await res.json();
+      if (data.trends?.length) {
+        setTrends(data.trends);
+      } else if (data.error) {
+        setTrendsError(data.configured === false ? "Perplexity API key gerekli (Ayarlar sayfasından ekleyin)" : data.error);
+      }
+    } catch {
+      setTrendsError("Trend verisi alınamadı");
+    } finally {
+      setTrendsLoading(false);
+    }
+  };
+
+  // Auto-fill trendContext from selectedTrends
+  useEffect(() => {
+    if (selectedTrends.length > 0) {
+      setTrendContext(selectedTrends.map(t => `${t.name}: ${t.description}`).join("\n"));
+    }
+  }, [selectedTrends]);
+
   const applySuggestion = (s: Suggestion) => {
     const cleanTitle = s.title
       .replace(/^[\p{Emoji}\p{Emoji_Presentation}\p{Emoji_Modifier_Base}\s]+/u, "")
@@ -259,7 +299,11 @@ export default function BriefPage() {
       ? `${s.concept}\n\nHook: "${s.hook}"`
       : s.concept;
     setConcept(fullConcept);
-    if (s.hashtags?.length) setHashtags(s.hashtags.join(" "));
+    if (s.hashtags?.length) {
+      const trendHashtags = selectedTrends.flatMap(t => t.hashtags || []);
+      const allHashtags = [...new Set([...s.hashtags, ...trendHashtags])];
+      setHashtags(allHashtags.join(" "));
+    }
     toast.success("Oneri uygulandi!");
   };
 
@@ -546,6 +590,113 @@ export default function BriefPage() {
             {maxScenes} sahne x ~8-12s = ~{maxScenes * 10}s video
           </div>
         </section>
+
+        {/* ── Güncel Trendler ── */}
+        <Card>
+          <div style={{ padding: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+                Guncel Trendler
+              </h3>
+              <button
+                onClick={fetchTrends}
+                disabled={trendsLoading}
+                className="btn btn-secondary"
+                style={{ fontSize: 12, padding: "6px 14px" }}
+              >
+                {trendsLoading ? "Yukleniyor..." : trends.length > 0 ? "Yenile" : "Trendleri Yukle"}
+              </button>
+            </div>
+
+            {trendsError && (
+              <div style={{ padding: "10px 14px", borderRadius: "var(--radius-md)", background: "rgba(239,68,68,0.08)", color: "var(--accent-red)", fontSize: 12, marginBottom: 12 }}>
+                {trendsError}
+              </div>
+            )}
+
+            {trendsLoading && (
+              <div style={{ textAlign: "center", padding: 24 }}>
+                <MoloLoading size={32} text="Guncel trendler aranıyor..." />
+              </div>
+            )}
+
+            {!trendsLoading && trends.length > 0 && (
+              <>
+                <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 8, marginBottom: 12 }}>
+                  {trends.map((trend, i) => {
+                    const isSelected = selectedTrends.some(t => t.name === trend.name);
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => {
+                          setSelectedTrends(prev =>
+                            isSelected
+                              ? prev.filter(t => t.name !== trend.name)
+                              : [...prev, trend]
+                          );
+                        }}
+                        style={{
+                          minWidth: 220, maxWidth: 260, padding: "14px 16px",
+                          borderRadius: "var(--radius-md)", cursor: "pointer",
+                          border: `2px solid ${isSelected ? "var(--accent-teal)" : "var(--border-subtle)"}`,
+                          background: isSelected ? "rgba(20,184,166,0.04)" : "var(--bg-card)",
+                          transition: "all 0.2s",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)" }}>
+                            {trend.name}
+                          </span>
+                          {isSelected && (
+                            <span style={{ color: "var(--accent-teal)", fontSize: 16 }}>&#10003;</span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: 4, marginBottom: 6, flexWrap: "wrap" }}>
+                          {trend.platforms?.map((p, j) => (
+                            <span key={j} style={{
+                              fontSize: 10, padding: "1px 6px", borderRadius: 8,
+                              background: p === "tiktok" ? "rgba(0,0,0,0.06)" : p === "reels" ? "rgba(225,48,108,0.08)" : "rgba(255,0,0,0.06)",
+                              color: "var(--text-muted)", fontWeight: 500,
+                            }}>
+                              {p}
+                            </span>
+                          ))}
+                          <span style={{
+                            fontSize: 10, padding: "1px 6px", borderRadius: 8,
+                            background: trend.virality === "peak" ? "rgba(239,68,68,0.1)" : trend.virality === "rising" ? "rgba(34,197,94,0.1)" : "rgba(156,163,175,0.1)",
+                            color: trend.virality === "peak" ? "var(--accent-red, #ef4444)" : trend.virality === "rising" ? "var(--accent-green)" : "var(--text-muted)",
+                            fontWeight: 600,
+                          }}>
+                            {trend.virality === "peak" ? "peak" : trend.virality === "rising" ? "rising" : "declining"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.4, marginBottom: 6 }}>
+                          {trend.description?.slice(0, 100)}{trend.description?.length > 100 ? "..." : ""}
+                        </div>
+                        <div style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: "italic" }}>
+                          {trend.format_type}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {selectedTrends.length > 0 && (
+                  <div style={{ fontSize: 12, color: "var(--accent-teal)", fontWeight: 500 }}>
+                    {selectedTrends.length} trend secildi -- AI onerileri bu trendlere gore uretilecek
+                  </div>
+                )}
+              </>
+            )}
+
+            {!trendsLoading && trends.length === 0 && !trendsError && (
+              <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-muted)", fontSize: 13 }}>
+                Guncel short-form video trendlerini gormek icin &quot;Trendleri Yukle&quot; butonuna basin
+              </div>
+            )}
+          </div>
+        </Card>
 
         {/* ── Section: AI Icerik Onerileri ── */}
         <Card accent="teal">
@@ -965,22 +1116,6 @@ export default function BriefPage() {
                   disabled={!seriesName}
                   style={{ opacity: seriesName ? 1 : 0.4 }}
                 />
-              </div>
-            </div>
-
-            {/* Trend Context */}
-            <div style={{ marginBottom: 16 }}>
-              <label className="label">Trend Baglami (opsiyonel)</label>
-              <textarea
-                className="input"
-                value={trendContext}
-                onChange={(e) => setTrendContext(e.target.value)}
-                placeholder="ör: 'Get ready with me' formati, 'POV' trendi, 'Day in the life' formati"
-                rows={2}
-                style={{ resize: "vertical", minHeight: 48 }}
-              />
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-                AI icerik onerileri otomatik olarak guncel TikTok trendlerini dikkate alir
               </div>
             </div>
 
