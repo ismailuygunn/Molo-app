@@ -118,6 +118,9 @@ interface Suggestion {
   category?: string;
   molo_attitude?: string;
   hashtags?: string[];
+  trend_reference?: string;
+  hook_alternatives?: string[];
+  caption?: string;
 }
 
 interface CategoryInfo {
@@ -786,6 +789,23 @@ export default function BriefPage() {
                         }}
                       >
                         &quot;{s.hook}&quot;
+                      </div>
+                    )}
+
+                    {/* Trend Reference */}
+                    {s.trend_reference && (
+                      <div
+                        style={{
+                          fontSize: 11,
+                          color: "var(--accent-purple, #8b5cf6)",
+                          marginBottom: 8,
+                          padding: "4px 8px",
+                          background: "rgba(139,92,246,0.06)",
+                          borderRadius: "var(--radius-sm)",
+                          display: "inline-block",
+                        }}
+                      >
+                        Trend: {String(s.trend_reference)}
                       </div>
                     )}
 
