@@ -47,6 +47,12 @@ import random
 _content_type_key = DEFAULT_CONTENT_TYPE
 _ct = CONTENT_TYPES[DEFAULT_CONTENT_TYPE].copy()
 
+# ── TikTok metadata (main'de set edilir) ──
+_series_name = ""
+_episode_number = 0
+_trend_context = ""
+_hashtags_raw = ""
+
 from google import genai
 from google.genai import types as gtypes
 
@@ -221,6 +227,30 @@ AUDIENCE ENGAGEMENT:
 - Include at least one "share-worthy" moment per video (something viewers would screenshot or quote)
 - End with a memorable farewell that varies — not always the same goodbye
 
+TIKTOK OPTIMIZATION:
+- HOOK (first 3 seconds): The MOST CRITICAL part of the entire video.
+  Generate the main hook AND 3 alternative hooks in the output JSON.
+  Hook types:
+  1. Question hook: "Wusstet ihr, dass...?" / Surprising question
+  2. Statement hook: Bold or controversial statement that demands attention
+  3. Action hook: Start mid-action, as if viewer walked into something happening
+  The hook must make viewers STOP SCROLLING instantly.
+- END: Close with a CLIFFHANGER or CALL-TO-ACTION that drives comments/shares.
+  Examples: "Nächste Woche zeige ich euch...", "Schreibt mir was ihr denkt!"
+- PACING: TikTok viewers have SHORT attention spans. Keep energy HIGH throughout.
+- Also generate 5-8 hashtags and a ready-to-post caption for TikTok.
+""" + (f"""
+SERIES CONTEXT:
+This is Episode {_episode_number} of the series '{_series_name}'.
+- Reference previous episodes naturally if episode > 1
+- End with a teaser for the next episode
+- Include series branding in the title
+""" if _series_name else "") + (f"""
+TREND CONTEXT:
+{_trend_context}
+Adapt MOLO's style to fit this trend format naturally while staying in character.
+""" if _trend_context else "") + """
+
 CRITICAL RULES FOR SCRIPT WRITING:
 - The brief may be written in Turkish. Regardless of brief language, write scene texts in {target_lang}.
 - For each scene, also provide 'text_tr' field with the Turkish translation of the scene text. This is for the content creator's reference only and will NOT be used in production.
@@ -278,6 +308,10 @@ SCENE VARIETY RULES:
 OUTPUT FORMAT — Return ONLY valid JSON, no markdown:
 {{
   "title": "short content title",
+  "hook_text": "the strongest opening line for the first 3 seconds — scroll-stopper",
+  "hook_alternatives": ["alternative hook 1 (question)", "alternative hook 2 (statement)", "alternative hook 3 (action)"],
+  "hashtags": ["#MoloMobil", "#IstaDental", "#topic_specific", "#trending_tag", "#engagement_tag"],
+  "caption": "Ready-to-post TikTok caption (1-2 sentences + emojis)",
   "scenes": [
     {{
       "scene": 1,
@@ -962,6 +996,48 @@ def main():
             except (ValueError, IndexError):
                 pass
 
+    # ── TikTok metadata parse ──
+    global _series_name, _episode_number, _trend_context, _hashtags_raw
+    _series_name = ""
+    _episode_number = 0
+    _trend_context = ""
+    _hashtags_raw = ""
+
+    in_trend_section = False
+    in_hashtag_section = False
+    for line in brief_text.split("\n"):
+        ll = line.lower().strip()
+        if ll.startswith("## trend"):
+            in_trend_section = True
+            in_hashtag_section = False
+            continue
+        if ll.startswith("## hashtag"):
+            in_hashtag_section = True
+            in_trend_section = False
+            continue
+        if ll.startswith("## "):
+            in_trend_section = False
+            in_hashtag_section = False
+            continue
+        if in_trend_section and line.strip():
+            _trend_context += line.strip() + " "
+        if in_hashtag_section and line.strip():
+            _hashtags_raw += line.strip() + " "
+        if "seri:" in ll:
+            _series_name = line.split(":", 1)[1].strip()
+        if any(m in ll for m in ["bölüm:", "bolum:", "episode:"]):
+            try:
+                _episode_number = int(line.split(":", 1)[1].strip())
+            except (ValueError, IndexError):
+                pass
+    _trend_context = _trend_context.strip()
+    _hashtags_raw = _hashtags_raw.strip()
+
+    if _series_name:
+        print(f"   📺 Seri: {_series_name} (Bölüm {_episode_number})")
+    if _trend_context:
+        print(f"   🔥 Trend: {_trend_context[:60]}...")
+
     # Progress tracking başlat
     global _progress_path
     _progress_path = str(project_dir / "progress.json")
@@ -1022,7 +1098,16 @@ def main():
             scenes_dir.mkdir(parents=True, exist_ok=True)
             scenes_json_path = scenes_dir / "scenes.json"
             with open(scenes_json_path, "w", encoding="utf-8") as f:
-                json.dump({"title": script.get("title", ""), "scenes": scenes, "lang": lang},
+                json.dump({
+                    "title": script.get("title", ""),
+                    "scenes": scenes,
+                    "lang": lang,
+                    "hook_text": script.get("hook_text", ""),
+                    "hook_alternatives": script.get("hook_alternatives", []),
+                    "hashtags": script.get("hashtags", []),
+                    "caption": script.get("caption", ""),
+                    "series": {"name": _series_name, "episode": _episode_number} if _series_name else None,
+                },
                           f, ensure_ascii=False, indent=2)
 
             # Önceki resume sinyalini temizle

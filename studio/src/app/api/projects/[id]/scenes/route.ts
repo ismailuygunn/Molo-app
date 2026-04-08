@@ -21,6 +21,11 @@ export async function GET(
   let totalDuration = 0;
   let title = "";
   let lang = "de";
+  let hookText = "";
+  let hookAlternatives: string[] = [];
+  let hashtags: string[] = [];
+  let caption = "";
+  let series: unknown = null;
 
   // Read scenes.json
   try {
@@ -35,6 +40,11 @@ export async function GET(
       totalDuration = raw.total_duration || 0;
       title = raw.title || "";
       lang = raw.lang || "de";
+      hookText = (raw as Record<string, unknown>).hook_text as string || "";
+      hookAlternatives = (raw as Record<string, unknown>).hook_alternatives as string[] || [];
+      hashtags = (raw as Record<string, unknown>).hashtags as string[] || [];
+      caption = (raw as Record<string, unknown>).caption as string || "";
+      series = (raw as Record<string, unknown>).series || null;
     }
   } catch {
     /* no scenes yet */
@@ -89,5 +99,10 @@ export async function GET(
     title,
     lang,
     qcScores,
+    hookText,
+    hookAlternatives,
+    hashtags,
+    caption,
+    series,
   });
 }

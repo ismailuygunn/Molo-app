@@ -117,6 +117,7 @@ interface Suggestion {
   hook?: string;
   category?: string;
   molo_attitude?: string;
+  hashtags?: string[];
 }
 
 interface CategoryInfo {
@@ -151,6 +152,12 @@ export default function BriefPage() {
   const [maxScenes, setMaxScenes] = useState(4);
   const [concept, setConcept] = useState("");
   const [gsSize, setGsSize] = useState("dikey");
+
+  // TikTok optimization fields
+  const [seriesName, setSeriesName] = useState("");
+  const [episodeNumber, setEpisodeNumber] = useState(1);
+  const [trendContext, setTrendContext] = useState("");
+  const [hashtags, setHashtags] = useState("#MoloMobil #IstaDental");
 
   // New brief fields
   const [hedefKitle, setHedefKitle] = useState("");
@@ -247,6 +254,7 @@ export default function BriefPage() {
       ? `${s.concept}\n\nHook: "${s.hook}"`
       : s.concept;
     setConcept(fullConcept);
+    if (s.hashtags?.length) setHashtags(s.hashtags.join(" "));
     toast.success("Oneri uygulandi!");
   };
 
@@ -270,6 +278,10 @@ export default function BriefPage() {
           concept: enrichedConcept,
           maxScenes,
           gsSize,
+          seriesName: seriesName || undefined,
+          episodeNumber: seriesName ? episodeNumber : undefined,
+          trendContext: trendContext || undefined,
+          hashtags: hashtags ? hashtags.split(/\s+/).filter(Boolean) : undefined,
         }),
       });
       const data = await res.json();
@@ -324,6 +336,10 @@ export default function BriefPage() {
           concept: enrichedConcept,
           maxScenes,
           gsSize,
+          seriesName: seriesName || undefined,
+          episodeNumber: seriesName ? episodeNumber : undefined,
+          trendContext: trendContext || undefined,
+          hashtags: hashtags ? hashtags.split(/\s+/).filter(Boolean) : undefined,
         }),
       });
       const data = await res.json();
@@ -894,6 +910,67 @@ export default function BriefPage() {
                 onChange={(e) => setSenaryoIpuclari(e.target.value)}
                 rows={3}
               />
+            </div>
+          </div>
+        </Card>
+
+        {/* ── TikTok Optimization ── */}
+        <Card>
+          <div style={{ padding: 20 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: "var(--text-primary)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+              TikTok Optimization
+            </h3>
+
+            {/* Series */}
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div>
+                <label className="label">Seri Adi (opsiyonel)</label>
+                <input
+                  className="input"
+                  value={seriesName}
+                  onChange={(e) => setSeriesName(e.target.value)}
+                  placeholder="ör: Molo'nun Günlüğü"
+                />
+              </div>
+              <div>
+                <label className="label">Bolum No</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  value={episodeNumber}
+                  onChange={(e) => setEpisodeNumber(parseInt(e.target.value) || 1)}
+                  disabled={!seriesName}
+                  style={{ opacity: seriesName ? 1 : 0.4 }}
+                />
+              </div>
+            </div>
+
+            {/* Trend Context */}
+            <div style={{ marginBottom: 16 }}>
+              <label className="label">Trend Baglami (opsiyonel)</label>
+              <textarea
+                className="input"
+                value={trendContext}
+                onChange={(e) => setTrendContext(e.target.value)}
+                placeholder="ör: 'Get ready with me' formati, 'POV' trendi, 'Day in the life' formati"
+                rows={2}
+                style={{ resize: "vertical", minHeight: 48 }}
+              />
+            </div>
+
+            {/* Hashtags */}
+            <div>
+              <label className="label">Hashtag&apos;ler</label>
+              <input
+                className="input"
+                value={hashtags}
+                onChange={(e) => setHashtags(e.target.value)}
+                placeholder="#MoloMobil #IstaDental #dental"
+              />
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                Pipeline senaryo uretirken daha fazla hashtag onerecek
+              </div>
             </div>
           </div>
         </Card>

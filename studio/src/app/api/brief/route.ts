@@ -7,7 +7,7 @@ const PROJECTS_DIR = join(process.cwd(), "..", "projects");
 
 export async function POST(req: NextRequest) {
   try {
-    const { konu, contentType, lang, tone, concept, maxScenes, gsSize } = await req.json();
+    const { konu, contentType, lang, tone, concept, maxScenes, gsSize, seriesName, episodeNumber, trendContext, hashtags } = await req.json();
 
     if (!konu) {
       return NextResponse.json({ error: "Konu gerekli" }, { status: 400 });
@@ -39,6 +39,9 @@ Dil: ${lang}
 ${contentType === "greenscreen" ? `Boyut: ${gsSize || "dikey"}\n` : ""}Ton: ${tone}
 Maksimum sahne: ${maxScenes || 4}
 ${concept ? `\nKonsept:\n${concept}` : ""}
+${seriesName ? `\n## Seri\nSeri: ${seriesName}\nBölüm: ${episodeNumber || 1}` : ""}
+${trendContext ? `\n## Trend\n${trendContext}` : ""}
+${hashtags?.length ? `\n## Hashtag\n${Array.isArray(hashtags) ? hashtags.join(" ") : hashtags}` : ""}
 `;
 
     await writeFile(join(projectDir, "brief.md"), brief, "utf-8");

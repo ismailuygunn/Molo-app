@@ -122,11 +122,17 @@ Yanıtını SADECE şu JSON formatında ver, başka hiçbir şey yazma:
     "title": "emoji + akılda kalıcı kısa başlık",
     "concept": "2-3 cümle yaratıcı ve SOMUT konsept açıklaması — ne olacak, neden ilginç",
     "hook": "Videonun ilk 3 saniyesinde söylenecek scroll-durdurucu cümle (Almanca ise Almanca yaz)",
+    "hook_alternatives": ["3 farklı scroll-stopper açılış cümlesi — soru, ifade, aksiyon"],
+    "hashtags": ["5-8 hashtag: 2 branded (#MoloMobil #IstaDental), 3-4 trending topic, 1-2 engagement (#guess #viral)"],
+    "caption": "TikTok'a yapıştırılmaya hazır caption metni (1-2 cümle + emoji)",
     "why": "Neden viral olabilir, hangi kitleye hitap eder, hangi duyguyu tetikler (detaylı, 1-2 cümle)",
     "category": "trending|educational|humor|campaign|storytelling|seasonal|interactive",
     "molo_attitude": "Molo'nun bu konudaki tavrı (2-3 kelime: şakacı, meraklı, şaşkın, bilgiç, heyecanlı, vs.)"
   }
-]`;
+]
+
+Her öneri için MUTLAKA hashtags, hook_alternatives ve caption alanlarını doldur.
+Hashtag'ler # ile başlamalı, Almanca/Türkçe karışık olabilir.`;
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,

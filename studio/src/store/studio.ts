@@ -39,6 +39,9 @@ export interface Scene {
   imageVariants: SceneImageVariant[];
   selectedImageId: string | null;
   frameRole: FrameRole;
+  // TikTok hook
+  hookText?: string;
+  hookAlternatives?: string[];
 }
 
 // ── Image Approval ──
@@ -64,6 +67,12 @@ export interface Project {
   pipelineStep: PipelineStep;
   pipelineProgress: number;
   thumbnailPath?: string;
+  // TikTok metadata
+  seriesName?: string;
+  episodeNumber?: number;
+  trendContext?: string;
+  hashtags?: string[];
+  caption?: string;
 }
 
 // ── Store ──

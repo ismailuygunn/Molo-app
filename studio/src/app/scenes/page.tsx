@@ -315,6 +315,14 @@ function ScenesContent() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // TikTok data
+  const [hookText, setHookText] = useState("");
+  const [hookAlternatives, setHookAlternatives] = useState<string[]>([]);
+  const [projectHashtags, setProjectHashtags] = useState<string[]>([]);
+  const [projectCaption, setProjectCaption] = useState("");
+  const [seriesInfo, setSeriesInfo] = useState<{ name: string; episode: number } | null>(null);
+  const [hookLoading, setHookLoading] = useState(false);
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Fetch status ──
@@ -345,6 +353,11 @@ function ScenesContent() {
       }
       if (data.lang) setLang(data.lang);
       if (data.qcScores) setQcScores(data.qcScores);
+      if (data.hookText) setHookText(data.hookText);
+      if (data.hookAlternatives) setHookAlternatives(data.hookAlternatives);
+      if (data.hashtags?.length) setProjectHashtags(data.hashtags);
+      if (data.caption) setProjectCaption(data.caption);
+      if (data.series) setSeriesInfo(data.series);
     } catch {
       // Silent
     }
@@ -574,7 +587,7 @@ function ScenesContent() {
               flex: 1,
             }}
           >
-            {project?.name ?? projectId}
+            {seriesInfo ? `${seriesInfo.name} — Bölüm ${seriesInfo.episode}` : (project?.name ?? projectId)}
           </h1>
           <Badge variant={badgeVariant} pulse={status.isRunning}>
             {stepLabel}
@@ -691,6 +704,72 @@ function ScenesContent() {
         </div>
       </header>
 
+      {/* ── Hook Panel ── */}
+      {hookText && (
+        <div style={{ marginBottom: 20 }}>
+        <Card hover={false}>
+          <div style={{ padding: 20 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+              Hook (Ilk 3 saniye)
+            </h3>
+            <div style={{
+              padding: "12px 16px", background: "rgba(20,184,166,0.06)",
+              borderRadius: "var(--radius-md)", border: "1px solid rgba(20,184,166,0.15)",
+              fontSize: 15, fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.5, marginBottom: 12,
+            }}>
+              &quot;{hookText}&quot;
+            </div>
+            {hookAlternatives.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>Alternatifler:</div>
+                {hookAlternatives.map((alt, i) => (
+                  <div key={i}
+                    onClick={() => setHookText(alt)}
+                    style={{
+                      padding: "8px 12px", marginBottom: 4, borderRadius: "var(--radius-sm)",
+                      background: "var(--bg-secondary)", cursor: "pointer", fontSize: 13,
+                      color: "var(--text-secondary)", transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(20,184,166,0.08)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-secondary)"; }}
+                  >
+                    {alt}
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={hookLoading}
+              onClick={async () => {
+                if (!projectId) return;
+                setHookLoading(true);
+                try {
+                  const sceneTexts = scenes.map((s: Scene) => s.text_de || "");
+                  const res = await fetch("/api/hook/optimize", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ projectId, currentHook: hookText, sceneTexts, lang }),
+                  });
+                  if (res.ok) {
+                    const data = await res.json();
+                    if (data.hooks?.length) {
+                      setHookAlternatives(data.hooks.map((h: { text: string }) => h.text));
+                      toast.success(`${data.hooks.length} yeni hook onerisi olusturuldu`);
+                    }
+                  }
+                } catch { /* silent */ }
+                finally { setHookLoading(false); }
+              }}
+            >
+              <RefreshCw size={14} /> {hookLoading ? "Olusturuluyor..." : "Yeni Hook Onerisi"}
+            </Button>
+          </div>
+        </Card>
+        </div>
+      )}
+
       {/* ── Scenes ── */}
       {scenes.length === 0 ? (
         <Card hover={false}>
@@ -723,6 +802,64 @@ function ScenesContent() {
               onEditSave={handleEditSave}
             />
           ))}
+        </div>
+      )}
+
+      {/* ── Hashtag & Caption Panel ── */}
+      {(projectHashtags.length > 0 || projectCaption) && (
+        <div style={{ marginTop: 20 }}>
+        <Card hover={false}>
+          <div style={{ padding: 20 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 12 }}>
+              Hashtag &amp; Caption
+            </h3>
+            {projectHashtags.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {projectHashtags.map((tag, i) => (
+                    <Badge key={i} variant="draft">{tag}</Badge>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(projectHashtags.join(" "));
+                    toast.success("Hashtag'ler kopyalandi");
+                  }}
+                  style={{
+                    marginTop: 8, fontSize: 11, color: "var(--accent-teal)",
+                    background: "none", border: "none", cursor: "pointer", padding: 0,
+                  }}
+                >
+                  Kopyala
+                </button>
+              </div>
+            )}
+            {projectCaption && (
+              <div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>Caption:</div>
+                <div style={{
+                  padding: "10px 14px", background: "var(--bg-secondary)",
+                  borderRadius: "var(--radius-md)", fontSize: 14, color: "var(--text-secondary)",
+                  lineHeight: 1.5,
+                }}>
+                  {projectCaption}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(projectCaption + "\n\n" + projectHashtags.join(" "));
+                    toast.success("Caption + hashtag kopyalandi");
+                  }}
+                  style={{
+                    marginTop: 6, fontSize: 11, color: "var(--accent-teal)",
+                    background: "none", border: "none", cursor: "pointer", padding: 0,
+                  }}
+                >
+                  Caption + Hashtag Kopyala
+                </button>
+              </div>
+            )}
+          </div>
+        </Card>
         </div>
       )}
     </div>
