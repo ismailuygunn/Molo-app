@@ -159,15 +159,7 @@ export default function BriefPage() {
   const [trendContext, setTrendContext] = useState("");
   const [hashtags, setHashtags] = useState("#MoloMobil #IstaDental");
 
-  // Trend fetching
-  const [trendLoading, setTrendLoading] = useState(false);
-  const [trendData, setTrendData] = useState<{
-    viral_trends?: { name: string; description: string; why_viral: string; adaptable: boolean }[];
-    formats?: { name: string; template: string; example: string }[];
-    hashtags?: { tag: string; context: string }[];
-    mascot_trends?: { brand: string; what_they_do: string; adaptation_idea: string }[];
-    _grounded?: boolean;
-  } | null>(null);
+  // Trend fetching removed — trends are now part of AI suggestions
 
   // New brief fields
   const [hedefKitle, setHedefKitle] = useState("");
@@ -958,37 +950,7 @@ export default function BriefPage() {
 
             {/* Trend Context */}
             <div style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                <label className="label" style={{ marginBottom: 0 }}>Trend Baglami</label>
-                <button
-                  onClick={async () => {
-                    setTrendLoading(true);
-                    try {
-                      const res = await fetch("/api/trends");
-                      if (res.ok) {
-                        const data = await res.json();
-                        setTrendData(data);
-                        toast.success(data._grounded ? "Guncel trendler getirildi (web arama)" : "Trendler getirildi (AI bilgisi)");
-                      } else {
-                        toast.error("Trendler alinamadi");
-                      }
-                    } catch {
-                      toast.error("Trend baglantisi basarisiz");
-                    } finally {
-                      setTrendLoading(false);
-                    }
-                  }}
-                  disabled={trendLoading}
-                  style={{
-                    fontSize: 11, padding: "4px 10px", borderRadius: 6,
-                    background: "rgba(20,184,166,0.1)", border: "1px solid rgba(20,184,166,0.2)",
-                    color: "var(--accent-teal)", cursor: trendLoading ? "wait" : "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  {trendLoading ? "Yukleniyor..." : "Guncel Trendleri Getir"}
-                </button>
-              </div>
+              <label className="label">Trend Baglami (opsiyonel)</label>
               <textarea
                 className="input"
                 value={trendContext}
@@ -997,108 +959,9 @@ export default function BriefPage() {
                 rows={2}
                 style={{ resize: "vertical", minHeight: 48 }}
               />
-
-              {/* Trend Results */}
-              {trendData && (
-                <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-                  {/* Viral Trends */}
-                  {trendData.viral_trends && trendData.viral_trends.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Viral Trendler</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {trendData.viral_trends.map((t, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setTrendContext((prev) => prev ? `${prev}\n${t.name}: ${t.description}` : `${t.name}: ${t.description}`)}
-                            title={t.why_viral}
-                            style={{
-                              fontSize: 12, padding: "4px 10px", borderRadius: 12,
-                              background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.2)",
-                              color: "var(--text-secondary)", cursor: "pointer",
-                            }}
-                          >
-                            {t.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Formats */}
-                  {trendData.formats && trendData.formats.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Populer Formatlar</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {trendData.formats.map((f, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setTrendContext((prev) => prev ? `${prev}\nFormat: ${f.name} — ${f.template}` : `Format: ${f.name} — ${f.template}`)}
-                            title={f.example}
-                            style={{
-                              fontSize: 12, padding: "4px 10px", borderRadius: 12,
-                              background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)",
-                              color: "var(--text-secondary)", cursor: "pointer",
-                            }}
-                          >
-                            {f.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Mascot Trends */}
-                  {trendData.mascot_trends && trendData.mascot_trends.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Maskot/Karakter Trendleri</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {trendData.mascot_trends.map((m, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setTrendContext((prev) => prev ? `${prev}\nMaskot trend: ${m.brand} — ${m.what_they_do}. Molo adaptasyonu: ${m.adaptation_idea}` : `Maskot trend: ${m.brand} — ${m.what_they_do}. Molo adaptasyonu: ${m.adaptation_idea}`)}
-                            title={m.adaptation_idea}
-                            style={{
-                              fontSize: 12, padding: "4px 10px", borderRadius: 12,
-                              background: "rgba(20,184,166,0.08)", border: "1px solid rgba(20,184,166,0.2)",
-                              color: "var(--text-secondary)", cursor: "pointer",
-                            }}
-                          >
-                            {m.brand}: {m.what_they_do.slice(0, 40)}...
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Trending Hashtags */}
-                  {trendData.hashtags && trendData.hashtags.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 6 }}>Trending Hashtag&apos;ler</div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {trendData.hashtags.map((h, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setHashtags((prev) => prev.includes(h.tag) ? prev : `${prev} ${h.tag}`)}
-                            title={h.context}
-                            style={{
-                              fontSize: 12, padding: "3px 8px", borderRadius: 10,
-                              background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)",
-                              color: "var(--text-secondary)", cursor: "pointer",
-                            }}
-                          >
-                            {h.tag}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: "italic" }}>
-                    {trendData._grounded ? "Web arama ile guncel veri" : "AI bilgisine dayali (guncel olmayabilir)"}
-                    {" — Tikla: trend baglami veya hashtag'lere ekle"}
-                  </div>
-                </div>
-              )}
+              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                AI icerik onerileri otomatik olarak guncel TikTok trendlerini dikkate alir
+              </div>
             </div>
 
             {/* Hashtags */}

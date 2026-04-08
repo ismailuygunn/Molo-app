@@ -105,8 +105,16 @@ TON: ${tone || "Eğlenceli"}
 ${catInfo}
 ${existingText}
 
+TIKTOK TREND ENTEGRASYONU (ÇOK ÖNEMLİ):
+- Önerilerini GÜNCEL TikTok trendlerine göre yap. Bu haftanın viral challenge'larını, popüler formatlarını düşün.
+- Duolingo baykuşu, Scrub Daddy gibi marka maskotlarının TikTok stratejilerini MOLO'ya uyarla.
+- Her öneri bir TikTok trendine veya formatına dayanmalı (POV, GRWM, storytime, "Day in the life", "Things that just make sense", skit, reaction, duet-worthy, vb.)
+- Global trendleri dental/sağlık bağlamına çevir — "trending sound + MOLO twist" mantığıyla düşün.
+- Mevsimsel ve güncel olayları (yaklaşan tatiller, viral anlar) önerilere yansıt.
+- En az 2 öneri doğrudan bir viral trende/challenge'a adaptasyon olsun.
+- Maskot/karakter trendlerini (Duolingo, Nutter Butter, Scrub Daddy gibi) MOLO'ya uyarla — en az 1 öneri bu kategoriden.
+
 YARATICILIK KURALLARI:
-- Güncel sosyal medya trendlerini ve viral formatları göz önünde bulundur (POV, storytime, "nobody:", "bunu biliyor muydun" vb.)
 - Molo komik yorumlar yapabilir, self-ironi yapabilir, hafif şakalar atabilir
 - Molo insanları "dışarıdan gözlemleyen sevimli robot" perspektifiyle yaklaşabilir
 - Her öneri BENZERSİZ olmalı — birbirine benzeyen fikirler YASAK
