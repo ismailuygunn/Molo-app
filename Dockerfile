@@ -46,10 +46,9 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN python3 -m pip install --break-system-packages --no-cache-dir -r requirements.txt
 
-# Copy built Next.js app
-COPY --from=builder /app/studio/.next ./studio/.next
-COPY --from=builder /app/studio/node_modules ./studio/node_modules
-COPY --from=builder /app/studio/package.json ./studio/package.json
+# Copy built Next.js standalone app
+COPY --from=builder /app/studio/.next/standalone ./studio/
+COPY --from=builder /app/studio/.next/static ./studio/.next/static
 COPY --from=builder /app/studio/public ./studio/public
 
 # Copy scripts, config & reference data
@@ -59,15 +58,16 @@ COPY _reference/ ./_reference/
 
 
 # Create data directories
-RUN mkdir -p projects _voices _images-generated _videos-raw _bgm
+RUN mkdir -p projects _voices
 
 # Set env
 ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max_old_space_size=512"
 ENV PYTHONUNBUFFERED=1
 ENV PORT=3000
 
 EXPOSE 3000
 
-# Set working directory to studio and start directly (proven working pattern)
+# Start Next.js standalone server
 WORKDIR /app/studio
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
