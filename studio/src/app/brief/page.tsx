@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -200,6 +200,9 @@ export default function BriefPage() {
     {}
   );
 
+  // Auto-apply ref: sadece trend seçiminden tetiklenen fetch'lerde ilk öneri otomatik uygulanır
+  const autoApplyRef = useRef(false);
+
   // Preview state
   const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -256,8 +259,15 @@ export default function BriefPage() {
         setSuggestError(data.error || "Oneriler alinamadi");
         return;
       }
-      setSuggestions(data.suggestions || []);
+      const newSuggestions = data.suggestions || [];
+      setSuggestions(newSuggestions);
       if (data.categories) setCategories(data.categories);
+
+      // Trend seçiminden tetiklendiyse ilk öneriyi otomatik uygula
+      if (autoApplyRef.current && newSuggestions.length > 0) {
+        applySuggestion(newSuggestions[0]);
+        autoApplyRef.current = false;
+      }
     } catch {
       setSuggestError("Baglanti hatasi");
     } finally {
@@ -283,27 +293,62 @@ export default function BriefPage() {
     }
   };
 
-  // Auto-fill trendContext from selectedTrends
+  // Trend seçilince: trendContext doldur + otomatik önerileri getir
   useEffect(() => {
     if (selectedTrends.length > 0) {
       setTrendContext(selectedTrends.map(t => `${t.name}: ${t.description}`).join("\n"));
+      autoApplyRef.current = true;
+      const timer = setTimeout(() => {
+        fetchSuggestions();
+      }, 500);
+      return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTrends]);
 
   const applySuggestion = (s: Suggestion) => {
+    // Konu (emoji temizle)
     const cleanTitle = s.title
       .replace(/^[\p{Emoji}\p{Emoji_Presentation}\p{Emoji_Modifier_Base}\s]+/u, "")
       .trim();
     setKonu(cleanTitle || s.title);
-    const fullConcept = s.hook
-      ? `${s.concept}\n\nHook: "${s.hook}"`
-      : s.concept;
-    setConcept(fullConcept);
+
+    // Concept + Hook + Hook alternatifleri
+    const conceptParts: string[] = [s.concept];
+    if (s.hook) conceptParts.push(`\nHook: "${s.hook}"`);
+    if (s.hook_alternatives?.length) {
+      conceptParts.push(`\nAlternatif Hook'lar:\n${s.hook_alternatives.map((h, i) => `${i + 1}. "${h}"`).join("\n")}`);
+    }
+    setConcept(conceptParts.join("\n"));
+
+    // Hashtags: suggestion + trend hashtags birleştir
     if (s.hashtags?.length) {
       const trendHashtags = selectedTrends.flatMap(t => t.hashtags || []);
       const allHashtags = [...new Set([...s.hashtags, ...trendHashtags])];
       setHashtags(allHashtags.join(" "));
     }
+
+    // Caption → senaryoIpuclari
+    if (s.caption) {
+      setSenaryoIpuclari(s.caption);
+    }
+
+    // Trend reference → trendContext'e ekle
+    if (s.trend_reference) {
+      const ref = s.trend_reference;
+      setTrendContext(prev => prev ? `${prev}\n\nUyarlanan trend: ${ref}` : ref);
+    }
+
+    // Molo attitude → anaMesaj
+    if (s.molo_attitude) {
+      setAnaMesaj(`Molo tavri: ${s.molo_attitude}`);
+    }
+
+    // Why → hedefKitle (viral neden + hedef kitle bilgisi)
+    if (s.why) {
+      setHedefKitle(s.why);
+    }
+
     toast.success("Oneri uygulandi!");
   };
 
