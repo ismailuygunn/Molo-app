@@ -274,7 +274,7 @@ export default function BriefPage() {
       if (data.trends?.length) {
         setTrends(data.trends);
       } else if (data.error) {
-        setTrendsError(data.configured === false ? "Perplexity API key gerekli (Ayarlar sayfasından ekleyin)" : data.error);
+        setTrendsError(data.configured === false ? "Google API key gerekli (Ayarlar sayfasından ekleyin)" : data.error);
       }
     } catch {
       setTrendsError("Trend verisi alınamadı");

@@ -12,7 +12,6 @@ const ENV_PATH = resolve(process.cwd(), "..", ".env");
 const KEYS = [
   { id: "google", env: "GOOGLE_API_KEY", label: "Google API Key (Gemini)" },
   { id: "elevenlabs", env: "ELEVENLABS_API_KEY", label: "ElevenLabs API Key (Ses)" },
-  { id: "perplexity", env: "PERPLEXITY_API_KEY", label: "Perplexity API Key (Trendler)" },
 ];
 
 export async function GET() {

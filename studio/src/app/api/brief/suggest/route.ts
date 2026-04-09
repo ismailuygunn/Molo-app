@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
       ).join("\n");
       trendBlock = `
 
-KULLANICININ SEÇTİĞİ GÜNCEL TRENDLER (Perplexity ile gerçek zamanlı çekildi):
+KULLANICININ SEÇTİĞİ GÜNCEL TRENDLER (Gemini ile gerçek zamanlı çekildi):
 ${trendList}
 
 TÜM önerilerin bu seçilen trendlere dayanması ZORUNLU.
