@@ -23,39 +23,21 @@ export async function GET() {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
   });
 
-  const trendPrompt = `What are the top 10 viral trends on TikTok, Instagram Reels, and YouTube Shorts RIGHT NOW (this week, ${today})?
+  const trendPrompt = `Top 10 viral trends on TikTok, Instagram Reels, YouTube Shorts RIGHT NOW (${today}).
 
-For each trend provide:
-1. Trend name (specific, not generic)
-2. Which platforms it's trending on
-3. What it is (1-2 sentences, be specific about the format/challenge)
-4. How a cute blue robot brand mascot character (like Duolingo owl) could adapt this trend
-5. Whether it's rising, at peak, or declining
-6. Related hashtags
-7. Format type (challenge, skit, pov, grwm, reaction, storytime, duet, sound, meme, dance)
+For each trend provide (keep each field SHORT — 1 sentence max):
+- name: specific trend name
+- platforms: which platforms ["tiktok","reels","shorts"]
+- description: 1 sentence about the format/challenge
+- mascot_adaptation: 1 sentence — how a cute blue robot brand mascot (like Duolingo owl) could adapt it
+- virality: "rising" | "peak" | "declining"
+- hashtags: 2-4 related hashtags
+- format_type: challenge|skit|pov|grwm|reaction|storytime|duet|sound|meme|dance
 
-Include a MIX of:
-- Viral challenges and dances
-- Popular video formats (POV, GRWM, storytime, "nobody:", greenscreen)
-- Trending sounds/audios currently being used
-- Brand mascot content strategies (what Duolingo owl, Scrub Daddy, Nutter Butter, RyanAir are doing)
-- Meme formats and templates
-- Any health/dental related viral content
+MIX of: viral challenges, popular formats (POV, GRWM, storytime, greenscreen), trending sounds, brand mascot strategies (Duolingo, Scrub Daddy, RyanAir), meme templates.
 
-Return ONLY a valid JSON object with this exact structure:
-{
-  "trends": [
-    {
-      "name": "specific trend name",
-      "platforms": ["tiktok", "reels", "shorts"],
-      "description": "What this trend is and how it works",
-      "mascot_adaptation": "How a brand mascot robot character could do this",
-      "virality": "rising",
-      "hashtags": ["#hashtag1", "#hashtag2"],
-      "format_type": "challenge"
-    }
-  ]
-}`;
+Return ONLY valid JSON — no markdown, no prose:
+{"trends":[{"name":"x","platforms":["tiktok"],"description":"x","mascot_adaptation":"x","virality":"rising","hashtags":["#x"],"format_type":"challenge"}]}`;
 
   // ── Primary: Gemini + Google Search grounding (real-time web search) ──
   try {
@@ -66,19 +48,23 @@ Return ONLY a valid JSON object with this exact structure:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           systemInstruction: {
-            parts: [{ text: "You are a social media trend analyst. Always return valid JSON. Be specific about trend names — not generic descriptions." }],
+            parts: [{ text: "You are a social media trend analyst. Always return valid JSON. Be specific about trend names — not generic descriptions. Keep descriptions concise (max 1 sentence each)." }],
           },
           contents: [{ parts: [{ text: trendPrompt }] }],
           tools: [{ googleSearch: {} }],
-          generationConfig: { temperature: 0.3, maxOutputTokens: 4000 },
+          generationConfig: { temperature: 0.3, maxOutputTokens: 16000 },
         }),
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(45000),
       }
     );
 
     if (res.ok) {
       const data = await res.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      // Grounded responses can have multiple parts — concatenate all text parts
+      const parts = data.candidates?.[0]?.content?.parts || [];
+      const text = parts
+        .map((p: { text?: string }) => p.text || "")
+        .join("");
       const parsed = parseJson(text);
       if (parsed?.trends?.length) {
         return NextResponse.json({
@@ -88,9 +74,12 @@ Return ONLY a valid JSON object with this exact structure:
           configured: true,
         });
       }
+      console.error("Grounded parse failed. finishReason:", data.candidates?.[0]?.finishReason, "text length:", text.length);
+    } else {
+      console.error("Grounded search HTTP error:", res.status, await res.text().catch(() => ""));
     }
-  } catch {
-    // Grounded search failed, try fallback
+  } catch (err) {
+    console.error("Grounded search exception:", err);
   }
 
   // ── Fallback: Gemini without grounding (training data) ──
@@ -102,15 +91,18 @@ Return ONLY a valid JSON object with this exact structure:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: trendPrompt }] }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 4000 },
+          generationConfig: { temperature: 0.7, maxOutputTokens: 16000 },
         }),
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(30000),
       }
     );
 
     if (res.ok) {
       const data = await res.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const parts = data.candidates?.[0]?.content?.parts || [];
+      const text = parts
+        .map((p: { text?: string }) => p.text || "")
+        .join("");
       const parsed = parseJson(text);
       if (parsed?.trends?.length) {
         return NextResponse.json({
@@ -121,9 +113,12 @@ Return ONLY a valid JSON object with this exact structure:
           _note: "Gemini bilgisine dayalı, gerçek zamanlı olmayabilir",
         });
       }
+      console.error("Fallback parse failed. finishReason:", data.candidates?.[0]?.finishReason, "text length:", text.length);
+    } else {
+      console.error("Fallback HTTP error:", res.status, await res.text().catch(() => ""));
     }
-  } catch {
-    // Both failed
+  } catch (err) {
+    console.error("Fallback exception:", err);
   }
 
   return NextResponse.json({
